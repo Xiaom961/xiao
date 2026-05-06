@@ -680,17 +680,8 @@ onMounted(() => {
         @attach="fileInput?.click()"
         @screenshot="handleScreenshotClick"
         @view-journal="navigateToImageJournal"
-      >
-        <template #extra-actions>
-          <button
-            class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
-            @click="backgroundDialogOpen = true"
-          >
-            <div class="i-solar:gallery-wide-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-            Background Picker
-          </button>
-        </template>
-      </ChatImagesPopover>
+        @background-picker="backgroundDialogOpen = true"
+      />
 
       <!-- Clear Messages (Safety Hook) -->
       <button

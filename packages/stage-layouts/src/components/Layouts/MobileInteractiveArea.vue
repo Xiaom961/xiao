@@ -2,13 +2,14 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
-import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { ChatHistory, ChatImagesPopover, ChatMemoryPopover, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -17,7 +18,8 @@ import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
@@ -31,6 +33,7 @@ const hearingDialogOpen = ref(false)
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
+const airiCardStore = useAiriCardStore()
 const { cleanupMessages } = useChatMaintenanceStore()
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
@@ -42,11 +45,25 @@ const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInpu
 
 const messageInput = ref('')
 const isComposing = ref(false)
+const isImagineMode = ref(false)
 const backgroundDialogOpen = ref(false)
+const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
 
+const router = useRouter()
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
+
+function navigateToImageJournal() {
+  const { activeCardId } = storeToRefs(airiCardStore)
+  if (!activeCardId.value)
+    return
+  router.push(`/settings/airi-card?cardId=${activeCardId.value}&tab=gallery`)
+}
+
+function handleScreenshotClick() {
+  toast.info('Vision capture is optimized for desktop. Please use the attach button for screenshots.')
+}
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
@@ -159,8 +176,7 @@ onMounted(() => {
         <ViewControlInputs ref="viewControlsInputs" :mode="viewControlsActiveMode" />
       </div>
       <div class="absolute right-0 w-full px-3 pb-3 font-sans -translate-y-full">
-        <div class="w-full flex flex-col gap-1">
-          <ActionAbout />
+        <div class="w-full flex flex-col items-end gap-1">
           <HearingConfigDialog
             v-model:show="hearingDialogOpen"
             v-model:enabled="enabled"
@@ -170,7 +186,7 @@ onMounted(() => {
             :granted="true"
           >
             <button
-              class="w-fit flex items-center self-end justify-center border-2 border-neutral-100/60 rounded-xl border-solid bg-neutral-50/70 p-2 backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-800/70"
+              class="w-fit flex items-center justify-center border-2 border-neutral-100/60 rounded-xl border-solid bg-neutral-50/70 p-2 backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-800/70"
               title="Hearing"
             >
               <Transition name="fade" mode="out-in">
@@ -179,35 +195,34 @@ onMounted(() => {
               </Transition>
             </button>
           </HearingConfigDialog>
-          <button class="w-fit flex items-center self-end justify-center border-2 border-neutral-100/60 rounded-xl border-solid bg-neutral-50/70 p-2 backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-800/70" title="Theme" @click="toggleDark()">
-            <Transition name="fade" mode="out-in">
-              <div v-if="isDark" class="i-solar:moon-outline size-5 text-neutral-500 dark:text-neutral-400" />
-              <div v-else class="i-solar:sun-2-outline size-5 text-neutral-500 dark:text-neutral-400" />
-            </Transition>
-          </button>
-          <button class="w-fit flex items-center self-end justify-center border-2 border-neutral-100/60 rounded-xl border-solid bg-neutral-50/70 p-2 backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-800/70" title="Background" @click="backgroundDialogOpen = true">
-            <div class="i-solar:gallery-wide-bold-duotone size-5 text-neutral-500 dark:text-neutral-400" />
-          </button>
-          <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Language">
-            <div i-solar:earth-outline size-5 text="neutral-500 dark:neutral-400" />
-          </button> -->
-          <RouterLink to="/settings" class="w-fit flex items-center self-end justify-center border-2 border-neutral-100/60 rounded-xl border-solid bg-neutral-50/70 p-2 backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-800/70" title="Settings">
-            <div class="i-solar:settings-outline size-5 text-neutral-500 dark:text-neutral-400" />
-          </RouterLink>
-          <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Model">
-            <div i-solar:face-scan-circle-outline size-5 text="neutral-500 dark:neutral-400" />
-          </button> -->
+
+          <ChatMemoryPopover
+            show-cache-status
+            variant="mobile"
+            title="Memory"
+          />
+
+          <ChatImagesPopover
+            :imagine-mode="isImagineMode"
+            @toggle-imagine="isImagineMode = !isImagineMode"
+            @attach="fileInput?.click()"
+            @screenshot="handleScreenshotClick"
+            @view-journal="navigateToImageJournal"
+            @background-picker="backgroundDialogOpen = true"
+          />
+
           <ActionViewControls v-model="viewControlsActiveMode" @reset="() => viewControlsInputsRef?.resetOnMode()" />
           <button
-            class="w-fit flex items-center self-end justify-center border-2 border-neutral-100/60 rounded-xl border-solid bg-neutral-50/70 p-2 backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-800/70"
+            class="w-fit flex items-center justify-center border-2 border-neutral-100/60 rounded-xl border-solid bg-neutral-50/70 p-2 backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-800/70"
             title="Cleanup Messages"
             @click="cleanupMessages()"
           >
-            <div class="i-solar:trash-bin-2-bold-duotone" />
+            <div class="i-solar:trash-bin-2-bold-duotone size-5" />
           </button>
         </div>
       </div>
       <div class="max-h-100dvh max-w-100dvw w-full flex gap-1 overflow-auto bg-white px-3 pt-2 dark:bg-neutral-800" :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px` }">
+        <input ref="fileInput" type="file" class="hidden" accept="image/*">
         <BasicTextarea
           v-model="messageInput"
           :placeholder="t('stage.message')"

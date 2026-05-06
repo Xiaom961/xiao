@@ -1,23 +1,42 @@
 <script setup lang="ts">
+import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { AboutContent, AboutDialog } from '@proj-airi/stage-ui/components'
+import { useBuildInfo } from '@proj-airi/stage-ui/composables'
 import { listSessions, signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useTheme } from '@proj-airi/ui'
 import { onClickOutside, useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
 const { isDark, toggleDark } = useTheme()
+const { t } = useI18n()
 
 const isMobile = useMediaQuery('(max-width: 768px)')
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 const showDropdown = ref(false)
+const showAbout = ref(false)
 const dropdownRef = ref(null)
+
+const buildInfo = useBuildInfo()
+const aboutLinks = [
+  { label: 'Home', href: 'https://airi.moeru.ai/docs/', icon: 'i-solar:home-smile-outline' },
+  { label: 'Documentations', href: 'https://airi.moeru.ai/docs/en/docs/overview/', icon: 'i-solar:document-add-outline' },
+  { label: 'GitHub', href: 'https://github.com/moeru-ai/airi', icon: 'i-simple-icons:github' },
+]
+
+const edition = isStageTamagotchi()
+  ? t('base.edition.desktop')
+  : isStageCapacitor()
+    ? t('base.edition.mobile')
+    : t('base.edition.web')
 
 onClickOutside(dropdownRef, () => {
   showDropdown.value = false
@@ -42,6 +61,22 @@ async function handleListSessions() {
 
 <template>
   <div flex items-center gap-2>
+    <!-- Info / About -->
+    <button
+      border="2 solid neutral-100/60 dark:neutral-800/30"
+      bg="neutral-50/70 dark:neutral-800/70"
+      w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
+      text="lg neutral-500 dark:neutral-400"
+      transition-colors transition-transform active:scale-95
+      title="About"
+      @click="showAbout = true"
+    >
+      <div i-solar:info-circle-bold-duotone size-5 />
+    </button>
+    <AboutDialog v-model="showAbout">
+      <AboutContent :subtitle="edition" :build-info="buildInfo" :links="aboutLinks" />
+    </AboutDialog>
+
     <!-- Theme Toggle -->
     <button
       border="2 solid neutral-100/60 dark:neutral-800/30"

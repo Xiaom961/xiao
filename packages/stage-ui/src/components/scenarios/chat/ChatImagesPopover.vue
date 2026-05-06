@@ -12,6 +12,7 @@ const emit = defineEmits<{
   (e: 'screenshot'): void
   (e: 'view-journal'): void
   (e: 'toggle-imagine'): void
+  (e: 'background-picker'): void
 }>()
 </script>
 
@@ -82,7 +83,7 @@ const emit = defineEmits<{
 
         <!-- Image Journal -->
         <button
-          class="w-full flex items-center justify-between rounded-xl p-2 text-left transition-all hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          class="mb-1 w-full flex items-center justify-between rounded-xl p-2 text-left transition-all hover:bg-neutral-100 dark:hover:bg-neutral-800"
           @click="emit('view-journal')"
         >
           <div class="flex items-center gap-2">
@@ -90,6 +91,21 @@ const emit = defineEmits<{
             <div class="flex flex-col">
               <span class="text-xs text-neutral-600 font-medium dark:text-neutral-300">View Image Journal</span>
               <span class="mt-0.5 text-[10px] text-neutral-400/70">Gallery to see AI generated images history.</span>
+            </div>
+          </div>
+          <div class="i-solar:alt-arrow-right-linear text-xs text-neutral-400" />
+        </button>
+
+        <!-- Change Background -->
+        <button
+          class="w-full flex items-center justify-between rounded-xl p-2 text-left transition-all hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          @click="emit('background-picker')"
+        >
+          <div class="flex items-center gap-2">
+            <div class="i-solar:gallery-wide-bold-duotone text-neutral-400" />
+            <div class="flex flex-col">
+              <span class="text-xs text-neutral-600 font-medium dark:text-neutral-300">Change Background</span>
+              <span class="mt-0.5 text-[10px] text-neutral-400/70">Pick a new background image.</span>
             </div>
           </div>
           <div class="i-solar:alt-arrow-right-linear text-xs text-neutral-400" />

@@ -23,19 +23,46 @@ const connectionStatus = ref<'idle' | 'testing' | 'connected' | 'failed'>('idle'
 const connectionInfo = ref('')
 const isCorsError = ref(false)
 
+const healthCheck = (window as any).electron ? useElectronEventaInvoke(artistryComfyHealthCheck) : null
+
 async function testConnection() {
   connectionStatus.value = 'testing'
   connectionInfo.value = ''
   isCorsError.value = false
   try {
     const url = comfyuiServerUrl.value.replace(/\/+$/, '')
-    const healthCheck = useElectronEventaInvoke(artistryComfyHealthCheck)
-    const { gpus, vramStr } = await healthCheck({ url })
+
+    let result: { gpus: string, vramStr: string }
+
+    if (healthCheck) {
+      result = await healthCheck({ url })
+    }
+    else {
+      // Browser fallback: direct fetch to /system_stats
+      const response = await fetch(`${url}/system_stats`, {
+        method: 'GET',
+        mode: 'cors',
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      const devices = data.devices || []
+      const gpuNames = devices.map((d: any) => d.name).join(', ') || 'Unknown GPU'
+      const vramTotal = devices.reduce((acc: number, d: any) => acc + (d.vram_total || 0), 0)
+      const vramStr = vramTotal ? `${(vramTotal / (1024 ** 3)).toFixed(1)}GB` : ''
+
+      result = { gpus: gpuNames, vramStr }
+    }
+
+    const { gpus, vramStr } = result
     connectionInfo.value = `Connected — ${gpus}${vramStr ? ` (${vramStr} VRAM)` : ''}`
     connectionStatus.value = 'connected'
   }
   catch (e: any) {
-    if (e.message.includes('fetch') || e.message.includes('CORS') || e.message.includes('Forbidden')) {
+    if (e.message.toLowerCase().includes('fetch') || e.message.includes('CORS') || e.message.includes('Forbidden')) {
       isCorsError.value = true
     }
     connectionInfo.value = `Failed: ${e.message}`
