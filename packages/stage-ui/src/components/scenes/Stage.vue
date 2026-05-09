@@ -14,6 +14,7 @@ import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
+import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene, useCustomVrmAnimationsStore, useModelStore } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
@@ -1060,6 +1061,14 @@ defineExpose({
         @binary-loaded="vhackStore.setSourceArrayBuffer"
         @finished="handleAnimationFinished"
         @play-status="handleAnimationPlayStatus"
+      />
+      <SpineScene
+        v-if="stageModelRenderer === 'spine'"
+        v-model:state="componentState"
+        :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
+        :class="['min-w-50% <lg:full min-h-100 sm:100', 'h-full w-full flex-1']"
+        :paused="paused"
       />
     </div>
   </div>

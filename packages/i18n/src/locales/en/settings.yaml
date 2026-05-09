@@ -1415,3 +1415,16 @@ providers:
       description: Transcription running in the browser via Web Speech API or local engine.
       device_id: Device ID
       device_id_placeholder: Auto
+spine:
+  animation:
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration
+    speed: Speed
+  variant:
+    current-variant: Current Variant
+  skin:
+    current-skin: Current Skin
+  scale-and-position:
+    scale: Scale
+    x: Position X
+    y: Position Y

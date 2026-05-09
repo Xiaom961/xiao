@@ -10,6 +10,7 @@ import { computed, ref } from 'vue'
 
 import LHackerPanel from './live2d-lhack/LHackerPanel.vue'
 import Live2D from './live2d.vue'
+import Spine from './spine.vue'
 import HackerPanel from './vrm-vhack/HackerPanel.vue'
 import VRM from './vrm.vue'
 
@@ -153,6 +154,11 @@ async function handleApplyToActiveCharacter() {
     <VRM
       v-if="stageModelRenderer === 'vrm'"
       ref="vrmRef"
+      :palette="palette"
+      @extract-colors-from-model="$emit('extractColorsFromModel')"
+    />
+    <Spine
+      v-if="stageModelRenderer === 'spine'"
       :palette="palette"
       @extract-colors-from-model="$emit('extractColorsFromModel')"
     />

@@ -1,6 +1,7 @@
 import localforage from 'localforage'
 
 import { loadLive2DModelPreview as generateLive2DPreview } from '@proj-airi/stage-ui-live2d/utils/live2d-preview'
+import { loadSpineModelPreview as generateSpinePreview } from '@proj-airi/stage-ui-spine/utils/spine-preview'
 import { loadVrmModelPreview as generateVrmPreview } from '@proj-airi/stage-ui-three/utils/vrm-preview'
 import { until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -14,6 +15,7 @@ export enum DisplayModelFormat {
   Live2dZip = 'live2d-zip',
   Live2dDirectory = 'live2d-directory',
   VRM = 'vrm',
+  SpineZip = 'spine-zip',
   PMXZip = 'pmx-zip',
   PMXDirectory = 'pmx-directory',
   PMD = 'pmd',
@@ -120,6 +122,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
     else if (format === DisplayModelFormat.VRM) {
       const previewImage = await loadVrmModelPreview(file)
+      newDisplayModel.previewImage = previewImage
+    }
+    else if (format === DisplayModelFormat.SpineZip) {
+      const previewImage = await generateSpinePreview(file)
       newDisplayModel.previewImage = previewImage
     }
 

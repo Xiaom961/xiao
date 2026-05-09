@@ -14,10 +14,6 @@ import { useSettings } from '../../../../../stores/settings'
 
 const lhackStore = useLHackStore()
 
-onMounted(() => {
-  console.info('>>> [LHACK] Panel Mounted')
-})
-
 const live2dStore = useLive2d()
 const artistryStore = useArtistryStore()
 const settingsStore = useSettings()

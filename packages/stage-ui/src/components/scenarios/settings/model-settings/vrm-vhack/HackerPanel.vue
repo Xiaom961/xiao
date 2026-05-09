@@ -977,7 +977,6 @@ function revert() {
 
 watch(activeVrm, () => { if (activeVrm.value) { extractTextures(); takeGlobalSnapshot() } }, { immediate: true })
 onMounted(() => {
-  console.log('>>> [VHACK] NUCLEAR SYNC ACTIVE v35.6')
   if (activeVrm.value)
     takeGlobalSnapshot()
 })

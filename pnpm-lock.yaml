@@ -401,7 +401,7 @@ importers:
         version: 1.0.2
       tsdown:
         specifier: 'catalog:'
-        version: 0.20.3(@arethetypeswrong/core@0.18.2)(oxc-resolver@11.16.2)(publint@0.3.17)(synckit@0.11.12)(typescript@5.9.3)(unplugin-lightningcss@0.4.5)(unplugin-unused@0.5.7)(vue-tsc@3.2.5(typescript@5.9.3))
+        version: 0.20.3(@arethetypeswrong/core@0.18.2)(oxc-resolver@11.16.2)(publint@0.3.17)(synckit@0.11.12)(typescript@5.9.3)(unplugin-lightningcss@0.4.5)(unplugin-unused@0.5.7)(vue-tsc@3.2.8(typescript@5.9.3))
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -1203,9 +1203,6 @@ importers:
       popmotion:
         specifier: ^11.0.5
         version: 11.0.5
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       rehype-stringify:
         specifier: ^10.0.1
         version: 10.0.1
@@ -1609,9 +1606,6 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       rehype-stringify:
         specifier: 'catalog:'
         version: 10.0.1
@@ -2617,6 +2611,9 @@ importers:
       '@proj-airi/stage-ui-live2d':
         specifier: workspace:^
         version: link:../stage-ui-live2d
+      '@proj-airi/stage-ui-spine':
+        specifier: workspace:^
+        version: link:../stage-ui-spine
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../stage-ui-three
@@ -3021,6 +3018,52 @@ importers:
       vue-tsc:
         specifier: ^3.2.5
         version: 3.2.5(typescript@5.9.3)
+
+  packages/stage-ui-spine:
+    dependencies:
+      '@esotericsoftware/spine-webgl':
+        specifier: ^4.2.0
+        version: 4.2.114
+      '@esotericsoftware/spine-webgl-4-0':
+        specifier: npm:@esotericsoftware/spine-webgl@~4.0.31
+        version: '@esotericsoftware/spine-webgl@4.0.31'
+      '@esotericsoftware/spine-webgl-4-1':
+        specifier: npm:@esotericsoftware/spine-webgl@~4.1.56
+        version: '@esotericsoftware/spine-webgl@4.1.56'
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../stage-shared
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@vueuse/core':
+        specifier: ^14.2.1
+        version: 14.2.1(vue@3.5.29(typescript@5.9.3))
+      '@xsai/tool':
+        specifier: 'catalog:'
+        version: 0.4.3(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
+      pinia:
+        specifier: ^3.0.4
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.29(typescript@5.9.3)
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+    devDependencies:
+      vue-tsc:
+        specifier: ^3.2.6
+        version: 3.2.8(typescript@5.9.3)
 
   packages/stage-ui-three:
     dependencies:
@@ -5607,6 +5650,24 @@ packages:
   '@eslint/plugin-kit@0.6.0':
     resolution: {integrity: sha512-bIZEUzOI1jkhviX2cp5vNyXQc6olzb2ohewQubuYlMXZ2Q/XjBO0x0XhGPvc9fjSIiUN0vw+0hq53BJ4eQSJKQ==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
+
+  '@esotericsoftware/spine-core@4.0.31':
+    resolution: {integrity: sha512-SiP87Xudw8qfg6t1Gv4NVoqP+Tw0eaCj1ApS+GXLdCvb/i5FNQevqEt4RgEvD8j1vJy+WVriPLMJYQSdaSehgA==}
+
+  '@esotericsoftware/spine-core@4.1.56':
+    resolution: {integrity: sha512-sJbqIof+yE7LbkImbJt2cHfYcGBqadABttx8RY3ggu4JCa0sZLGdh+tWwe0+aRoN/91VI0rGSgG16fmkZ7Hc8Q==}
+
+  '@esotericsoftware/spine-core@4.2.114':
+    resolution: {integrity: sha512-YB5DFjRXbvS6pusY1XNPFurgp8mGsS9ii7lqpIzi3LgNQt8H6+br8l/zqOzHjeY38aAXQfaDdvUNOES2KHrOPg==}
+
+  '@esotericsoftware/spine-webgl@4.0.31':
+    resolution: {integrity: sha512-G6j31+caQJck/4UN8TVaTKnU0RPysI7ECMkCxcXBGsTmv98m0O5Wx18YgeIf//Bg8KAO+mZ/DmwzeScwGG9HPA==}
+
+  '@esotericsoftware/spine-webgl@4.1.56':
+    resolution: {integrity: sha512-LNr/X4B81/rC96mzFV+L5LPnqaIj1v3RBCKTagmFlAd/2MtXcxwEatIQVPq487NigFwlrkvmxQuMpl1TRf3xxw==}
+
+  '@esotericsoftware/spine-webgl@4.2.114':
+    resolution: {integrity: sha512-cD3twxmPNnuYCCk5vVFELOHdY4rkd8j7OtfYqB9pkEoi32V00fUh8qQFF5gC0lgefMTdid0dL8FPIkW/swmcLg==}
 
   '@exodus/bytes@1.8.0':
     resolution: {integrity: sha512-8JPn18Bcp8Uo1T82gR8lh2guEOa5KKU/IEKvvdp0sgmi7coPBWf1Doi1EXsGZb2ehc8ym/StJCjffYV+ne7sXQ==}
@@ -9562,6 +9623,9 @@ packages:
 
   '@vue/language-core@3.2.5':
     resolution: {integrity: sha512-d3OIxN/+KRedeM5wQ6H6NIpwS3P5gC9nmyaHgBk+rO6dIsjY+tOh4UlPpiZbAh3YtLdCGEX4M16RmsBqPmJV+g==}
+
+  '@vue/language-core@3.2.8':
+    resolution: {integrity: sha512-9OiSPQFiAAWNVnXb0d2dcTmcKnFQamhuNES6ayyISrb/mwPWVgoGdAqSfCWqKhQpa3D5gDTcYD+w7ObiheZ81g==}
 
   '@vue/reactivity@3.5.29':
     resolution: {integrity: sha512-zcrANcrRdcLtmGZETBxWqIkoQei8HaFpZWx/GHKxx79JZsiZ8j1du0VUJtu4eJjgFvU/iKL5lRXFXksVmI+5DA==}
@@ -14499,6 +14563,10 @@ packages:
     resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
     engines: {node: '>=12'}
 
+  picomatch@4.0.4:
+    resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
+    engines: {node: '>=12'}
+
   pify@2.3.0:
     resolution: {integrity: sha512-udgsAY+fTnvv7kI7aaxbqwWNb0AHiB0qBO89PZKPkoTmGOgdbrHDKD+0B2X4uTfJ/FT1R09r9gTsjUjNJotuog==}
     engines: {node: '>=0.10.0'}
@@ -16826,6 +16894,12 @@ packages:
 
   vue-tsc@3.2.5:
     resolution: {integrity: sha512-/htfTCMluQ+P2FISGAooul8kO4JMheOTCbCy4M6dYnYYjqLe3BExZudAua6MSIKSFYQtFOYAll7XobYwcpokGA==}
+    hasBin: true
+    peerDependencies:
+      typescript: '>=5.0.0'
+
+  vue-tsc@3.2.8:
+    resolution: {integrity: sha512-27vTLJ6Q2370obOd0PFYoYoKnmXJ521uUIedrs3Zhhhg/8YG10VOCMmwt+JQslatpAMTDbnWiitLnoD5VlIvog==}
     hasBin: true
     peerDependencies:
       typescript: '>=5.0.0'
@@ -19432,6 +19506,24 @@ snapshots:
     dependencies:
       '@eslint/core': 1.1.0
       levn: 0.4.1
+
+  '@esotericsoftware/spine-core@4.0.31': {}
+
+  '@esotericsoftware/spine-core@4.1.56': {}
+
+  '@esotericsoftware/spine-core@4.2.114': {}
+
+  '@esotericsoftware/spine-webgl@4.0.31':
+    dependencies:
+      '@esotericsoftware/spine-core': 4.0.31
+
+  '@esotericsoftware/spine-webgl@4.1.56':
+    dependencies:
+      '@esotericsoftware/spine-core': 4.1.56
+
+  '@esotericsoftware/spine-webgl@4.2.114':
+    dependencies:
+      '@esotericsoftware/spine-core': 4.2.114
 
   '@exodus/bytes@1.8.0': {}
 
@@ -23942,6 +24034,16 @@ snapshots:
       muggle-string: 0.4.1
       path-browserify: 1.0.1
       picomatch: 4.0.3
+
+  '@vue/language-core@3.2.8':
+    dependencies:
+      '@volar/language-core': 2.4.28
+      '@vue/compiler-dom': 3.5.29
+      '@vue/shared': 3.5.29
+      alien-signals: 3.1.2
+      muggle-string: 0.4.1
+      path-browserify: 1.0.1
+      picomatch: 4.0.4
 
   '@vue/reactivity@3.5.29':
     dependencies:
@@ -29609,6 +29711,8 @@ snapshots:
 
   picomatch@4.0.3: {}
 
+  picomatch@4.0.4: {}
+
   pify@2.3.0: {}
 
   pify@4.0.1:
@@ -30529,7 +30633,7 @@ snapshots:
       semver-compare: 1.0.0
       sprintf-js: 1.1.3
 
-  rolldown-plugin-dts@0.22.1(oxc-resolver@11.16.2)(rolldown@1.0.0-rc.3)(typescript@5.9.3)(vue-tsc@3.2.5(typescript@5.9.3)):
+  rolldown-plugin-dts@0.22.1(oxc-resolver@11.16.2)(rolldown@1.0.0-rc.3)(typescript@5.9.3)(vue-tsc@3.2.8(typescript@5.9.3)):
     dependencies:
       '@babel/generator': 8.0.0-rc.1
       '@babel/helper-validator-identifier': 8.0.0-rc.1
@@ -30543,7 +30647,7 @@ snapshots:
       rolldown: 1.0.0-rc.3
     optionalDependencies:
       typescript: 5.9.3
-      vue-tsc: 3.2.5(typescript@5.9.3)
+      vue-tsc: 3.2.8(typescript@5.9.3)
     transitivePeerDependencies:
       - oxc-resolver
 
@@ -31525,7 +31629,7 @@ snapshots:
 
   ts-mixer@6.0.4: {}
 
-  tsdown@0.20.3(@arethetypeswrong/core@0.18.2)(oxc-resolver@11.16.2)(publint@0.3.17)(synckit@0.11.12)(typescript@5.9.3)(unplugin-lightningcss@0.4.5)(unplugin-unused@0.5.7)(vue-tsc@3.2.5(typescript@5.9.3)):
+  tsdown@0.20.3(@arethetypeswrong/core@0.18.2)(oxc-resolver@11.16.2)(publint@0.3.17)(synckit@0.11.12)(typescript@5.9.3)(unplugin-lightningcss@0.4.5)(unplugin-unused@0.5.7)(vue-tsc@3.2.8(typescript@5.9.3)):
     dependencies:
       ansis: 4.2.0
       cac: 6.7.14
@@ -31536,7 +31640,7 @@ snapshots:
       obug: 2.1.1
       picomatch: 4.0.3
       rolldown: 1.0.0-rc.3
-      rolldown-plugin-dts: 0.22.1(oxc-resolver@11.16.2)(rolldown@1.0.0-rc.3)(typescript@5.9.3)(vue-tsc@3.2.5(typescript@5.9.3))
+      rolldown-plugin-dts: 0.22.1(oxc-resolver@11.16.2)(rolldown@1.0.0-rc.3)(typescript@5.9.3)(vue-tsc@3.2.8(typescript@5.9.3))
       semver: 7.7.4
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
@@ -32530,6 +32634,12 @@ snapshots:
     dependencies:
       '@volar/typescript': 2.4.28
       '@vue/language-core': 3.2.5
+      typescript: 5.9.3
+
+  vue-tsc@3.2.8(typescript@5.9.3):
+    dependencies:
+      '@volar/typescript': 2.4.28
+      '@vue/language-core': 3.2.8
       typescript: 5.9.3
 
   vue@2.7.16:

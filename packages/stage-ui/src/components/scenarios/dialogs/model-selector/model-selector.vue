@@ -159,6 +159,15 @@ function handleAddVRMModel(file: FileList | null) {
   displayModelStore.addDisplayModel(DisplayModelFormat.VRM, file[0])
 }
 
+function handleAddSpineModel(file: FileList | null) {
+  if (file === null || file.length === 0)
+    return
+  if (!file[0].name.endsWith('.zip'))
+    return
+
+  displayModelStore.addDisplayModel(DisplayModelFormat.SpineZip, file[0])
+}
+
 async function handleAddVrmaAnimation(file: FileList | null) {
   if (file === null || file.length === 0)
     return
@@ -180,6 +189,7 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.Live2dZip]: 'Live2D',
   [DisplayModelFormat.Live2dDirectory]: 'Live2D',
   [DisplayModelFormat.VRM]: 'VRM',
+  [DisplayModelFormat.SpineZip]: 'Spine',
   [DisplayModelFormat.PMXDirectory]: 'MMD',
   [DisplayModelFormat.PMXZip]: 'MMD',
   [DisplayModelFormat.PMD]: 'MMD',
@@ -188,10 +198,12 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
 const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
 const vrmaDialog = useFileDialog({ accept: '.vrma', multiple: false, reset: true })
+const spineDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
 vrmaDialog.onChange(handleAddVrmaAnimation)
+spineDialog.onChange(handleAddSpineModel)
 
 function handleFixError(err: string) {
   // eslint-disable-next-line no-console
@@ -351,6 +363,18 @@ function handleFixError(err: string) {
                 @click="vrmaDialog.open()"
               >
                 VRMA (.vrma)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                :class="[
+                  'data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none data-[disabled]:pointer-events-none',
+                  'text-base sm:text-sm',
+                  'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
+                  'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
+                ]"
+                transition="colors duration-200 ease-in-out"
+                @click="spineDialog.open()"
+              >
+                Spine (.zip)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>

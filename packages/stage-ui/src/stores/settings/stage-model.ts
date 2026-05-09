@@ -7,7 +7,7 @@ import { computed, ref, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
-export type StageModelRenderer = 'live2d' | 'vrm' | 'disabled' | undefined
+export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'disabled' | undefined
 
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
@@ -88,6 +88,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
         switch (model.format) {
           case DisplayModelFormat.Live2dZip: stageModelRenderer.value = 'live2d'; break
           case DisplayModelFormat.VRM: stageModelRenderer.value = 'vrm'; break
+          case DisplayModelFormat.SpineZip: stageModelRenderer.value = 'spine'; break
           default: stageModelRenderer.value = 'disabled'; break
         }
         return
@@ -116,6 +117,9 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
         break
       case DisplayModelFormat.VRM:
         stageModelRenderer.value = 'vrm'
+        break
+      case DisplayModelFormat.SpineZip:
+        stageModelRenderer.value = 'spine'
         break
       default:
         stageModelRenderer.value = 'disabled'
