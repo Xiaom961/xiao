@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import ViewControlInputs from '@proj-airi/stage-layouts/components/Layouts/ViewControls/Inputs.vue'
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { electron } from '@proj-airi/electron-eventa'
@@ -25,6 +26,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { Button } from '@proj-airi/ui'
 import { useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, provide, ref, toRef, watch } from 'vue'
@@ -111,9 +113,10 @@ const isAroundWindowBorderForInstant = isAroundWindowBorder
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
 const { scale, positionInPercentageString } = storeToRefs(useLive2d())
-const { lastReloadReason } = storeToRefs(useSettings())
+const { stageViewControlsEnabled, lastReloadReason } = storeToRefs(useSettings())
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
+const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 
 watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
 
@@ -605,9 +608,61 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
         />
         <ControlsIsland
           ref="controlsIslandRef"
+          v-model:view-controls-active-mode="viewControlsActiveMode"
           :is-locked="isLocked"
           @take-photo="handleTakePhoto"
         />
+
+        <!-- Spatial Controls Overlay -->
+        <Transition name="fade">
+          <div v-if="stageViewControlsEnabled" class="pointer-events-none absolute left-0 top-0 z-100 h-full w-full">
+            <!-- Axis Selectors (Top Left) -->
+            <div class="pointer-events-auto absolute left-4 top-4 flex gap-1 rounded-2xl bg-neutral-100/60 p-1 backdrop-blur-md dark:bg-neutral-900/60">
+              <Button
+                variant="secondary-muted"
+                size="sm"
+                :toggled="viewControlsActiveMode === 'x'"
+                class="min-w-10 font-bold font-mono"
+                @click="viewControlsActiveMode = 'x'"
+              >
+                X
+              </Button>
+              <Button
+                variant="secondary-muted"
+                size="sm"
+                :toggled="viewControlsActiveMode === 'y'"
+                class="min-w-10 font-bold font-mono"
+                @click="viewControlsActiveMode = 'y'"
+              >
+                Y
+              </Button>
+              <Button
+                v-if="stageModelRenderer === 'vrm'"
+                variant="secondary-muted"
+                size="sm"
+                :toggled="viewControlsActiveMode === 'z'"
+                class="min-w-10 font-bold font-mono"
+                @click="viewControlsActiveMode = 'z'"
+              >
+                Z
+              </Button>
+              <Button
+                variant="secondary-muted"
+                size="sm"
+                :toggled="viewControlsActiveMode === 'scale'"
+                class="min-w-10 font-bold font-mono"
+                @click="viewControlsActiveMode = 'scale'"
+              >
+                S
+              </Button>
+            </div>
+
+            <!-- Vertical Slider (Left Edge) -->
+            <div class="pointer-events-auto absolute left-4 top-1/2 -translate-y-1/2">
+              <ViewControlInputs :mode="viewControlsActiveMode" />
+            </div>
+          </div>
+        </Transition>
         <WhisperDock
           ref="whisperDockRef"
           :tools="tools"
