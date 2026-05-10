@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useCustomVrmAnimationsStore, useModelStore } from '@proj-airi/stage-ui-three'
+import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useLiveSessionStore } from '@proj-airi/stage-ui/stores/modules/live-session'
@@ -32,6 +33,7 @@ import {
 const emit = defineEmits<{
   (e: 'take-photo'): void
 }>()
+const viewControlsActiveMode = defineModel<'x' | 'y' | 'z' | 'scale'>('viewControlsActiveMode', { default: 'scale' })
 const { t } = useI18n()
 
 const providersStore = useProvidersStore()
@@ -39,6 +41,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
 const modelStore = useModelStore()
 const cardStore = useAiriCardStore()
+const live2dStore = useLive2d()
 const customVrmAnimationsStore = useCustomVrmAnimationsStore()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
@@ -77,7 +80,7 @@ const geminiExpanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
 // === Sub-menu state ===
-const view = ref<'main' | 'emotions' | 'wardrobe' | 'profiles' | 'captions' | 'view-window' | 'wardrobe-discovery'>('main')
+const view = ref<'main' | 'emotions' | 'wardrobe' | 'profiles' | 'captions' | 'view-window' | 'wardrobe-discovery' | 'placement'>('main')
 
 // Auto-expand to wardrobe-discovery when a tactile hit detects sibling outfits
 watch(() => detectedWardrobe.value.siblings, (siblings) => {
@@ -144,6 +147,7 @@ watch(expanded, (isExp) => {
   }
   else {
     view.value = 'main' // Reset sub-menu when collapsing
+    settingsStore.stageViewControlsEnabled = false // Disable view controls overlay when collapsing
   }
 })
 
@@ -518,9 +522,14 @@ function triggerWardrobeItem(id: string) {
                 </template>
               </ControlButtonTooltip>
 
-              <div key="spacer-1" class="flex items-center justify-center opacity-20">
-                <div i-solar:add-circle-linear :class="adjustStyleClasses.icon" />
-              </div>
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="view = 'placement'; settingsStore.stageViewControlsEnabled = true">
+                  <div i-solar:tuning-outline :class="adjustStyleClasses.icon" text="purple-600 dark:purple-400" />
+                </ControlButton>
+                <template #tooltip>
+                  Placement & Scale
+                </template>
+              </ControlButtonTooltip>
 
               <div key="spacer-2" class="flex items-center justify-center opacity-20">
                 <div i-solar:add-circle-linear :class="adjustStyleClasses.icon" />
@@ -924,6 +933,84 @@ function triggerWardrobeItem(id: string) {
 
               <ControlButtonTooltip>
                 <ControlButton :button-style="adjustStyleClasses.button" @click="view = 'main'">
+                  <div i-solar:arrow-left-outline :class="adjustStyleClasses.icon" text="neutral-500" />
+                </ControlButton>
+                <template #tooltip>
+                  Back
+                </template>
+              </ControlButtonTooltip>
+            </div>
+
+            <!-- Placement Sub-menu -->
+            <div v-else-if="view === 'placement'" key="placement" grid grid-cols-3 gap-2>
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" :toggled="viewControlsActiveMode === 'x'" @click="viewControlsActiveMode = 'x'">
+                  <div class="font-bold font-mono" :class="adjustStyleClasses.icon" text="sky-600 dark:sky-400">
+                    X
+                  </div>
+                </ControlButton>
+                <template #tooltip>
+                  Horizontal Offset
+                </template>
+              </ControlButtonTooltip>
+
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" :toggled="viewControlsActiveMode === 'y'" @click="viewControlsActiveMode = 'y'">
+                  <div class="font-bold font-mono" :class="adjustStyleClasses.icon" text="sky-600 dark:sky-400">
+                    Y
+                  </div>
+                </ControlButton>
+                <template #tooltip>
+                  Vertical Offset
+                </template>
+              </ControlButtonTooltip>
+
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" :toggled="viewControlsActiveMode === 'scale'" @click="viewControlsActiveMode = 'scale'">
+                  <div class="font-bold font-mono" :class="adjustStyleClasses.icon" text="amber-500">
+                    S
+                  </div>
+                </ControlButton>
+                <template #tooltip>
+                  Scale / Zoom
+                </template>
+              </ControlButtonTooltip>
+
+              <ControlButtonTooltip v-if="stageModelRenderer === 'vrm'">
+                <ControlButton :button-style="adjustStyleClasses.button" :toggled="viewControlsActiveMode === 'z'" @click="viewControlsActiveMode = 'z'">
+                  <div class="font-bold font-mono" :class="adjustStyleClasses.icon" text="sky-600 dark:sky-400">
+                    Z
+                  </div>
+                </ControlButton>
+                <template #tooltip>
+                  Depth Offset
+                </template>
+              </ControlButtonTooltip>
+
+              <div v-else class="opacity-10" />
+
+              <ControlButtonTooltip>
+                <ControlButton
+                  :button-style="adjustStyleClasses.button"
+                  @click="() => {
+                    if (stageModelRenderer === 'live2d') {
+                      live2dStore.resetState()
+                    }
+                    else {
+                      modelStore.modelOffset = { x: 0, y: 0, z: 0 }
+                      modelStore.cameraDistance = modelStore.modelSize.z * 10
+                    }
+                  }"
+                >
+                  <div i-solar:restart-square-outline :class="adjustStyleClasses.icon" text="neutral-600 dark:text-neutral-300" />
+                </ControlButton>
+                <template #tooltip>
+                  Reset Placement
+                </template>
+              </ControlButtonTooltip>
+
+              <ControlButtonTooltip>
+                <ControlButton :button-style="adjustStyleClasses.button" @click="view = 'main'; settingsStore.stageViewControlsEnabled = false">
                   <div i-solar:arrow-left-outline :class="adjustStyleClasses.icon" text="neutral-500" />
                 </ControlButton>
                 <template #tooltip>
