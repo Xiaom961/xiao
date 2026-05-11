@@ -69,6 +69,12 @@ let skeleton: Skeleton | undefined
 let animationState: AnimationState | undefined
 let loadedVariants: SpineModelVariant[] = []
 let prevActiveAnimations: Record<string, boolean> = {}
+let model0Motions: Record<string, any> = {}
+let loadedBlobUrls: Record<string, string> | undefined
+/** Single audio instance for model0 motions — prevents overlapping playback. */
+let currentSpineAudio: HTMLAudioElement | null = null
+/** Motions already fired in the current activation cycle — prevents re-trigger after one-shot finishes. */
+const triggeredMotions = new Set<string>()
 
 const canvas = toRef(() => props.canvas)
 const modelSrc = toRef(() => props.modelSrc)
@@ -137,6 +143,7 @@ async function loadModel() {
 
       assetPaths = selectedVariant.layout
       blobUrls = loaded.blobUrls
+      loadedBlobUrls = blobUrls
       rawData = loaded.rawData
       assetCleanup = loaded.dispose
     }
@@ -216,6 +223,26 @@ async function loadModel() {
 
             // Inventory animations and skins, populate the store.
             const animations = skeletonData.animations.map(animation => ({ name: animation.name, duration: animation.duration }))
+
+            // Check for model0.json
+            const model0Str = rawData?.['model0.json']
+            if (model0Str) {
+              try {
+                const model0 = JSON.parse(model0Str as string)
+                if (model0.motions) {
+                  model0Motions = model0.motions
+                  for (const key in model0.motions) {
+                    if (key !== 'idle' && !animations.find(a => a.name === key)) {
+                      animations.push({ name: key, duration: 0 }) // virtual motion
+                    }
+                  }
+                }
+              }
+              catch (e) {
+                console.error('[Spine] Failed to parse model0.json:', e)
+              }
+            }
+
             const skins = skeletonData.skins.map(s => ({ name: s.name }))
             availableAnimations.value = animations
             availableSkins.value = skins
@@ -408,14 +435,58 @@ function applyActiveAnimations(activeAnims: Record<string, boolean>) {
     }
 
     const currentTrack = animationState.getCurrent(trackIndex)
-    const isPlaying = currentTrack && currentTrack.animation.name === anim.name
+    const motionConfig = model0Motions[anim.name]
 
-    if (isActive && !isPlaying) {
-      animationState.setAnimation(trackIndex, anim.name, true)
+    if (isActive) {
+      // model0 mapped motion — one-shot with random audio
+      if (motionConfig && motionConfig.length > 0) {
+        // Already fired this activation cycle — do nothing until toggled off and on
+        if (triggeredMotions.has(anim.name))
+          return
+
+        triggeredMotions.add(anim.name)
+
+        const randomIndex = Math.floor(Math.random() * motionConfig.length)
+        const config = motionConfig[randomIndex]
+
+        animationState.setAnimation(trackIndex, config.file, false)
+
+        if (config.sound && loadedBlobUrls && loadedBlobUrls[config.sound]) {
+          // Leadership Election: Only the "Stage" window handles audio playback
+          const hash = window.location.hash || '#/'
+          const isStage = hash === '#/' || hash.startsWith('#/stage')
+
+          if (isStage) {
+            // Stop any previously playing audio first
+            if (currentSpineAudio) {
+              currentSpineAudio.pause()
+              currentSpineAudio.currentTime = 0
+            }
+            currentSpineAudio = new Audio(loadedBlobUrls[config.sound])
+            currentSpineAudio.play().catch(e => console.error('[Spine] Failed to play audio:', e))
+          }
+        }
+        else {
+          console.warn(`[Spine] Audio file not found or blob URL missing for: ${config.sound}`)
+        }
+      }
+      // Regular skeleton animation — loop as usual
+      else {
+        const isPlaying = currentTrack && currentTrack.animation.name === anim.name
+        if (!isPlaying)
+          animationState.setAnimation(trackIndex, anim.name, true)
+      }
     }
-    else if (!isActive && isPlaying) {
-      animationState.setEmptyAnimation(trackIndex, props.defaultMixDuration)
-      skeleton.setToSetupPose()
+    else {
+      // Motion was deactivated — clear trigger state so it can fire again next time
+      triggeredMotions.delete(anim.name)
+
+      const expectedName = (motionConfig && motionConfig[0]) ? motionConfig[0].file : anim.name
+      const isPlaying = currentTrack && currentTrack.animation.name === expectedName
+      if (isPlaying) {
+        animationState.setEmptyAnimation(trackIndex, props.defaultMixDuration)
+        skeleton.setToSetupPose()
+      }
     }
   })
 }

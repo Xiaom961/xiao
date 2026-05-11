@@ -48,6 +48,7 @@ const SKELETON_JSON_EXT = '.json'
 const ATLAS_EXT_PRIMARY = '.atlas'
 const ATLAS_EXT_TXT = '.atlas.txt'
 const TEXTURE_EXTS = ['.png', '.webp', '.jpg', '.jpeg']
+const AUDIO_EXTS = ['.wav', '.mp3', '.ogg']
 
 function isTexturePath(name: string) {
   const lower = name.toLowerCase()
@@ -74,6 +75,11 @@ function isSkeletonJsonPath(name: string) {
     return false
 
   return true
+}
+
+function isAudioPath(name: string) {
+  const lower = name.toLowerCase()
+  return AUDIO_EXTS.some(ext => lower.endsWith(ext))
 }
 
 function basename(path: string) {
@@ -264,11 +270,18 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
   const allTexturePaths = new Set<string>()
   const allSkeletonPaths = new Set<string>()
   const allAtlasPaths = new Set<string>()
+  const allAudioPaths = new Set<string>()
   for (const v of variants) {
     allSkeletonPaths.add(v.layout.skeletonPath)
     allAtlasPaths.add(v.layout.atlasPath)
     for (const t of v.layout.texturePaths)
       allTexturePaths.add(t)
+  }
+
+  // Collect all audio paths in the ZIP.
+  for (const name of Object.keys(archive.files)) {
+    if (isAudioPath(name))
+      allAudioPaths.add(name)
   }
 
   // Textures → blob URLs (used by image.src in loadTexture).
@@ -279,6 +292,21 @@ export async function loadSpineZip(file: File | Blob | ArrayBuffer): Promise<Spi
     const buffer = await entry.async('blob')
     blobUrls[path] = URL.createObjectURL(buffer)
   }))
+
+  // Audio files → blob URLs
+  await Promise.all(Array.from(allAudioPaths).map(async (path) => {
+    const entry = archive.files[path]
+    if (!entry)
+      return
+    const buffer = await entry.async('blob')
+    blobUrls[path] = URL.createObjectURL(buffer)
+  }))
+
+  // Read model0.json if present
+  const model0Path = Object.keys(archive.files).find(name => name.endsWith('model0.json'))
+  if (model0Path) {
+    rawData['model0.json'] = await archive.files[model0Path].async('string')
+  }
 
   // Skeletons → raw decoded data
   // NOTICE:
