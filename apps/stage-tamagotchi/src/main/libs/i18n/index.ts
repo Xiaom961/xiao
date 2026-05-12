@@ -9,7 +9,7 @@ import type {
 } from '@intlify/core'
 
 import { useLogg } from '@guiiai/logg'
-import { createCoreContext, translate } from '@intlify/core'
+import { compile, createCoreContext, translate } from '@intlify/core'
 import { effect, signal } from 'alien-signals'
 import { isString } from 'es-toolkit'
 
@@ -149,6 +149,7 @@ export function createI18n<Schema extends Record<string, any> = Record<string, a
     missingWarn: false,
     warnHtmlMessage: false,
     fallbackFormat: true,
+    messageCompiler: compile as any,
     ...options,
   })
 
@@ -162,7 +163,24 @@ export function createI18n<Schema extends Record<string, any> = Record<string, a
       return key
     }
 
-    const ret = Reflect.apply(translate, null, [context, key, ...args])
+    let ret = Reflect.apply(translate, null, [context, key, ...args])
+
+    // Fallback if translate returns the key itself (meaning it failed to resolve)
+    if (ret === key) {
+      const parts = key.split('.')
+      let current = (context as any).messages?.[(context as any).locale]
+      for (const part of parts) {
+        if (current == null || typeof current !== 'object') {
+          current = undefined
+          break
+        }
+        current = current[part]
+      }
+      if (typeof current === 'string') {
+        ret = current
+      }
+    }
+
     return isString(ret) ? ret : key
   }
 

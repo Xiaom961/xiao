@@ -776,9 +776,6 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       rehype-stringify:
         specifier: 'catalog:'
         version: 10.0.1
@@ -875,7 +872,7 @@ importers:
         version: 1.2.44
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.7
-        version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@2.80.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+        version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
       '@proj-airi/cap-vite':
         specifier: workspace:*
         version: link:../../packages/cap-vite
@@ -938,19 +935,19 @@ importers:
         version: 4.5.1
       unplugin-info:
         specifier: ^1.2.4
-        version: 1.2.4(esbuild@0.27.2)(rollup@2.80.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.2.4(esbuild@0.27.2)(rollup@4.59.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       unplugin-vue-router:
         specifier: ^0.19.2
         version: 0.19.2(@vue/compiler-sfc@3.5.29)(vue-router@4.6.4(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
       unplugin-yaml:
         specifier: ^4.0.0
-        version: 4.0.0(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 4.0.0(@nuxt/kit@3.20.2(magicast@0.5.2))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       vite:
         specifier: ~6.2.5
         version: 6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
       vite-bundle-visualizer:
         specifier: ^1.2.1
-        version: 1.2.1(rolldown@1.0.0-rc.3)(rollup@2.80.0)
+        version: 1.2.1(rolldown@1.0.0-rc.3)(rollup@4.59.0)
       vite-plugin-mkcert:
         specifier: 'catalog:'
         version: 1.17.10(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
@@ -965,61 +962,16 @@ importers:
         version: 0.11.0(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-router@4.6.4(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
       vue-macros:
         specifier: ^3.1.2
-        version: 3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
+        version: 3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.2.5(typescript@5.9.3)
 
   apps/stage-tamagotchi:
     dependencies:
-      '@date-fns/utc':
-        specifier: ^2.1.1
-        version: 2.1.1
-      '@fontsource-variable/comfortaa':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource-variable/dm-sans':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource-variable/jura':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@fontsource-variable/quicksand':
-        specifier: ^5.2.10
-        version: 5.2.10
-      '@fontsource-variable/urbanist':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@fontsource/dm-mono':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@fontsource/dm-serif-display':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource/gugi':
-        specifier: ^5.2.7
-        version: 5.2.7
-      '@fontsource/kiwi-maru':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@fontsource/m-plus-rounded-1c':
-        specifier: ^5.2.10
-        version: 5.2.10
-      '@fontsource/sniglet':
-        specifier: ^5.2.8
-        version: 5.2.8
-      '@formkit/auto-animate':
-        specifier: ^0.9.0
-        version: 0.9.0(vue@3.5.29(typescript@5.9.3))
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
-      '@huggingface/transformers':
-        specifier: ^3.8.1
-        version: 3.8.1
-      '@intlify/core':
-        specifier: 'catalog:'
-        version: 11.2.8
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
@@ -1194,9 +1146,6 @@ importers:
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
-      onnxruntime-web:
-        specifier: npm:onnxruntime-web@^1.24.2
-        version: 1.24.2
       pinia:
         specifier: 'catalog:'
         version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
@@ -1212,18 +1161,9 @@ importers:
       remark-parse:
         specifier: ^11.0.0
         version: 11.0.0
-      remark-rehype:
-        specifier: ^11.1.2
-        version: 11.1.2
       replicate:
         specifier: ^1.0.1
         version: 1.4.0
-      shiki:
-        specifier: ^3.23.0
-        version: 3.23.0
-      splitpanes:
-        specifier: 'catalog:'
-        version: 4.0.4(vue@3.5.29(typescript@5.9.3))
       systeminformation:
         specifier: ^5.23.5
         version: 5.31.5
@@ -1242,31 +1182,13 @@ importers:
       valibot:
         specifier: 'catalog:'
         version: 1.2.0(typescript@5.9.3)
-      vaul-vue:
-        specifier: ^0.4.1
-        version: 0.4.1(reka-ui@2.8.2(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.29(typescript@5.9.3)
-      vue-demi:
-        specifier: ^0.14.10
-        version: 0.14.10(vue@3.5.29(typescript@5.9.3))
-      vue-i18n:
-        specifier: 'catalog:'
-        version: 11.2.8(vue@3.5.29(typescript@5.9.3))
-      vue-router:
-        specifier: 'catalog:'
-        version: 4.6.4(vue@3.5.29(typescript@5.9.3))
-      vue-sonner:
-        specifier: 'catalog:'
-        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
-      xsschema:
-        specifier: 'catalog:'
-        version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
-      zod:
-        specifier: 'catalog:'
-        version: 4.3.6
     devDependencies:
+      '@date-fns/utc':
+        specifier: ^2.1.1
+        version: 2.1.1
       '@electron-toolkit/preload':
         specifier: ^3.0.2
         version: 3.0.2(electron@40.8.0)
@@ -1279,6 +1201,45 @@ importers:
       '@electron/notarize':
         specifier: 'catalog:'
         version: 3.1.1
+      '@fontsource-variable/comfortaa':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource-variable/dm-sans':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource-variable/jura':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource-variable/quicksand':
+        specifier: ^5.2.10
+        version: 5.2.10
+      '@fontsource-variable/urbanist':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/dm-mono':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/dm-serif-display':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/gugi':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/kiwi-maru':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/m-plus-rounded-1c':
+        specifier: ^5.2.10
+        version: 5.2.10
+      '@fontsource/sniglet':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@formkit/auto-animate':
+        specifier: ^0.9.0
+        version: 0.9.0(vue@3.5.29(typescript@5.9.3))
+      '@huggingface/transformers':
+        specifier: ^3.8.1
+        version: 3.8.1
       '@iconify-json/carbon':
         specifier: ^1.2.18
         version: 1.2.18
@@ -1309,6 +1270,9 @@ importers:
       '@iconify/utils':
         specifier: ^3.1.0
         version: 3.1.0
+      '@intlify/core':
+        specifier: 'catalog:'
+        version: 11.2.8
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.7
         version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
@@ -1399,6 +1363,18 @@ importers:
       mkcert:
         specifier: 'catalog:'
         version: 3.2.0
+      onnxruntime-web:
+        specifier: npm:onnxruntime-web@^1.24.2
+        version: 1.24.2
+      remark-rehype:
+        specifier: ^11.1.2
+        version: 11.1.2
+      shiki:
+        specifier: ^3.23.0
+        version: 3.23.0
+      splitpanes:
+        specifier: 'catalog:'
+        version: 4.0.4(vue@3.5.29(typescript@5.9.3))
       std-env:
         specifier: ^4.0.0-rc.1
         version: 4.0.0-rc.1
@@ -1417,6 +1393,9 @@ importers:
       unplugin-yaml:
         specifier: ^4.0.0
         version: 4.0.0(@nuxt/kit@3.20.2(magicast@0.5.2))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+      vaul-vue:
+        specifier: ^0.4.1
+        version: 0.4.1(reka-ui@2.8.2(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
       vite:
         specifier: ~6.2.5
         version: 6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
@@ -1429,18 +1408,36 @@ importers:
       vite-plugin-vue-layouts:
         specifier: ^0.11.0
         version: 0.11.0(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-router@4.6.4(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+      vue-demi:
+        specifier: ^0.14.10
+        version: 0.14.10(vue@3.5.29(typescript@5.9.3))
+      vue-i18n:
+        specifier: 'catalog:'
+        version: 11.2.8(vue@3.5.29(typescript@5.9.3))
       vue-macros:
         specifier: ^3.1.2
         version: 3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
+      vue-router:
+        specifier: 'catalog:'
+        version: 4.6.4(vue@3.5.29(typescript@5.9.3))
+      vue-sonner:
+        specifier: 'catalog:'
+        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
       vue-tsc:
         specifier: ^3.1.8
         version: 3.2.5(typescript@5.9.3)
+      xsschema:
+        specifier: 'catalog:'
+        version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       yaml:
         specifier: ^2.8.2
         version: 2.8.2
       yauzl:
         specifier: ^3.2.0
         version: 3.2.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
 
   apps/stage-web:
     dependencies:
@@ -1705,7 +1702,7 @@ importers:
         version: 1.2.44
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.7
-        version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+        version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@2.80.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
       '@proj-airi/iconify-meteocons':
         specifier: 'catalog:'
         version: 0.1.4
@@ -1765,19 +1762,19 @@ importers:
         version: 4.5.1
       unplugin-info:
         specifier: 'catalog:'
-        version: 1.2.4(esbuild@0.27.2)(rollup@4.59.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.2.4(esbuild@0.27.2)(rollup@2.80.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       unplugin-vue-router:
         specifier: ^0.19.2
         version: 0.19.2(@vue/compiler-sfc@3.5.29)(vue-router@4.6.4(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
       unplugin-yaml:
         specifier: ^4.0.0
-        version: 4.0.0(@nuxt/kit@3.20.2(magicast@0.5.2))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 4.0.0(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       vite:
         specifier: ~6.2.5
         version: 6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
       vite-bundle-visualizer:
         specifier: ^1.2.1
-        version: 1.2.1(rolldown@1.0.0-rc.3)(rollup@4.59.0)
+        version: 1.2.1(rolldown@1.0.0-rc.3)(rollup@2.80.0)
       vite-plugin-pwa:
         specifier: ^1.2.0
         version: 1.2.0(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0)
@@ -1789,7 +1786,7 @@ importers:
         version: 0.11.0(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-router@4.6.4(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
       vue-macros:
         specifier: ^3.1.2
-        version: 3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
+        version: 3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
       vue-tsc:
         specifier: ^3.2.5
         version: 3.2.5(typescript@5.9.3)
@@ -2335,9 +2332,6 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       reka-ui:
         specifier: ^2.8.2
         version: 2.8.2(vue@3.5.29(typescript@5.9.3))
@@ -3018,6 +3012,43 @@ importers:
       vue-tsc:
         specifier: ^3.2.5
         version: 3.2.5(typescript@5.9.3)
+
+  packages/stage-ui-mmd:
+    dependencies:
+      '@moeru/three-mmd':
+        specifier: ^0.1.0-beta.3
+        version: 0.1.0-beta.3(@types/three@0.184.1)(three@0.184.0)
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../stage-shared
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@tresjs/cientos':
+        specifier: ^5.7.0
+        version: 5.7.1(@tresjs/core@5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.184.1)(react@19.2.3)(three@0.184.0)(vue@3.5.29(typescript@5.9.3))
+      '@tresjs/core':
+        specifier: ^5.8.0
+        version: 5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3))
+      '@vueuse/core':
+        specifier: ^14.2.1
+        version: 14.2.1(vue@3.5.29(typescript@5.9.3))
+      pinia:
+        specifier: ^3.0.4
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
+      three:
+        specifier: ^0.184.0
+        version: 0.184.0
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.29(typescript@5.9.3)
+    devDependencies:
+      '@types/three':
+        specifier: ^0.184.0
+        version: 0.184.1
+      vue-tsc:
+        specifier: ^3.2.6
+        version: 3.2.8(typescript@5.9.3)
 
   packages/stage-ui-spine:
     dependencies:
@@ -6380,6 +6411,12 @@ packages:
   '@moeru/std@0.1.0-beta.17':
     resolution: {integrity: sha512-GyLDCKHiqXyO60Wn0+Hc7Tfo/GJQA3pV5FZGkzGhvJM7LQPZDB0tksuJV92LuRF1lG8x78B+8UfVFhVf8xXVfg==}
 
+  '@moeru/three-mmd@0.1.0-beta.3':
+    resolution: {integrity: sha512-31rmU0YnUdfSDyPTsnk8OFjo/zAkS2BfaOyu4y0F0bt7Kz4IKrWkotngv+DcxECexFWSsyOqr0Fcmyubz9VvYA==}
+    peerDependencies:
+      '@types/three': ^0.180.0
+      three: ^0.180.0
+
   '@mrleebo/prisma-ast@0.13.1':
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
     engines: {node: '>=16'}
@@ -8745,8 +8782,21 @@ packages:
       three: '>=0.133'
       vue: '>=3.5.17'
 
+  '@tresjs/cientos@5.7.1':
+    resolution: {integrity: sha512-6XdOvL2VN2Dmaok2PIJYSheIVRrpDXlZD0/A7WXAvBLQ6oov70dDTVofphbrzgVRuqLfTLOs4tPjHkYJOmqQ2g==}
+    peerDependencies:
+      '@tresjs/core': 5.8.1
+      three: '>=0.133'
+      vue: '>=3.5.17'
+
   '@tresjs/core@5.5.0':
     resolution: {integrity: sha512-wIHwPYWeBXO1LdDVRHPAt0YLjvqm8JYb6uliOkzLyWzHqVNVZ0qQjipGPT72mV87uQFUiIHF8EY8L2jiWxuUFw==}
+    peerDependencies:
+      three: '>=0.133'
+      vue: '>=3.4'
+
+  '@tresjs/core@5.8.1':
+    resolution: {integrity: sha512-Lg0S8ZY3PLMIDDh+VN21QQBSC6afITAAWJ41gOYz9L0Et5RPAqDNCR/OncQxH4CXrNe/c5GB2wqGgRT3tHPoCg==}
     peerDependencies:
       three: '>=0.133'
       vue: '>=3.4'
@@ -8953,6 +9003,9 @@ packages:
 
   '@types/three@0.183.1':
     resolution: {integrity: sha512-f2Pu5Hrepfgavttdye3PsH5RWyY/AvdZQwIVhrc4uNtvF7nOWJacQKcoVJn0S4f0yYbmAE6AR+ve7xDcuYtMGw==}
+
+  '@types/three@0.184.1':
+    resolution: {integrity: sha512-6q4VdiqVsrTRqmk62/BnlcAvIrnDM0zf2ZDVKI5kZiniWrSaOHaQzmbp+BNzoggc/8tgW412pL//wZIxu2PPTA==}
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
@@ -13670,6 +13723,9 @@ packages:
   meshoptimizer@1.0.1:
     resolution: {integrity: sha512-Vix+QlA1YYT3FwmBBZ+49cE5y/b+pRrcXKqGpS5ouh33d3lSp2PoTpCw19E0cKDFWalembrHnIaZetf27a+W2g==}
 
+  meshoptimizer@1.1.1:
+    resolution: {integrity: sha512-oRFNWJRDA/WTrVj7NWvqa5HqE1t9MYDj2VaWirQCzCCrAd2GHrqR/sQezCxiWATPNlKTcRaPRHPJwIRoPBAp5g==}
+
   meta-png@1.0.6:
     resolution: {integrity: sha512-eQtEi5E9axqwqA/sDK1dyhX9kYHCUe2m+45aQ3JHrozjGPs+/ab+hdhPp7A3GUNW+ZAbavrsg5xQ4r5jkGDX+A==}
 
@@ -15923,6 +15979,9 @@ packages:
 
   three@0.183.1:
     resolution: {integrity: sha512-Psv6bbd3d/M/01MT2zZ+VmD0Vj2dbWTNhfe4CuSg7w5TuW96M3NOyCVuh9SZQ05CpGmD7NEcJhZw4GVjhCYxfQ==}
+
+  three@0.184.0:
+    resolution: {integrity: sha512-wtTRjG92pM5eUg/KuUnHsqSAlPM296brTOcLgMRqEeylYTh/CdtvKUvCyyCQTzFuStieWxvZb8mVTMvdPyUpxg==}
 
   through2@0.6.5:
     resolution: {integrity: sha512-RkK/CCESdTKQZHdmKICijdKKsCRVHs5KsLZ6pACAmF/1GPUQhonHSXWNERctxEp7RmvjdNbZTL5z9V7nSCXKcg==}
@@ -20375,6 +20434,11 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.17': {}
 
+  '@moeru/three-mmd@0.1.0-beta.3(@types/three@0.184.1)(three@0.184.0)':
+    dependencies:
+      '@types/three': 0.184.1
+      three: 0.184.0
+
   '@mrleebo/prisma-ast@0.13.1':
     dependencies:
       chevrotain: 10.5.0
@@ -22733,6 +22797,23 @@ snapshots:
       - '@types/three'
       - react
 
+  '@tresjs/cientos@5.7.1(@tresjs/core@5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.184.1)(react@19.2.3)(three@0.184.0)(vue@3.5.29(typescript@5.9.3))':
+    dependencies:
+      '@tresjs/core': 5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3))
+      '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
+      camera-controls: 2.10.1(three@0.184.0)
+      stats-gl: 2.4.2(@types/three@0.184.1)(three@0.184.0)
+      stats.js: 0.17.0
+      three: 0.184.0
+      three-custom-shader-material: 5.4.0(react@19.2.3)(three@0.184.0)
+      three-mesh-bvh: 0.9.8(three@0.184.0)
+      three-stdlib: 2.36.1(three@0.184.0)
+      vue: 3.5.29(typescript@5.9.3)
+    transitivePeerDependencies:
+      - '@react-three/fiber'
+      - '@types/three'
+      - react
+
   '@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
     dependencies:
       '@pmndrs/pointer-events': 6.6.28
@@ -22740,6 +22821,15 @@ snapshots:
       '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
       radashi: 12.7.1
       three: 0.183.1
+      vue: 3.5.29(typescript@5.9.3)
+
+  '@tresjs/core@5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3))':
+    dependencies:
+      '@pmndrs/pointer-events': 6.6.28
+      '@vue/devtools-api': 7.7.9
+      '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
+      radashi: 12.7.1
+      three: 0.184.0
       vue: 3.5.29(typescript@5.9.3)
 
   '@tresjs/post-processing@3.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
@@ -22969,6 +23059,15 @@ snapshots:
       '@webgpu/types': 0.1.68
       fflate: 0.8.2
       meshoptimizer: 1.0.1
+
+  '@types/three@0.184.1':
+    dependencies:
+      '@dimforge/rapier3d-compat': 0.12.0
+      '@tweenjs/tween.js': 23.1.3
+      '@types/stats.js': 0.17.4
+      '@types/webxr': 0.5.24
+      fflate: 0.8.2
+      meshoptimizer: 1.1.1
 
   '@types/trusted-types@2.0.7': {}
 
@@ -25082,6 +25181,10 @@ snapshots:
   camera-controls@2.10.1(three@0.183.1):
     dependencies:
       three: 0.183.1
+
+  camera-controls@2.10.1(three@0.184.0):
+    dependencies:
+      three: 0.184.0
 
   caniuse-lite@1.0.30001761: {}
 
@@ -28550,6 +28653,8 @@ snapshots:
 
   meshoptimizer@1.0.1: {}
 
+  meshoptimizer@1.1.1: {}
+
   meta-png@1.0.6: {}
 
   methods@1.1.2: {}
@@ -31173,6 +31278,11 @@ snapshots:
       '@types/three': 0.183.1
       three: 0.183.1
 
+  stats-gl@2.4.2(@types/three@0.184.1)(three@0.184.0):
+    dependencies:
+      '@types/three': 0.184.1
+      three: 0.184.0
+
   stats.js@0.17.0: {}
 
   statuses@1.5.0: {}
@@ -31488,9 +31598,23 @@ snapshots:
     optionalDependencies:
       react: 19.2.3
 
+  three-custom-shader-material@5.4.0(react@19.2.3)(three@0.184.0):
+    dependencies:
+      glsl-token-functions: 1.0.1
+      glsl-token-string: 1.0.1
+      glsl-tokenizer: 2.1.5
+      object-hash: 3.0.0
+      three: 0.184.0
+    optionalDependencies:
+      react: 19.2.3
+
   three-mesh-bvh@0.9.8(three@0.183.1):
     dependencies:
       three: 0.183.1
+
+  three-mesh-bvh@0.9.8(three@0.184.0):
+    dependencies:
+      three: 0.184.0
 
   three-stdlib@2.36.1(three@0.183.1):
     dependencies:
@@ -31502,6 +31626,16 @@ snapshots:
       potpack: 1.0.2
       three: 0.183.1
 
+  three-stdlib@2.36.1(three@0.184.0):
+    dependencies:
+      '@types/draco3d': 1.4.10
+      '@types/offscreencanvas': 2019.7.3
+      '@types/webxr': 0.5.24
+      draco3d: 1.5.7
+      fflate: 0.6.10
+      potpack: 1.0.2
+      three: 0.184.0
+
   three.meshline@1.4.0: {}
 
   three@0.128.0: {}
@@ -31509,6 +31643,8 @@ snapshots:
   three@0.174.0: {}
 
   three@0.183.1: {}
+
+  three@0.184.0: {}
 
   through2@0.6.5:
     dependencies:

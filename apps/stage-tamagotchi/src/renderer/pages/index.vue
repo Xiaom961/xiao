@@ -20,7 +20,6 @@ import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composab
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useLLM } from '@proj-airi/stage-ui/stores/llm'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -113,7 +112,6 @@ const isAroundWindowBorderForInstant = isAroundWindowBorder
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-const { scale, positionInPercentageString } = storeToRefs(useLive2d())
 const { stageViewControlsEnabled, lastReloadReason } = storeToRefs(useSettings())
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())

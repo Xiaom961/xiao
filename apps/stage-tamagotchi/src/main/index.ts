@@ -2,7 +2,8 @@ import { dirname } from 'node:path'
 import { env, platform, stderr, stdout } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import messages from '@proj-airi/i18n/locales'
+// @ts-ignore
+import messages from '@proj-airi/i18n-bundle'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
@@ -140,7 +141,11 @@ app.whenReady().then(async () => {
 
   const i18n = injeca.provide('libs:i18n', {
     dependsOn: { appConfig },
-    build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language }),
+    build: ({ dependsOn }) => {
+      const language = dependsOn.appConfig.get()?.language ?? 'en'
+      const i18n = createI18n({ messages, locale: language })
+      return i18n
+    },
   })
 
   const serverChannel = injeca.provide('modules:channel-server', {

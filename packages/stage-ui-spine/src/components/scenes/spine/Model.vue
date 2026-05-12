@@ -176,7 +176,8 @@ function onCanvasClick(event: MouseEvent) {
           if (entry) {
             entry.listener = {
               complete: () => {
-                animationState.setEmptyAnimation(trackIndex, 0.2)
+                if (animationState)
+                  animationState.setEmptyAnimation(trackIndex, 0.2)
               },
             }
           }
@@ -379,7 +380,7 @@ async function loadModel() {
             applyCurrentAnimation()
 
             // Apply active independent animations.
-            applyActiveAnimations(activeAnimations.value[props.modelId] || {})
+            applyActiveAnimations(props.modelId ? activeAnimations.value[props.modelId] || {} : {})
 
             if (props.interactionMode === 'tactile') {
               canvas.value?.addEventListener('click', onCanvasClick)

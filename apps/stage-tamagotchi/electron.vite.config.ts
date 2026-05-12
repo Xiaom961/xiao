@@ -73,7 +73,7 @@ export default defineConfig({
 
     resolve: {
       alias: {
-        '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+        '@proj-airi/i18n-bundle': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src', 'dist-lite', 'messages.mjs')),
         '@proj-airi/server-runtime': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-runtime', 'src')),
       },
     },
@@ -169,6 +169,7 @@ export default defineConfig({
         { find: 'node:crypto', replacement: resolve(join(import.meta.dirname, 'src', 'renderer', 'shims', 'node-crypto.ts')) },
         { find: 'crypto', replacement: resolve(join(import.meta.dirname, 'src', 'renderer', 'shims', 'node-crypto.ts')) },
         { find: 'tslib', replacement: require.resolve('tslib/tslib.es6.js') },
+        { find: 'three/addons', replacement: resolve(join(import.meta.dirname, 'node_modules', 'three', 'examples', 'jsm')) },
         { find: 'three', replacement: resolve(join(import.meta.dirname, 'node_modules', 'three')) },
       ],
     },

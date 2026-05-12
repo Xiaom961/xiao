@@ -5,6 +5,7 @@
   * Handles model loading, animation playback, morph-based expressions, and lip sync.
 */
 
+// @ts-expect-error - Missing types for @moeru/three-mmd
 import type { MMD } from '@moeru/three-mmd'
 import type { Group, PerspectiveCamera } from 'three'
 

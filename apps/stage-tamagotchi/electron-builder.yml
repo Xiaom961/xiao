@@ -9,11 +9,12 @@ files:
   - out/**
   - resources/**
   - package.json
+  - '!**/node_modules/**/{*.d.ts,*.map,*.ts,*.md,*.txt,*.yml,*.yaml}'
+  - '!**/node_modules/**/{package-lock.json,yarn.lock,pnpm-lock.yaml}'
+  - '!**/node_modules/**/{tests,docs,scripts,benchmarks,jest.config.js,karma.conf.js,tsconfig.json}'
+  - '!**/node_modules/**/{.vscode,.github,.circleci,.travis.yml}'
   - '!**/.vscode/*'
   - '!src/**/*'
-  - '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}'
-  - '!**/node_modules/**/{.turbo,test,src,__tests__,tests,example,examples}'
-  - 'node_modules/debug/src/**'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!vite.config.{js,ts,mjs,cjs}'
   - '!uno.config.{js,ts,mjs,cjs}'

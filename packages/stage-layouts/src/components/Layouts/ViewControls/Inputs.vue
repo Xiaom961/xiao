@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useModelStore } from '@proj-airi/stage-ui-three'
-import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { usePositioningStore } from '@proj-airi/stage-ui/stores/settings/positioning'
 import { RoundRange } from '@proj-airi/ui'
@@ -17,8 +16,7 @@ const {
   stageViewControlsMode: mode,
   stageModelSelected,
 } = storeToRefs(useSettings())
-const { modelOffset: vrmPosition, modelSize: vrmModelSize, cameraDistance: vrmCameraDistance } = storeToRefs(useModelStore())
-const { scale: live2dScale, position: live2dPosition } = storeToRefs(useLive2d())
+const { modelOffset: vrmPosition, modelSize: vrmModelSize } = storeToRefs(useModelStore())
 
 const positioningStore = usePositioningStore()
 
@@ -42,11 +40,11 @@ const viewControlsValueX = computed({
   set: (value) => {
     switch (stageModelRenderer.value) {
       case 'vrm':
-        if (vrmControlsDisabled.value)
-          break
-        // fallthrough
       case 'live2d':
       case 'spine': {
+        if (stageModelRenderer.value === 'vrm' && vrmControlsDisabled.value)
+          break
+
         const current = positioningStore.getPosition(stageModelSelected.value)
         positioningStore.setPosition(stageModelSelected.value, { ...current, x: value })
         break
@@ -91,11 +89,11 @@ const viewControlsValueY = computed({
   set: (value) => {
     switch (stageModelRenderer.value) {
       case 'vrm':
-        if (vrmControlsDisabled.value)
-          break
-        // fallthrough
       case 'live2d':
       case 'spine': {
+        if (stageModelRenderer.value === 'vrm' && vrmControlsDisabled.value)
+          break
+
         const current = positioningStore.getPosition(stageModelSelected.value)
         positioningStore.setPosition(stageModelSelected.value, { ...current, y: value })
         break
@@ -170,11 +168,11 @@ const viewControlsValueScale = computed({
   set: (value) => {
     switch (stageModelRenderer.value) {
       case 'vrm':
-        if (vrmControlsDisabled.value)
-          break
-        // fallthrough
       case 'live2d':
       case 'spine': {
+        if (stageModelRenderer.value === 'vrm' && vrmControlsDisabled.value)
+          break
+
         const current = positioningStore.getPosition(stageModelSelected.value)
         positioningStore.setPosition(stageModelSelected.value, { ...current, scale: value })
         break

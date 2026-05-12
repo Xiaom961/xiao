@@ -20,9 +20,6 @@ import { ThreeScene, useCustomVrmAnimationsStore, useModelStore } from '@proj-ai
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { useBroadcastChannel, useEventListener } from '@vueuse/core'
-// import { createTransformers } from '@xsai-transformers/embed'
-// import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
-// import { embed } from '@xsai/embed'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -34,7 +31,6 @@ import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, Emoti
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
-import { DisplayModelFormat, useDisplayModelsStore } from '../../stores/display-models'
 import { useModsServerChannelStore } from '../../stores/mods/api/channel-server'
 import { useAiriCardStore } from '../../stores/modules'
 import { useAutonomousArtistryStore } from '../../stores/modules/artistry-autonomous'
@@ -97,8 +93,6 @@ const live2dStore = useLive2d()
 const vrmStore = useModelStore()
 const customVrmAnimationsStore = useCustomVrmAnimationsStore()
 const viewUpdateCleanups: Array<() => void> = []
-
-const displayModelsStore = useDisplayModelsStore()
 
 // Caption + Presentation broadcast channels
 type CaptionChannelEvent

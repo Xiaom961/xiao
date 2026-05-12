@@ -1,21 +1,15 @@
 <script setup lang="ts">
-import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores'
-import { Button } from '@proj-airi/ui'
-import { storeToRefs } from 'pinia'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   cardId: string
 }>()
 
-const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const backgroundStore = useBackgroundStore()
 const isRefreshingGallery = ref(false)
-
-const { activeCardId } = storeToRefs(cardStore)
 
 // Get selected card data
 const selectedCard = computed(() => {
@@ -87,7 +81,7 @@ async function handleDownloadEntry(id: string, title: string) {
     <!-- Header -->
     <div class="flex items-center justify-between border-b border-neutral-100 pb-4 dark:border-neutral-700/50">
       <div class="flex flex-col gap-1">
-        <h3 class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+        <h3 class="text-sm text-neutral-900 font-semibold dark:text-neutral-100">
           Stage Background
         </h3>
         <p class="text-xs text-neutral-500 dark:text-neutral-400">
@@ -95,7 +89,7 @@ async function handleDownloadEntry(id: string, title: string) {
         </p>
       </div>
       <button
-        class="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500 transition-all active:scale-90 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-300"
+        class="h-8 w-8 flex items-center justify-center rounded-lg bg-neutral-100 text-neutral-500 transition-all active:scale-90 dark:bg-neutral-800 hover:bg-neutral-200 hover:text-neutral-700 dark:hover:bg-neutral-700 dark:hover:text-neutral-300"
         :disabled="isRefreshingGallery"
         title="Refresh gallery"
         @click="handleRefreshGallery"
@@ -124,7 +118,7 @@ async function handleDownloadEntry(id: string, title: string) {
           :class="activeBackgroundId === 'none' ? 'i-solar:gallery-remove-bold text-primary-500' : 'i-solar:gallery-remove-linear text-neutral-300 dark:text-neutral-700 group-hover:text-primary-400'"
         />
         <span
-          class="text-[10px] font-bold uppercase tracking-wider"
+          class="text-[10px] font-bold tracking-wider uppercase"
           :class="activeBackgroundId === 'none' ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-400 dark:text-neutral-500'"
         >
           None
@@ -161,10 +155,10 @@ async function handleDownloadEntry(id: string, title: string) {
             <div :class="activeBackgroundId === entry.id ? 'i-solar:pin-bold' : 'i-solar:pin-linear'" />
             {{ activeBackgroundId === entry.id ? 'ACTIVE' : 'SELECT' }}
           </button>
-          
+
           <div class="flex gap-2">
             <button
-              class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/80 text-white backdrop-blur-md transition-all active:scale-95 hover:bg-blue-500"
+              class="h-8 w-8 flex items-center justify-center rounded-full bg-blue-500/80 text-white backdrop-blur-md transition-all active:scale-95 hover:bg-blue-500"
               title="Download"
               @click="handleDownloadEntry(entry.id, entry.title)"
             >
@@ -172,7 +166,7 @@ async function handleDownloadEntry(id: string, title: string) {
             </button>
             <button
               v-if="entry.type !== 'builtin'"
-              class="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/80 text-white backdrop-blur-md transition-all active:scale-95 hover:bg-red-500"
+              class="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/80 text-white backdrop-blur-md transition-all active:scale-95 hover:bg-red-500"
               title="Delete"
               @click="handleDeleteEntry(entry.id)"
             >

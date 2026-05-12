@@ -65,6 +65,7 @@ export const useSettings = defineStore('settings', () => {
     stageViewControlsEnabled: toRef(stageModel, 'stageViewControlsEnabled'),
     stageViewControlsMode: toRef(stageModel, 'stageViewControlsMode'),
     lastReloadReason: toRef(stageModel, 'lastReloadReason'),
+    mmdTextureMap: toRef(stageModel, 'mmdTextureMap'),
 
     // Live2D settings
     live2dDisableFocus: toRef(live2d, 'live2dDisableFocus'),
