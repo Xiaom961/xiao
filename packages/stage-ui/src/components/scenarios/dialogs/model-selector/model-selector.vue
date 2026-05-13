@@ -5,6 +5,7 @@ import type { DisplayModel } from '../../../../stores/display-models'
 
 import { vAutoAnimate } from '@formkit/auto-animate/vue'
 import { validateLive2DZip } from '@proj-airi/stage-ui-live2d'
+import { extractMmdFromZip } from '@proj-airi/stage-ui-mmd/utils/mmd-zip-extractor'
 import { useCustomVrmAnimationsStore } from '@proj-airi/stage-ui-three'
 import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
@@ -16,7 +17,6 @@ import { toast } from 'vue-sonner'
 import Live2DReportModal from './Live2DReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
-import { extractMmdFromZip } from '../../../../utils/mmd-zip-extractor'
 
 const emits = defineEmits<{
   (e: 'close', value: void): void

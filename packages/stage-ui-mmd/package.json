@@ -22,7 +22,8 @@
     "./composables/mmd": "./src/composables/mmd/index.ts",
     "./stores": "./src/stores/index.ts",
     "./stores/mmd": "./src/stores/mmd.ts",
-    "./utils/mmd-preview": "./src/utils/mmd-preview.ts"
+    "./utils/mmd-preview": "./src/utils/mmd-preview.ts",
+    "./utils/mmd-zip-extractor": "./src/utils/mmd-zip-extractor.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"
@@ -34,6 +35,7 @@
     "@tresjs/cientos": "^5.7.0",
     "@tresjs/core": "^5.8.0",
     "@vueuse/core": "^14.2.1",
+    "jszip": "catalog:",
     "pinia": "^3.0.4",
     "three": "^0.184.0",
     "vue": "catalog:"
