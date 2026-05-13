@@ -171,12 +171,13 @@ function onCanvasClick(event: MouseEvent) {
 
         // Use track 5 for hit motions (one-shot)
         const trackIndex = 5
-        if (animationState) {
-          const entry = animationState.setAnimation(trackIndex, config.file, false)
+        const state = animationState
+        if (state) {
+          const entry = state.setAnimation(trackIndex, config.file, false)
           if (entry) {
             entry.listener = {
               complete: () => {
-                animationState.setEmptyAnimation(trackIndex, 0.2)
+                state.setEmptyAnimation(trackIndex, 0.2)
               },
             }
           }
@@ -379,7 +380,7 @@ async function loadModel() {
             applyCurrentAnimation()
 
             // Apply active independent animations.
-            applyActiveAnimations(activeAnimations.value[props.modelId] || {})
+            applyActiveAnimations(props.modelId ? activeAnimations.value[props.modelId] || {} : {})
 
             if (props.interactionMode === 'tactile') {
               canvas.value?.addEventListener('click', onCanvasClick)

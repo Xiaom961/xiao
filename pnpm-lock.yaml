@@ -177,6 +177,9 @@ catalogs:
     is-network-error:
       specifier: ^1.3.0
       version: 1.3.0
+    jszip:
+      specifier: ^3.10.1
+      version: 3.10.1
     knip:
       specifier: ^5.85.0
       version: 5.85.0
@@ -1082,10 +1085,10 @@ importers:
         version: 3.23.0
       '@tresjs/cientos':
         specifier: ^5.4.0
-        version: 5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.4.0(@tresjs/core@5.5.0(three@0.184.0)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.184.0)(vue@3.5.29(typescript@5.9.3))
       '@tresjs/core':
         specifier: ^5.5.0
-        version: 5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
+        version: 5.5.0(three@0.184.0)(vue@3.5.29(typescript@5.9.3))
       '@unocss/reset':
         specifier: ^66.6.2
         version: 66.6.2
@@ -1228,8 +1231,8 @@ importers:
         specifier: ^5.23.5
         version: 5.31.5
       three:
-        specifier: ^0.183.1
-        version: 0.183.1
+        specifier: ^0.184.0
+        version: 0.184.0
       unified:
         specifier: ^11.0.5
         version: 11.0.5
@@ -2713,6 +2716,9 @@ importers:
       idb-keyval:
         specifier: 'catalog:'
         version: 6.2.2
+      jszip:
+        specifier: 'catalog:'
+        version: 3.10.1
       kokoro-js:
         specifier: ^1.2.1
         version: 1.2.1
@@ -3018,6 +3024,43 @@ importers:
       vue-tsc:
         specifier: ^3.2.5
         version: 3.2.5(typescript@5.9.3)
+
+  packages/stage-ui-mmd:
+    dependencies:
+      '@moeru/three-mmd':
+        specifier: ^0.1.0-beta.3
+        version: 0.1.0-beta.3(@types/three@0.184.1)(three@0.184.0)
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../stage-shared
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@tresjs/cientos':
+        specifier: ^5.7.0
+        version: 5.7.1(@tresjs/core@5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.184.1)(react@19.2.3)(three@0.184.0)(vue@3.5.29(typescript@5.9.3))
+      '@tresjs/core':
+        specifier: ^5.8.0
+        version: 5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3))
+      '@vueuse/core':
+        specifier: ^14.2.1
+        version: 14.2.1(vue@3.5.29(typescript@5.9.3))
+      pinia:
+        specifier: ^3.0.4
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
+      three:
+        specifier: ^0.184.0
+        version: 0.184.0
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.29(typescript@5.9.3)
+    devDependencies:
+      '@types/three':
+        specifier: ^0.184.0
+        version: 0.184.1
+      vue-tsc:
+        specifier: ^3.2.6
+        version: 3.2.8(typescript@5.9.3)
 
   packages/stage-ui-spine:
     dependencies:
@@ -6380,6 +6423,12 @@ packages:
   '@moeru/std@0.1.0-beta.17':
     resolution: {integrity: sha512-GyLDCKHiqXyO60Wn0+Hc7Tfo/GJQA3pV5FZGkzGhvJM7LQPZDB0tksuJV92LuRF1lG8x78B+8UfVFhVf8xXVfg==}
 
+  '@moeru/three-mmd@0.1.0-beta.3':
+    resolution: {integrity: sha512-31rmU0YnUdfSDyPTsnk8OFjo/zAkS2BfaOyu4y0F0bt7Kz4IKrWkotngv+DcxECexFWSsyOqr0Fcmyubz9VvYA==}
+    peerDependencies:
+      '@types/three': ^0.180.0
+      three: ^0.180.0
+
   '@mrleebo/prisma-ast@0.13.1':
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
     engines: {node: '>=16'}
@@ -8745,8 +8794,21 @@ packages:
       three: '>=0.133'
       vue: '>=3.5.17'
 
+  '@tresjs/cientos@5.7.1':
+    resolution: {integrity: sha512-6XdOvL2VN2Dmaok2PIJYSheIVRrpDXlZD0/A7WXAvBLQ6oov70dDTVofphbrzgVRuqLfTLOs4tPjHkYJOmqQ2g==}
+    peerDependencies:
+      '@tresjs/core': 5.8.1
+      three: '>=0.133'
+      vue: '>=3.5.17'
+
   '@tresjs/core@5.5.0':
     resolution: {integrity: sha512-wIHwPYWeBXO1LdDVRHPAt0YLjvqm8JYb6uliOkzLyWzHqVNVZ0qQjipGPT72mV87uQFUiIHF8EY8L2jiWxuUFw==}
+    peerDependencies:
+      three: '>=0.133'
+      vue: '>=3.4'
+
+  '@tresjs/core@5.8.1':
+    resolution: {integrity: sha512-Lg0S8ZY3PLMIDDh+VN21QQBSC6afITAAWJ41gOYz9L0Et5RPAqDNCR/OncQxH4CXrNe/c5GB2wqGgRT3tHPoCg==}
     peerDependencies:
       three: '>=0.133'
       vue: '>=3.4'
@@ -8953,6 +9015,9 @@ packages:
 
   '@types/three@0.183.1':
     resolution: {integrity: sha512-f2Pu5Hrepfgavttdye3PsH5RWyY/AvdZQwIVhrc4uNtvF7nOWJacQKcoVJn0S4f0yYbmAE6AR+ve7xDcuYtMGw==}
+
+  '@types/three@0.184.1':
+    resolution: {integrity: sha512-6q4VdiqVsrTRqmk62/BnlcAvIrnDM0zf2ZDVKI5kZiniWrSaOHaQzmbp+BNzoggc/8tgW412pL//wZIxu2PPTA==}
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
@@ -13670,6 +13735,9 @@ packages:
   meshoptimizer@1.0.1:
     resolution: {integrity: sha512-Vix+QlA1YYT3FwmBBZ+49cE5y/b+pRrcXKqGpS5ouh33d3lSp2PoTpCw19E0cKDFWalembrHnIaZetf27a+W2g==}
 
+  meshoptimizer@1.1.1:
+    resolution: {integrity: sha512-oRFNWJRDA/WTrVj7NWvqa5HqE1t9MYDj2VaWirQCzCCrAd2GHrqR/sQezCxiWATPNlKTcRaPRHPJwIRoPBAp5g==}
+
   meta-png@1.0.6:
     resolution: {integrity: sha512-eQtEi5E9axqwqA/sDK1dyhX9kYHCUe2m+45aQ3JHrozjGPs+/ab+hdhPp7A3GUNW+ZAbavrsg5xQ4r5jkGDX+A==}
 
@@ -15923,6 +15991,9 @@ packages:
 
   three@0.183.1:
     resolution: {integrity: sha512-Psv6bbd3d/M/01MT2zZ+VmD0Vj2dbWTNhfe4CuSg7w5TuW96M3NOyCVuh9SZQ05CpGmD7NEcJhZw4GVjhCYxfQ==}
+
+  three@0.184.0:
+    resolution: {integrity: sha512-wtTRjG92pM5eUg/KuUnHsqSAlPM296brTOcLgMRqEeylYTh/CdtvKUvCyyCQTzFuStieWxvZb8mVTMvdPyUpxg==}
 
   through2@0.6.5:
     resolution: {integrity: sha512-RkK/CCESdTKQZHdmKICijdKKsCRVHs5KsLZ6pACAmF/1GPUQhonHSXWNERctxEp7RmvjdNbZTL5z9V7nSCXKcg==}
@@ -20375,6 +20446,11 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.17': {}
 
+  '@moeru/three-mmd@0.1.0-beta.3(@types/three@0.184.1)(three@0.184.0)':
+    dependencies:
+      '@types/three': 0.184.1
+      three: 0.184.0
+
   '@mrleebo/prisma-ast@0.13.1':
     dependencies:
       chevrotain: 10.5.0
@@ -22733,6 +22809,40 @@ snapshots:
       - '@types/three'
       - react
 
+  '@tresjs/cientos@5.4.0(@tresjs/core@5.5.0(three@0.184.0)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.184.0)(vue@3.5.29(typescript@5.9.3))':
+    dependencies:
+      '@tresjs/core': 5.5.0(three@0.184.0)(vue@3.5.29(typescript@5.9.3))
+      '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
+      camera-controls: 2.10.1(three@0.184.0)
+      stats-gl: 2.4.2(@types/three@0.183.1)(three@0.184.0)
+      stats.js: 0.17.0
+      three: 0.184.0
+      three-custom-shader-material: 5.4.0(react@19.2.3)(three@0.184.0)
+      three-mesh-bvh: 0.9.8(three@0.184.0)
+      three-stdlib: 2.36.1(three@0.184.0)
+      vue: 3.5.29(typescript@5.9.3)
+    transitivePeerDependencies:
+      - '@react-three/fiber'
+      - '@types/three'
+      - react
+
+  '@tresjs/cientos@5.7.1(@tresjs/core@5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.184.1)(react@19.2.3)(three@0.184.0)(vue@3.5.29(typescript@5.9.3))':
+    dependencies:
+      '@tresjs/core': 5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3))
+      '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
+      camera-controls: 2.10.1(three@0.184.0)
+      stats-gl: 2.4.2(@types/three@0.184.1)(three@0.184.0)
+      stats.js: 0.17.0
+      three: 0.184.0
+      three-custom-shader-material: 5.4.0(react@19.2.3)(three@0.184.0)
+      three-mesh-bvh: 0.9.8(three@0.184.0)
+      three-stdlib: 2.36.1(three@0.184.0)
+      vue: 3.5.29(typescript@5.9.3)
+    transitivePeerDependencies:
+      - '@react-three/fiber'
+      - '@types/three'
+      - react
+
   '@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
     dependencies:
       '@pmndrs/pointer-events': 6.6.28
@@ -22740,6 +22850,24 @@ snapshots:
       '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
       radashi: 12.7.1
       three: 0.183.1
+      vue: 3.5.29(typescript@5.9.3)
+
+  '@tresjs/core@5.5.0(three@0.184.0)(vue@3.5.29(typescript@5.9.3))':
+    dependencies:
+      '@pmndrs/pointer-events': 6.6.28
+      '@vue/devtools-api': 7.7.9
+      '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
+      radashi: 12.7.1
+      three: 0.184.0
+      vue: 3.5.29(typescript@5.9.3)
+
+  '@tresjs/core@5.8.1(three@0.184.0)(vue@3.5.29(typescript@5.9.3))':
+    dependencies:
+      '@pmndrs/pointer-events': 6.6.28
+      '@vue/devtools-api': 7.7.9
+      '@vueuse/core': 13.9.0(vue@3.5.29(typescript@5.9.3))
+      radashi: 12.7.1
+      three: 0.184.0
       vue: 3.5.29(typescript@5.9.3)
 
   '@tresjs/post-processing@3.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(three@0.183.1)(vue@3.5.29(typescript@5.9.3))':
@@ -22969,6 +23097,15 @@ snapshots:
       '@webgpu/types': 0.1.68
       fflate: 0.8.2
       meshoptimizer: 1.0.1
+
+  '@types/three@0.184.1':
+    dependencies:
+      '@dimforge/rapier3d-compat': 0.12.0
+      '@tweenjs/tween.js': 23.1.3
+      '@types/stats.js': 0.17.4
+      '@types/webxr': 0.5.24
+      fflate: 0.8.2
+      meshoptimizer: 1.1.1
 
   '@types/trusted-types@2.0.7': {}
 
@@ -25082,6 +25219,10 @@ snapshots:
   camera-controls@2.10.1(three@0.183.1):
     dependencies:
       three: 0.183.1
+
+  camera-controls@2.10.1(three@0.184.0):
+    dependencies:
+      three: 0.184.0
 
   caniuse-lite@1.0.30001761: {}
 
@@ -28550,6 +28691,8 @@ snapshots:
 
   meshoptimizer@1.0.1: {}
 
+  meshoptimizer@1.1.1: {}
+
   meta-png@1.0.6: {}
 
   methods@1.1.2: {}
@@ -31173,6 +31316,16 @@ snapshots:
       '@types/three': 0.183.1
       three: 0.183.1
 
+  stats-gl@2.4.2(@types/three@0.183.1)(three@0.184.0):
+    dependencies:
+      '@types/three': 0.183.1
+      three: 0.184.0
+
+  stats-gl@2.4.2(@types/three@0.184.1)(three@0.184.0):
+    dependencies:
+      '@types/three': 0.184.1
+      three: 0.184.0
+
   stats.js@0.17.0: {}
 
   statuses@1.5.0: {}
@@ -31488,9 +31641,23 @@ snapshots:
     optionalDependencies:
       react: 19.2.3
 
+  three-custom-shader-material@5.4.0(react@19.2.3)(three@0.184.0):
+    dependencies:
+      glsl-token-functions: 1.0.1
+      glsl-token-string: 1.0.1
+      glsl-tokenizer: 2.1.5
+      object-hash: 3.0.0
+      three: 0.184.0
+    optionalDependencies:
+      react: 19.2.3
+
   three-mesh-bvh@0.9.8(three@0.183.1):
     dependencies:
       three: 0.183.1
+
+  three-mesh-bvh@0.9.8(three@0.184.0):
+    dependencies:
+      three: 0.184.0
 
   three-stdlib@2.36.1(three@0.183.1):
     dependencies:
@@ -31502,6 +31669,16 @@ snapshots:
       potpack: 1.0.2
       three: 0.183.1
 
+  three-stdlib@2.36.1(three@0.184.0):
+    dependencies:
+      '@types/draco3d': 1.4.10
+      '@types/offscreencanvas': 2019.7.3
+      '@types/webxr': 0.5.24
+      draco3d: 1.5.7
+      fflate: 0.6.10
+      potpack: 1.0.2
+      three: 0.184.0
+
   three.meshline@1.4.0: {}
 
   three@0.128.0: {}
@@ -31509,6 +31686,8 @@ snapshots:
   three@0.174.0: {}
 
   three@0.183.1: {}
+
+  three@0.184.0: {}
 
   through2@0.6.5:
     dependencies:
@@ -31614,7 +31793,7 @@ snapshots:
 
   ts-declaration-location@1.0.7(typescript@5.9.3):
     dependencies:
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       typescript: 5.9.3
 
   ts-interface-checker@0.1.13: {}
@@ -32008,7 +32187,7 @@ snapshots:
   unplugin-utils@0.2.5:
     dependencies:
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.4
 
   unplugin-utils@0.3.1:
     dependencies:
