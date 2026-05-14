@@ -139,10 +139,6 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       }
       newDisplayModel.previewImage = previewImage
     }
-    else if (format === DisplayModelFormat.PMXZip || format === DisplayModelFormat.PMXDirectory || format === DisplayModelFormat.PMD) {
-      const previewImage = await generateMmdPreview(file)
-      newDisplayModel.previewImage = previewImage
-    }
 
     displayModels.value.unshift(newDisplayModel)
 
@@ -153,6 +149,15 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   async function addDisplayModelWithTextures(format: DisplayModelFormat, modelFile: File, textureFiles: MmdTextureFile[]) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
     const newDisplayModel: DisplayModelFile = { id: `display-model-${nanoid()}`, format, type: 'file', file: modelFile, name: modelFile.name, importedAt: Date.now() }
+
+    // Generate preview for MMD model
+    try {
+      const previewImage = await generateMmdPreview(modelFile, textureFiles)
+      newDisplayModel.previewImage = previewImage
+    }
+    catch (e) {
+      console.error('[DisplayModels] Failed to generate MMD preview:', e)
+    }
 
     displayModels.value.unshift(newDisplayModel)
 

@@ -1,22 +1,14 @@
+import type { MmdTextureFile } from './mmd-zip-extractor'
+
 import { AmbientLight, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 
 import { loadMmd } from '../composables/mmd/core'
-import { extractMmdFromZip } from './mmd-zip-extractor'
 
 /**
  * Render an MMD file to an offscreen canvas and return a preview data URL.
  */
-export async function loadMmdModelPreview(file: File): Promise<string | undefined> {
-  console.log('[MMD:Preview] Starting preview generation for:', file.name)
-
-  // 1. Extract the zip file
-  const extractResult = await extractMmdFromZip(file)
-  if (!extractResult) {
-    console.warn('[MMD:Preview] Failed to extract MMD from zip!')
-    return undefined
-  }
-
-  const { modelFile, textureFiles } = extractResult
+export async function loadMmdModelPreview(modelFile: File, textureFiles: MmdTextureFile[]): Promise<string | undefined> {
+  console.log('[MMD:Preview] Starting preview generation for:', modelFile.name)
 
   // 2. Create texture map (filename -> blob URL)
   const textureMap = new Map<string, string>()
