@@ -1,3 +1,5 @@
+import JSZip from 'jszip'
+
 import { loadSpineRuntime } from './spine-runtime'
 import { detectSpineVersionFromBinary, detectSpineVersionFromJson } from './spine-version'
 import { loadSpineZip } from './spine-zip-loader'
@@ -40,6 +42,12 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
     canvas = document.createElement('canvas')
     canvas.width = previewWidth
     canvas.height = previewHeight
+    // CRITICAL: Lock CSS dimensions so SceneRenderer.resize() doesn't create
+    // an exponential feedback loop. Without these, clientWidth equals the buffer
+    // size → resize() multiplies by DPR → buffer grows → clientWidth grows →
+    // repeat. By frame 4 the canvas exceeds GPU limits and rendering explodes.
+    canvas.style.width = `${previewWidth}px`
+    canvas.style.height = `${previewHeight}px`
     canvas.style.position = 'absolute'
     canvas.style.left = '-99999px'
     canvas.style.top = '0'
@@ -54,6 +62,8 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
 
     return await new Promise<string | undefined>((resolve) => {
       let resolved = false
+      let frameCount = 0
+      const zip = new JSZip()
       const finish = (value: string | undefined) => {
         if (resolved)
           return
@@ -94,15 +104,27 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
 
             const skeleton = new spine.Skeleton(skeletonData)
             skeleton.setToSetupPose()
+
+            // Position skeleton exactly like the stage does (applyTransformFromStore)
+            skeleton.x = previewWidth / 2
+            skeleton.y = previewHeight * 0.05
+
+            console.log(`[Spine Preview] SkeletonData width=${skeletonData.width}, height=${skeletonData.height}, positioned at x=${skeleton.x}, y=${skeleton.y}`)
+
+            // Clear any default animations to prevent the scene from blowing up at frame 4
+            const anyApp = canvasApp as any
+            if (anyApp.animationState) {
+              console.log('[Spine Preview] Clearing animation tracks')
+              anyApp.animationState.clearTracks()
+            }
+
             ;(canvasApp as unknown as { __previewSkeleton: import('@esotericsoftware/spine-webgl').Skeleton }).__previewSkeleton = skeleton
           },
           update: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas, _delta: number) => {
             const skeleton = (canvasApp as unknown as { __previewSkeleton?: import('@esotericsoftware/spine-webgl').Skeleton }).__previewSkeleton
             if (skeleton) {
-              if (spine.Physics)
-                skeleton.updateWorldTransform(spine.Physics.update)
-              else
-                (skeleton as any).updateWorldTransform()
+              // Disable physics for preview to avoid bloom/light expansion
+              (skeleton as any).updateWorldTransform()
             }
           },
           render: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas) => {
@@ -111,21 +133,55 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
               return
 
             const renderer = canvasApp.renderer
-            renderer.resize(spine.ResizeMode.Fit)
+            renderer.resize(spine.ResizeMode.Expand)
             canvasApp.gl.clearColor(0, 0, 0, 0)
             canvasApp.gl.clear(canvasApp.gl.COLOR_BUFFER_BIT)
             renderer.begin()
-            renderer.drawSkeleton(skeleton, true)
+            renderer.drawSkeleton(skeleton, false)
             renderer.end()
 
-            try {
-              const dataUrl = canvas!.toDataURL('image/png')
-              finish(dataUrl)
+            frameCount++
+
+            // Capture frame
+            if (frameCount <= 120) {
+              try {
+                const dataUrl = canvas!.toDataURL('image/png')
+                const base64Data = dataUrl.split(',')[1]
+                zip.file(`frame_${String(frameCount).padStart(3, '0')}.png`, base64Data, { base64: true })
+              }
+              catch (err) {
+                console.error('[Spine] Failed to capture frame:', err)
+              }
             }
-            catch (err) {
-              console.error('[Spine] Failed to capture preview:', err)
+
+            if (frameCount !== 120)
+              return
+
+            // At frame 120, generate zip and download
+            console.log('[Spine] Reached 120 frames. Generating ZIP...')
+            zip.generateAsync({ type: 'blob' }).then((blob) => {
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `spine_frames_${Date.now()}.zip`
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
+              URL.revokeObjectURL(url)
+              console.log('[Spine] Frames ZIP downloaded')
+
+              // Now finish the preview with the last frame
+              try {
+                const dataUrl = canvas!.toDataURL('image/png')
+                finish(dataUrl)
+              }
+              catch (err) {
+                finish(undefined)
+              }
+            }).catch((err) => {
+              console.error('[Spine] Failed to generate ZIP:', err)
               finish(undefined)
-            }
+            })
           },
         }
 
@@ -148,7 +204,7 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
       }
 
       // Hard timeout so a stuck load can't block the import flow.
-      setTimeout(finish, 4000, undefined)
+      setTimeout(finish, 30000, undefined)
     })
   }
   catch (err) {
