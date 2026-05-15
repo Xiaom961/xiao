@@ -12,11 +12,13 @@ import {
   ContextMenuItem,
   ContextMenuPortal,
   ContextMenuRoot,
+  ContextMenuSeparator,
   ContextMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuPortal,
   DropdownMenuRoot,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from 'reka-ui'
 import { computed, inject, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
@@ -351,20 +353,21 @@ watch(isTouching, (val) => {
               :side-offset="6"
               :class="contentClasses"
             >
-              <DropdownMenuItem
-                v-for="item in menuItems"
-                :key="item.action"
-                :class="[
-                  ...itemClasses,
-                  item.danger
-                    ? 'text-red-500 data-[highlighted]:bg-red-50/80 dark:data-[highlighted]:bg-red-950/40'
-                    : '',
-                ]"
-                @select="() => void handleAction(item.action)"
-              >
-                <div :class="[item.icon, 'text-xs']" />
-                <span>{{ item.label }}</span>
-              </DropdownMenuItem>
+              <template v-for="item in menuItems" :key="item.action">
+                <DropdownMenuItem
+                  :class="[
+                    ...itemClasses,
+                    item.danger
+                      ? 'text-red-500 data-[highlighted]:bg-red-50/80 dark:data-[highlighted]:bg-red-950/40'
+                      : '',
+                  ]"
+                  @select="() => void handleAction(item.action)"
+                >
+                  <div :class="[item.icon, 'text-xs']" />
+                  <span>{{ item.label }}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator v-if="item.divider" class="my-1 h-px bg-neutral-100 dark:bg-neutral-800" />
+              </template>
             </DropdownMenuContent>
           </DropdownMenuPortal>
         </DropdownMenuRoot>
@@ -407,20 +410,21 @@ watch(isTouching, (val) => {
               :side-offset="6"
               :class="contentClasses"
             >
-              <DropdownMenuItem
-                v-for="item in menuItems"
-                :key="`${item.action}-floating`"
-                :class="[
-                  ...itemClasses,
-                  item.danger
-                    ? 'text-red-500 data-[highlighted]:bg-red-50/80 dark:data-[highlighted]:bg-red-950/40'
-                    : '',
-                ]"
-                @select="() => void handleAction(item.action)"
-              >
-                <div :class="[item.icon, 'text-xs']" />
-                <span>{{ item.label }}</span>
-              </DropdownMenuItem>
+              <template v-for="item in menuItems" :key="`${item.action}-floating`">
+                <DropdownMenuItem
+                  :class="[
+                    ...itemClasses,
+                    item.danger
+                      ? 'text-red-500 data-[highlighted]:bg-red-50/80 dark:data-[highlighted]:bg-red-950/40'
+                      : '',
+                  ]"
+                  @select="() => void handleAction(item.action)"
+                >
+                  <div :class="[item.icon, 'text-xs']" />
+                  <span>{{ item.label }}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator v-if="item.divider" class="my-1 h-px bg-neutral-100 dark:bg-neutral-800" />
+              </template>
             </DropdownMenuContent>
           </DropdownMenuPortal>
         </DropdownMenuRoot>
@@ -433,26 +437,27 @@ watch(isTouching, (val) => {
           ...contentClasses,
         ]"
       >
-        <ContextMenuItem
-          v-for="item in menuItems"
-          :key="item.action"
-          :class="[
-            ...itemClasses,
-            item.danger
-              ? 'text-red-500 data-[highlighted]:bg-red-50/80 dark:data-[highlighted]:bg-red-950/40'
-              : '',
-          ]"
-          @select="() => void handleAction(item.action)"
-        >
-          <div
+        <template v-for="item in menuItems" :key="item.action">
+          <ContextMenuItem
             :class="[
-              item.icon, 'text-xs',
+              ...itemClasses,
+              item.danger
+                ? 'text-red-500 data-[highlighted]:bg-red-50/80 dark:data-[highlighted]:bg-red-950/40'
+                : '',
             ]"
-          />
-          <span>
-            {{ item.label }}
-          </span>
-        </ContextMenuItem>
+            @select="() => void handleAction(item.action)"
+          >
+            <div
+              :class="[
+                item.icon, 'text-xs',
+              ]"
+            />
+            <span>
+              {{ item.label }}
+            </span>
+          </ContextMenuItem>
+          <ContextMenuSeparator v-if="item.divider" class="my-1 h-px bg-neutral-100 dark:bg-neutral-800" />
+        </template>
       </ContextMenuContent>
     </ContextMenuPortal>
   </ContextMenuRoot>

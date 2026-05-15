@@ -77,6 +77,30 @@ function handleDelete() {
   emit('delete')
 }
 
+async function handleRetry() {
+  if (!props.message.id)
+    return
+
+  const activeSessionId = chatSession.activeSessionId
+  if (!activeSessionId)
+    return
+
+  const messages = chatSession.getSessionMessages(activeSessionId)
+  const index = messages.findIndex(msg => msg.id === props.message.id)
+
+  if (index === -1)
+    return
+
+  // Truncate messages up to (but not including) this user message!
+  const nextMessages = messages.slice(0, index)
+  chatSession.setSessionMessages(activeSessionId, nextMessages)
+
+  // Now ingest the message content again!
+  await chatOrchestrator.ingest(content.value, {})
+
+  toast.success('Retrying message...')
+}
+
 async function handleFork() {
   if (!props.message.id)
     return
@@ -116,6 +140,7 @@ async function handleFork() {
       @copy="handleCopy"
       @delete="handleDelete"
       @fork="handleFork"
+      @retry="handleRetry"
     >
       <template #default="{ setMeasuredElement }">
         <div

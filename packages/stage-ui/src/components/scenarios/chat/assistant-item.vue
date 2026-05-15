@@ -8,6 +8,7 @@ import { toast } from 'vue-sonner'
 import ChatResponsePart from './response-part.vue'
 import ChatToolCallBlock from './tool-call-block.vue'
 
+import { useChatOrchestratorStore } from '../../../stores/chat'
 import { useChatSessionStore } from '../../../stores/chat/session-store'
 import { MarkdownRenderer } from '../../markdown'
 import { ChatActionMenu } from './components/action-menu'
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const chatSession = useChatSessionStore()
+const chatOrchestrator = useChatOrchestratorStore()
 const { t } = useI18n()
 
 const formattedTime = computed(() => {
@@ -94,6 +96,49 @@ function handleDelete() {
   if (props.message.id)
     chatSession.deleteMessage(props.message.id)
   emit('delete')
+}
+
+async function handleRetry() {
+  const activeSessionId = chatSession.activeSessionId
+  if (!activeSessionId)
+    return
+
+  const messages = chatSession.getSessionMessages(activeSessionId)
+  const index = messages.findIndex(msg => msg.id === props.message.id)
+
+  if (index === -1)
+    return
+
+  // Find the user message before this assistant message!
+  if (index > 0 && messages[index - 1].role === 'user') {
+    const userMsg = messages[index - 1]
+    const content = userMsg.content
+
+    // Truncate history at index - 1 (remove user message and all after it!)
+    const nextMessages = messages.slice(0, index - 1)
+    chatSession.setSessionMessages(activeSessionId, nextMessages)
+
+    // Now ingest the user message content again!
+    let textToIngest = ''
+    if (typeof content === 'string') {
+      textToIngest = content
+    }
+    else if (Array.isArray(content)) {
+      const textPart = content.find(part => 'type' in part && part.type === 'text') as { text?: string } | undefined
+      textToIngest = textPart?.text || ''
+    }
+
+    if (textToIngest) {
+      await chatOrchestrator.ingest(textToIngest, {})
+      toast.success('Retrying message...')
+    }
+    else {
+      toast.error('Cannot retry: User message content is empty.')
+    }
+  }
+  else {
+    toast.error('Cannot retry: No user message found before this response.')
+  }
 }
 
 async function handleFork() {
@@ -347,6 +392,7 @@ const resolvedSlices = computed(() => {
       @copy="handleCopy"
       @delete="handleDelete"
       @fork="handleFork"
+      @retry="handleRetry"
     >
       <template #default="{ setMeasuredElement }">
         <div class="w-full flex flex-row gap-2">
