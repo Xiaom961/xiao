@@ -4,6 +4,7 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { useBackupStore } from '@proj-airi/stage-ui/stores/backup'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
@@ -71,6 +72,7 @@ const pluginHostInspectorStore = usePluginHostInspectorStore()
 const discordStore = useDiscordStore()
 const textJournalStore = useTextJournalStore()
 const shortTermMemoryStore = useShortTermMemoryStore()
+const backupStore = useBackupStore()
 usePerfTracerBridgeStore()
 
 const proactivityStore = useProactivityStore()
@@ -214,6 +216,12 @@ onMounted(async () => {
   // Auto-start Discord service if previously enabled and token is configured
   if (discordStore.enabled && discordStore.configured) {
     discordStore.startService()
+  }
+
+  // Auto-backup check (every 24 hours)
+  if (backupStore.isBackupEnabled && Date.now() - backupStore.lastBackupTime > 24 * 60 * 60 * 1000) {
+    console.log('[App] Auto-backup condition met. Triggering backup...')
+    void backupStore.triggerBackup()
   }
 
   // Listen for open-settings IPC message from main process

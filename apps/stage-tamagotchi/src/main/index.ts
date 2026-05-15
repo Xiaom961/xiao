@@ -259,6 +259,34 @@ app.whenReady().then(async () => {
         })
       })
 
+      ipcMain.handle('save-backup-bundle', async (_event, data: { timestamp: string, files: Record<string, string>, customPath?: string }) => {
+        console.log('[Backup] Received backup bundle request')
+        const fs = await import('node:fs/promises')
+        const path = await import('node:path')
+
+        const defaultPath = path.join(app.getPath('documents'), 'AIRI-Backups')
+        const savePath = data.customPath || defaultPath
+
+        try {
+          await fs.mkdir(savePath, { recursive: true })
+
+          // Save files into a folder named with timestamp
+          const bundleDir = path.join(savePath, `backup-${data.timestamp}`)
+          await fs.mkdir(bundleDir, { recursive: true })
+
+          for (const [filename, content] of Object.entries(data.files)) {
+            await fs.writeFile(path.join(bundleDir, filename), content)
+          }
+
+          console.log(`[Backup] Backup saved to ${bundleDir}`)
+          return { success: true, path: bundleDir }
+        }
+        catch (error) {
+          console.error('[Backup] Failed to save backup:', error)
+          throw error
+        }
+      })
+
       ipcMain.on('provider-validation-result', (_, data: { providerId: string, valid: boolean, reason: string, config: any }) => {
         if (data.valid)
           return

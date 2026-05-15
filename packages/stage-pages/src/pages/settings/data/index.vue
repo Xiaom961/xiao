@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
+import { useBackupStore } from '@proj-airi/stage-ui/stores/backup'
 import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -22,6 +23,8 @@ const {
   deleteAllData,
   resetDesktopApplicationState,
 } = useDataMaintenance()
+
+const backupStore = useBackupStore()
 
 const statusMessage = ref('')
 const statusTone = ref<'neutral' | 'success' | 'error'>('neutral')
@@ -123,6 +126,22 @@ async function handleImport(event: Event) {
   }
   finally {
     target.value = ''
+  }
+}
+
+const formattedLastBackupTime = computed(() => {
+  if (!backupStore.lastBackupTime)
+    return 'Never'
+  return new Date(backupStore.lastBackupTime).toLocaleString()
+})
+
+async function handleTriggerBackup() {
+  const success = await backupStore.triggerBackup()
+  if (success) {
+    setStatus('Backup completed successfully!')
+  }
+  else {
+    setStatus('Backup failed!', 'error')
   }
 }
 </script>
@@ -234,6 +253,34 @@ async function handleImport(event: Event) {
             </Button>
             <Button variant="primary" @click="triggerImportPicker('backgrounds')">
               {{ t('settings.pages.data.sections.backgrounds.import') }}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Backup -->
+    <div class="border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900/60">
+      <div class="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+        <div class="flex flex-col gap-1 md:max-w-[560px]">
+          <div class="text-lg font-medium">
+            Auto-Backup & Manual Backup
+          </div>
+          <p class="text-sm text-neutral-600 dark:text-neutral-400">
+            Configure auto-backup or trigger a manual backup.
+          </p>
+          <div class="mt-2 text-sm text-neutral-500">
+            <div>Backup Path: <span class="font-mono">{{ backupStore.backupPath || '~/Documents/AIRI-Backups' }}</span></div>
+            <div>Last Backup: <span class="font-mono">{{ formattedLastBackupTime }}</span></div>
+          </div>
+        </div>
+        <div class="flex flex-col items-start gap-2 sm:items-end">
+          <div class="flex flex-wrap gap-2">
+            <Button :variant="backupStore.isBackupEnabled ? 'primary' : 'secondary'" @click="backupStore.isBackupEnabled = !backupStore.isBackupEnabled">
+              {{ backupStore.isBackupEnabled ? 'Auto-Backup Enabled' : 'Auto-Backup Disabled' }}
+            </Button>
+            <Button variant="primary" @click="handleTriggerBackup">
+              Trigger Backup
             </Button>
           </div>
         </div>
