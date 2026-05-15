@@ -309,6 +309,9 @@ patchedDependencies:
   mineflayer@4.33.0:
     hash: 03a5a80439dece74f880cf754f7317b3c9e4c5dbc6488eba67c36ab4fbfbea3a
     path: patches/mineflayer@4.33.0.patch
+  node-gyp@11.5.0:
+    hash: 08679b8378cb1389c3cd42804e0c2710c122e10e7b0a81da52c8b06728fbdebb
+    path: patches/node-gyp@11.5.0.patch
   pixi-live2d-display:
     hash: 122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c
     path: patches/pixi-live2d-display.patch
@@ -19126,7 +19129,7 @@ snapshots:
       graceful-fs: 4.2.11
       node-abi: 4.24.0
       node-api-version: 0.2.1
-      node-gyp: 11.5.0
+      node-gyp: 11.5.0(patch_hash=08679b8378cb1389c3cd42804e0c2710c122e10e7b0a81da52c8b06728fbdebb)
       ora: 5.4.1
       read-binary-file-arch: 1.0.6
       semver: 7.7.4
@@ -29344,7 +29347,7 @@ snapshots:
       - supports-color
     optional: true
 
-  node-gyp@11.5.0:
+  node-gyp@11.5.0(patch_hash=08679b8378cb1389c3cd42804e0c2710c122e10e7b0a81da52c8b06728fbdebb):
     dependencies:
       env-paths: 2.2.1
       exponential-backoff: 3.1.3
