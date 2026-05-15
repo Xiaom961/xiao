@@ -50,6 +50,8 @@ const emit = defineEmits<{
   (e: 'fork'): void
   (e: 'edit'): void
   (e: 'retry'): void
+  (e: 'fork-switch'): void
+  (e: 'delete-following'): void
 }>()
 defineSlots<{
   default: (props: { setMeasuredElement: (element: Element | ComponentPublicInstance | null) => void }) => unknown
@@ -146,6 +148,11 @@ async function handleAction(action: ChatActionMenuAction) {
     return
   }
 
+  if (action === 'fork-switch') {
+    emit('fork-switch')
+    return
+  }
+
   if (action === 'edit') {
     emit('edit')
     return
@@ -153,6 +160,11 @@ async function handleAction(action: ChatActionMenuAction) {
 
   if (action === 'retry') {
     emit('retry')
+    return
+  }
+
+  if (action === 'delete-following') {
+    emit('delete-following')
     return
   }
 
