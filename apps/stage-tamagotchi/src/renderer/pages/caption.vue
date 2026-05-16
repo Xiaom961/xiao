@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
-import { useElectronEventaContext, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '@proj-airi/electron-vueuse'
+import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '@proj-airi/electron-vueuse'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
-import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../shared/eventa'
+import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged, electronSetIgnoreMouseEvents } from '../../shared/eventa'
 
+const setIgnoreMouseEvents = useElectronEventaInvoke(electronSetIgnoreMouseEvents)
 const attached = ref(true)
 const scrollContainer = ref<HTMLElement | null>(null)
 const settingsStore = useSettings()
@@ -15,6 +16,16 @@ const assistantText = ref('')
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const isOutsideWindowFor250Ms = refDebounced(isOutsideWindow, 250)
 const shouldFadeOnCursorWithin = computed(() => !isOutsideWindowFor250Ms.value)
+
+function handleHandleMouseEnter() {
+  console.log('[Caption] Mouse entered drag handle, making window interactive.')
+  setIgnoreMouseEvents(false)
+}
+
+function handleHandleMouseLeave() {
+  console.log('[Caption] Mouse left drag handle, making window click-through.')
+  setIgnoreMouseEvents(true)
+}
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
@@ -135,7 +146,8 @@ const containerStyle = computed(() => ({
       <div
         :class="[
           (!settingsStore.showCaptions || shouldFadeOnCursorWithin) ? 'op-0' : 'op-100',
-          'pointer-events-auto relative select-none rounded-xl px-3 py-2',
+          'relative select-none rounded-xl px-3 py-2',
+          'pointer-events-none', // Text is always click-through
           'backdrop-blur-sm',
           'transition-all duration-300 ease-in-out my-2',
         ]"
@@ -172,6 +184,8 @@ const containerStyle = computed(() => ({
         v-if="!attached && shouldFadeOnCursorWithin"
         class="[-webkit-app-region:drag] pointer-events-auto absolute left-1/2 top-4 h-[14px] w-[36px] border border-[rgba(125,125,125,0.35)] rounded-[10px] bg-[rgba(125,125,125,0.75)] backdrop-blur-[6px] -translate-x-1/2"
         title="Drag to move"
+        @mouseenter="handleHandleMouseEnter"
+        @mouseleave="handleHandleMouseLeave"
       >
         <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2" />
       </div>

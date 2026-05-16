@@ -783,9 +783,8 @@ function triggerWardrobeItem(id: string) {
               </div>
             </div>
 
-            <!-- Captions Sub-menu -->
             <div v-else-if="view === 'captions'" key="captions" grid grid-cols-3 gap-2>
-              <!-- Row 1: Power & Visuals -->
+              <!-- Row 1: Visuals -->
               <ControlButtonTooltip>
                 <ControlButton
                   :button-style="adjustStyleClasses.button"
@@ -828,13 +827,12 @@ function triggerWardrobeItem(id: string) {
                 </template>
               </ControlButtonTooltip>
 
-              <!-- Row 2: Spatial & Reset -->
+              <!-- Row 2: Layout & Behavior -->
               <ControlButtonTooltip>
                 <ControlButton
                   :button-style="adjustStyleClasses.button"
                   @click="() => {
-                    const next = (settingsStore.captionDocking === 'bottom' ? 'top' : 'bottom')
-                    console.log('[ControlIsland] Toggling Docking Mode from Island Button:', { current: settingsStore.captionDocking, next })
+                    const next = (settingsStore.captionDocking === 'top' ? 'bottom' : 'top')
                     settingsStore.captionDocking = next
                     syncCaptionDocking(next)
                   }"
@@ -848,7 +846,7 @@ function triggerWardrobeItem(id: string) {
                   />
                 </ControlButton>
                 <template #tooltip>
-                  Docking: {{ settingsStore.captionDocking }}
+                  Dock: {{ settingsStore.captionDocking === 'top' ? 'Top' : 'Bottom' }}
                 </template>
               </ControlButtonTooltip>
 
@@ -870,6 +868,7 @@ function triggerWardrobeItem(id: string) {
                 </template>
               </ControlButtonTooltip>
 
+              <!-- Row 3: Advanced & Reset -->
               <ControlButtonTooltip>
                 <ControlButton
                   :button-style="adjustStyleClasses.button"
@@ -882,7 +881,6 @@ function triggerWardrobeItem(id: string) {
                 </template>
               </ControlButtonTooltip>
 
-              <!-- Row 3: Logic & Back -->
               <ControlButtonTooltip>
                 <ControlButton
                   :button-style="adjustStyleClasses.button"
@@ -898,15 +896,6 @@ function triggerWardrobeItem(id: string) {
                 </ControlButton>
                 <template #tooltip>
                   Mode: {{ settingsStore.captionLayoutMode === 'single' ? 'Single Turn' : 'Multi-Turn' }}
-                </template>
-              </ControlButtonTooltip>
-
-              <ControlButtonTooltip>
-                <ControlButton :button-style="adjustStyleClasses.button" disabled opacity-20>
-                  <div i-solar:filters-outline :class="adjustStyleClasses.icon" />
-                </ControlButton>
-                <template #tooltip>
-                  Future: Effects
                 </template>
               </ControlButtonTooltip>
 

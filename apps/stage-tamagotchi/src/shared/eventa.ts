@@ -39,6 +39,7 @@ export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:eve
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 export const electronCaptionToggleVisibility = defineInvokeEventa<void>('eventa:invoke:electron:windows:caption:toggle-visibility')
 export const electronCaptionSyncDocking = defineInvokeEventa<void, 'top' | 'bottom' | undefined>('eventa:invoke:electron:windows:caption:sync-docking')
+export const electronSetIgnoreMouseEvents = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-ignore-mouse-events')
 
 export type RequestWindowActionDefault = 'confirm' | 'cancel' | 'close'
 export interface RequestWindowPayload {

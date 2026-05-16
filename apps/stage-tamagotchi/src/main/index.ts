@@ -16,7 +16,11 @@ import { isLinux } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
 
-import { electronCaptionSyncDocking, electronCaptionToggleVisibility } from '../shared/eventa'
+import {
+  electronCaptionSyncDocking,
+  electronCaptionToggleVisibility,
+  electronSetIgnoreMouseEvents,
+} from '../shared/eventa'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
@@ -234,6 +238,10 @@ app.whenReady().then(async () => {
       defineInvokeHandler(context, electronCaptionSyncDocking, async (dock) => {
         console.log('[@proj-airi/stage-tamagotchi] [Main] Caption docking sync triggered via Control Island:', dock)
         await deps.captionWindow.triggerMove(dock)
+      })
+      defineInvokeHandler(context, electronSetIgnoreMouseEvents, async (ignore) => {
+        // @ts-ignore - window might be undefined if context is global, but here it's window-specific
+        context.window?.setIgnoreMouseEvents(ignore, { forward: true })
       })
 
       const restoreCaption = () => {

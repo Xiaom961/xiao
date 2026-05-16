@@ -431,6 +431,10 @@ export function setupCaptionWindowManager(params: {
       emitVisibilityChanged()
     })
 
+    // Captions are click-through by default so you can click whatever is behind them.
+    // We use { forward: true } so the renderer can still detect mouseover for fading.
+    window.setIgnoreMouseEvents(true, { forward: true })
+
     return window
   })
 

@@ -82,26 +82,32 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
     directorPicks: string[],
     visualAssets: Record<string, any>,
   ): string[] {
+    const isVisual = (asset: any) => asset?.prompt?.trim() || (asset?.artistry?.provider && !['none', 'inherit'].includes(asset.artistry.provider))
+
     const validPicks = directorPicks.filter(id => !!visualAssets[id])
     if (validPicks.length === 0)
       return currentStack
+
+    // Identify non-visual concepts that the Director shouldn't be managing (Identity layers, etc)
+    const nonVisualLayers = currentStack.filter(id => !isVisual(visualAssets[id]))
 
     // Separate Director's picks into bases and layers
     const newBases = validPicks.filter(id => visualAssets[id]?.isBase)
     const newLayers = validPicks.filter(id => !visualAssets[id]?.isBase)
 
     if (newBases.length > 0) {
-      // Director picked a new Base: wipe stack, apply the last Base + layers
+      // Director picked a new Base: wipe visual stack, preserve non-visual identity layers
       const primaryBase = newBases[newBases.length - 1]
-      artistLog('Stack Resolve: New Base detected, clearing stack.', { primaryBase, layers: newLayers })
-      return [primaryBase, ...newLayers]
+      artistLog('Stack Resolve: New Base detected, preserving identity layers.', { primaryBase, identity: nonVisualLayers, layers: newLayers })
+      return [primaryBase, ...nonVisualLayers, ...newLayers]
     }
 
-    // Director picked only Layers: preserve existing Base, clear old modifiers
+    // Director picked only Layers: preserve existing Base and non-visual identity layers, clear old modifiers
     const currentBase = currentStack.find(id => visualAssets[id]?.isBase)
     const nextStack = currentBase ? [currentBase] : []
+    nextStack.push(...nonVisualLayers)
     nextStack.push(...newLayers)
-    artistLog('Stack Resolve: Refreshing modifiers, keeping base.', { currentBase, layers: newLayers })
+    artistLog('Stack Resolve: Refreshing modifiers, keeping base and identity.', { currentBase, identity: nonVisualLayers, layers: newLayers })
     return nextStack
   }
 
@@ -364,10 +370,17 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
       const airiExt = activeCard.extensions?.airi as any
       artistLog('DEBUG: Full airi extension:', JSON.stringify(airiExt, null, 2))
       const visualAssets = airiExt?.visual_assets || {}
-      artistLog('DEBUG: visual_assets resolved to:', JSON.stringify(visualAssets))
-      const hasConcepts = Object.keys(visualAssets).length > 0
+      const isVisual = (asset: any) => asset?.prompt?.trim() || (asset?.artistry?.provider && !['none', 'inherit'].includes(asset.artistry.provider))
+
+      // Heuristic: Director only sees/picks from concepts that have a visual prompt or a specific provider
+      const filteredVisualAssets = Object.fromEntries(
+        Object.entries(visualAssets as Record<string, any>).filter(([_, asset]) => isVisual(asset)),
+      )
+
+      artistLog('DEBUG: visual_assets filtered for Director:', Object.keys(filteredVisualAssets))
+      const hasConcepts = Object.keys(filteredVisualAssets).length > 0
       const availableConceptsText = hasConcepts
-        ? Object.entries(visualAssets)
+        ? Object.entries(filteredVisualAssets)
             .map(([id, asset]: [string, any]) => `- "${id}": ${asset.description}`)
             .join('\n')
         : ''
@@ -417,7 +430,11 @@ ${commonInstructions}`
 
 ---
 CURRENTLY ACTIVE CONCEPTS:
-${(airiExt?.active_concepts || []).length > 0 ? airiExt.active_concepts.join(', ') : '(None)'}
+${(() => {
+  const active = airiExt?.active_concepts || []
+  const filtered = active.filter((id: string) => isVisual(visualAssets[id]))
+  return filtered.length > 0 ? filtered.join(', ') : '(None)'
+})()}
 
 The list above indicates the visual concepts that were active in the previous turn. 
 
