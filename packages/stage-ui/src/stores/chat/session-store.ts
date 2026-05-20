@@ -354,11 +354,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         const currentMessages = sessionMessages.value[sessionId] ?? []
         const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
 
+        // Ensure the meta messageCount is correct and up to date
+        const actualCount = mergedMessages.length
+        let needsPersist = mergedMessages !== stored.messages
+
+        if (stored.meta.messageCount !== actualCount) {
+          stored.meta.messageCount = actualCount
+          needsPersist = true
+        }
+
         sessionMetas.value[sessionId] = stored.meta
         sessionMessages.value[sessionId] = mergedMessages
         ensureGeneration(sessionId)
 
-        if (mergedMessages !== stored.messages)
+        if (needsPersist)
           await persistSession(sessionId)
       }
       loadedSessions.add(sessionId)
@@ -446,12 +455,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       let activeId = characterIndex.activeSessionId
       await loadSession(activeId)
 
-      // RECOVERY BRIDGE: If active session is empty but others exist, switch to the most populated one.
+      // RECOVERY BRIDGE: If active session is unregistered/orphaned, or completely empty/corrupted, switch to the most populated one.
+      const isSessionRegistered = !!characterIndex.sessions[activeId]
       const currentMessages = sessionMessages.value[activeId] ?? []
-      if (currentMessages.length <= 1) {
+      if (!isSessionRegistered || currentMessages.length === 0) {
         const otherSessionIds = Object.keys(characterIndex.sessions).filter(id => id !== activeId)
         if (otherSessionIds.length > 0) {
-          console.info('[ChatSession] RECOVERY BRIDGE: Active session is empty, checking candidates...', { characterId, count: otherSessionIds.length })
+          console.info('[ChatSession] RECOVERY BRIDGE: Active session is empty/unregistered, checking candidates...', { characterId, count: otherSessionIds.length })
           let bestId = activeId
           let maxCount = currentMessages.length
 
@@ -872,6 +882,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     let processedCount = 0
     for (const [sessionId, record] of Object.entries(payload.sessions)) {
+      // Force recalculation of message count on import to ensure total integrity
+      record.meta.messageCount = record.messages.length
+
       sessionMetas.value[sessionId] = record.meta
       sessionMessages.value[sessionId] = record.messages
       ensureGeneration(sessionId)
@@ -962,7 +975,21 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // Deduplicate by message id if present
     if (message.id && current.some(m => m.id === message.id))
       return
-    sessionMessages.value[sessionId] = [...current, message]
+    const nextMessages = [...current, message]
+    sessionMessages.value[sessionId] = nextMessages
+
+    // Reactively update local metadata count and timestamp in other windows
+    const meta = sessionMetas.value[sessionId]
+    if (meta) {
+      meta.messageCount = nextMessages.length
+      meta.updatedAt = Date.now()
+    }
+    const characterId = meta?.characterId || getCurrentCharacterId()
+    const characterIndex = index.value?.characters[characterId]
+    if (characterIndex && characterIndex.sessions[sessionId]) {
+      characterIndex.sessions[sessionId].messageCount = nextMessages.length
+      characterIndex.sessions[sessionId].updatedAt = Date.now()
+    }
   })
   // void initialize()
 
