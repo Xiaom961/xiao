@@ -20,8 +20,8 @@ import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shar
 function createCustomizerWindow(options?: BrowserWindowConstructorOptions) {
   const window = new ElectronBrowserWindow({
     title: 'Customizer',
-    width: 520,
-    height: 580,
+    width: 780,
+    height: 620,
     show: false,
     icon,
     webPreferences: {
