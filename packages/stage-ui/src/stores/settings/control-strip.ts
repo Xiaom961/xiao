@@ -1,6 +1,7 @@
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import { computed } from 'vue'
 
 import { CUSTOMIZER_CATALOG } from '../../constants/control-customizer'
 
@@ -33,7 +34,28 @@ const DEFAULT_BUTTONS: ControlStripButton[] = [
 
 export const useSettingsControlStrip = defineStore('settings-control-strip', () => {
   const orientation = useLocalStorageManualReset<'vertical' | 'horizontal'>('settings/control-strip/orientation', 'vertical')
-  const interactionMode = useLocalStorageManualReset<'tactile' | 'drag' | 'positioning' | 'orbit'>('settings/control-strip/interaction-mode', 'tactile')
+  const stageMode = useLocalStorageManualReset<'positionMode' | 'dragMode' | 'tactileMode' | 'orbitMode'>('settings/control-strip/stage-mode', 'orbitMode')
+  const interactionMode = computed({
+    get: () => {
+      const mode = stageMode.value
+      if (mode === 'tactileMode')
+        return 'tactile'
+      if (mode === 'dragMode')
+        return 'drag'
+      if (mode === 'positionMode')
+        return 'positioning'
+      return 'orbit'
+    },
+    set: (val: 'tactile' | 'drag' | 'positioning' | 'orbit') => {
+      if (val === 'tactile')
+        stageMode.value = 'tactileMode'
+      else if (val === 'drag')
+        stageMode.value = 'dragMode'
+      else if (val === 'positioning')
+        stageMode.value = 'positionMode'
+      else stageMode.value = 'orbitMode'
+    },
+  })
   const isAdvancedPositioningOpen = useLocalStorageManualReset<boolean>('settings/control-strip/advanced-positioning-open', false)
   const stageEnabled = useLocalStorageManualReset<boolean>('settings/stage-enabled', true)
   const chatOpen = useLocalStorageManualReset<boolean>('settings/chat-open', false)
@@ -101,18 +123,18 @@ export const useSettingsControlStrip = defineStore('settings-control-strip', () 
     orientation.value = orientation.value === 'vertical' ? 'horizontal' : 'vertical'
   }
 
-  function cycleInteractionMode() {
-    if (interactionMode.value === 'tactile') {
-      interactionMode.value = 'drag'
+  function cycleStageMode() {
+    if (stageMode.value === 'tactileMode') {
+      stageMode.value = 'dragMode'
     }
-    else if (interactionMode.value === 'drag') {
-      interactionMode.value = 'positioning'
+    else if (stageMode.value === 'dragMode') {
+      stageMode.value = 'positionMode'
     }
-    else if (interactionMode.value === 'positioning') {
-      interactionMode.value = 'orbit'
+    else if (stageMode.value === 'positionMode') {
+      stageMode.value = 'orbitMode'
     }
     else {
-      interactionMode.value = 'tactile'
+      stageMode.value = 'tactileMode'
     }
   }
 
@@ -123,7 +145,7 @@ export const useSettingsControlStrip = defineStore('settings-control-strip', () 
 
   function resetState() {
     orientation.reset()
-    interactionMode.reset()
+    stageMode.reset()
     isAdvancedPositioningOpen.reset()
     stageEnabled.reset()
     chatOpen.reset()
@@ -134,6 +156,7 @@ export const useSettingsControlStrip = defineStore('settings-control-strip', () 
 
   return {
     orientation,
+    stageMode,
     interactionMode,
     isAdvancedPositioningOpen,
     stageEnabled,
@@ -142,7 +165,8 @@ export const useSettingsControlStrip = defineStore('settings-control-strip', () 
     buttons,
     backgroundTint,
     toggleOrientation,
-    cycleInteractionMode,
+    cycleStageMode,
+    cycleInteractionMode: cycleStageMode,
     resetButtons,
     resetState,
   }

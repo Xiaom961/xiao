@@ -650,52 +650,46 @@ function handleControlStripAction(e: Event) {
   }
   else if (action === 'always-on-top') {
     alwaysOnTop.value = !alwaysOnTop.value
-    toast.success(`Always-on-Top turned ${alwaysOnTop.value ? 'ON' : 'OFF'}`, { id: 'always-on-top-status' })
   }
   else if (action === 'viewport-tactile') {
     modelStore.interactionMode = 'tactile'
     stageViewControlsEnabled.value = false
-    controlStripStore.interactionMode = 'tactile'
-    toast.success('Switched to Tactile Mode', { id: 'interaction-mode' })
+    controlStripStore.stageMode = 'tactileMode'
   }
   else if (action === 'viewport-drag') {
     modelStore.interactionMode = 'tactile'
     stageViewControlsEnabled.value = true
-    controlStripStore.interactionMode = 'drag'
-    toast.success('Switched to Drag Mode', { id: 'interaction-mode' })
+    controlStripStore.stageMode = 'dragMode'
   }
   else if (action === 'viewport-positioning') {
     modelStore.interactionMode = 'tactile'
     stageViewControlsEnabled.value = true
-    controlStripStore.interactionMode = 'positioning'
-    toast.success('Switched to Positioning Mode', { id: 'interaction-mode' })
+    controlStripStore.stageMode = 'positionMode'
   }
   else if (action === 'viewport-orbit') {
     modelStore.interactionMode = 'orbit'
     stageViewControlsEnabled.value = false
-    controlStripStore.interactionMode = 'orbit'
-    toast.success('Switched to Orbit Mode', { id: 'interaction-mode' })
+    controlStripStore.stageMode = 'orbitMode'
   }
   else if (action === 'viewport-cycle-modes') {
-    controlStripStore.cycleInteractionMode()
-    const mode = controlStripStore.interactionMode
-    if (mode === 'tactile') {
+    controlStripStore.cycleStageMode()
+    const mode = controlStripStore.stageMode
+    if (mode === 'tactileMode') {
       modelStore.interactionMode = 'tactile'
       stageViewControlsEnabled.value = false
     }
-    else if (mode === 'drag') {
+    else if (mode === 'dragMode') {
       modelStore.interactionMode = 'tactile'
       stageViewControlsEnabled.value = true
     }
-    else if (mode === 'positioning') {
+    else if (mode === 'positionMode') {
       modelStore.interactionMode = 'tactile'
       stageViewControlsEnabled.value = true
     }
-    else if (mode === 'orbit') {
+    else if (mode === 'orbitMode') {
       modelStore.interactionMode = 'orbit'
       stageViewControlsEnabled.value = false
     }
-    toast.success(`Switched to ${mode.charAt(0).toUpperCase() + mode.slice(1)} Mode`, { id: 'interaction-mode' })
   }
   else if (action === 'viewport-auto-hide') {
     fadeOnHoverEnabled.value = !fadeOnHoverEnabled.value
@@ -711,7 +705,6 @@ function handleControlStripAction(e: Event) {
       modelStore.modelOffset = { x: 0, y: 0, z: 0 }
       modelStore.cameraDistance = modelStore.modelSize.z * 10
     }
-    toast.success('Coordinates and placement reset to defaults', { id: 'viewport-reset' })
   }
 }
 
@@ -835,7 +828,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
 
         <!-- Spatial Controls Overlay -->
         <Transition name="fade">
-          <div v-if="stageViewControlsEnabled && controlStripStore.interactionMode === 'positioning'" class="pointer-events-none absolute left-0 top-0 z-100 h-full w-full">
+          <div v-if="stageViewControlsEnabled && controlStripStore.stageMode === 'positionMode'" class="pointer-events-none absolute left-0 top-0 z-100 h-full w-full">
             <!-- Axis Selectors (Top Left) -->
             <div class="pointer-events-auto absolute left-4 top-4 flex gap-1 rounded-2xl bg-neutral-100/60 p-1 backdrop-blur-md dark:bg-neutral-900/60">
               <Button

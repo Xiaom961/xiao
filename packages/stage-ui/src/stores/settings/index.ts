@@ -91,6 +91,7 @@ export const useSettings = defineStore('settings', () => {
     // Control Strip settings
     controlStripOrientation: toRef(controlStrip, 'orientation'),
     controlStripInteractionMode: toRef(controlStrip, 'interactionMode'),
+    controlStripStageMode: toRef(controlStrip, 'stageMode'),
     controlStripStageEnabled: toRef(controlStrip, 'stageEnabled'),
     controlStripButtons: toRef(controlStrip, 'buttons'),
 

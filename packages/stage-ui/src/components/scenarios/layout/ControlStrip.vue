@@ -9,7 +9,7 @@ import { useSettingsControlStrip } from '../../../stores/settings/control-strip'
 import { useSettingsControlsIsland } from '../../../stores/settings/controls-island'
 
 const controlStripStore = useSettingsControlStrip()
-const { orientation, buttons, stageEnabled, chatOpen, captionOpen, backgroundTint } = storeToRefs(controlStripStore)
+const { orientation, buttons, stageEnabled, chatOpen, captionOpen, backgroundTint, stageMode } = storeToRefs(controlStripStore)
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { enabled: micEnabled } = storeToRefs(settingsAudioDeviceStore)
@@ -280,6 +280,42 @@ function getButtonTitle(btnId: string, defaultLabel: string): string {
           :class="[
             'absolute right-1 top-1 h-1.5 w-1.5 rounded-full transition-colors duration-200',
             alwaysOnTop ? 'bg-green-500' : 'bg-red-500',
+          ]"
+        />
+
+        <!-- Status dot badge for Tactile Mode -->
+        <span
+          v-if="btn.id === 'viewport-tactile'"
+          :class="[
+            'absolute right-1 top-1 h-1.5 w-1.5 rounded-full transition-colors duration-200',
+            stageMode === 'tactileMode' ? 'bg-green-500' : 'bg-red-500',
+          ]"
+        />
+
+        <!-- Status dot badge for Drag Mode -->
+        <span
+          v-if="btn.id === 'viewport-drag'"
+          :class="[
+            'absolute right-1 top-1 h-1.5 w-1.5 rounded-full transition-colors duration-200',
+            stageMode === 'dragMode' ? 'bg-green-500' : 'bg-red-500',
+          ]"
+        />
+
+        <!-- Status dot badge for Positioning Mode -->
+        <span
+          v-if="btn.id === 'viewport-positioning'"
+          :class="[
+            'absolute right-1 top-1 h-1.5 w-1.5 rounded-full transition-colors duration-200',
+            stageMode === 'positionMode' ? 'bg-green-500' : 'bg-red-500',
+          ]"
+        />
+
+        <!-- Status dot badge for Orbit Mode -->
+        <span
+          v-if="btn.id === 'viewport-orbit'"
+          :class="[
+            'absolute right-1 top-1 h-1.5 w-1.5 rounded-full transition-colors duration-200',
+            stageMode === 'orbitMode' ? 'bg-green-500' : 'bg-red-500',
           ]"
         />
       </button>
