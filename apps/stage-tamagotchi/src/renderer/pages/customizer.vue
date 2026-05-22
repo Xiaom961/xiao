@@ -73,6 +73,7 @@ const DEFAULT_ORDER = [
 ]
 
 const dragIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
 
 function onDragStart(index: number, event: DragEvent) {
   dragIndex.value = index
@@ -84,27 +85,35 @@ function onDragStart(index: number, event: DragEvent) {
 
 function onDragOver(index: number, event: DragEvent) {
   event.preventDefault()
-  if (dragIndex.value === null || dragIndex.value === index)
+  if (dragIndex.value === null)
     return
-
-  const activeList = [...activeButtons.value]
-  const draggedItem = activeList[dragIndex.value]
-  activeList.splice(dragIndex.value, 1)
-  activeList.splice(index, 0, draggedItem)
-
-  dragIndex.value = index
-
-  const disabledList = buttons.value.filter(btn => !btn.enabled)
-  buttons.value = [...activeList, ...disabledList]
+  dragOverIndex.value = index
 }
 
-function onDrop(event: DragEvent) {
+function onDragLeave(index: number) {
+  if (dragOverIndex.value === index) {
+    dragOverIndex.value = null
+  }
+}
+
+function onDrop(index: number, event: DragEvent) {
   event.preventDefault()
+  if (dragIndex.value !== null && dragIndex.value !== index) {
+    const activeList = [...activeButtons.value]
+    const draggedItem = activeList[dragIndex.value]
+    activeList.splice(dragIndex.value, 1)
+    activeList.splice(index, 0, draggedItem)
+
+    const disabledList = buttons.value.filter(btn => !btn.enabled)
+    buttons.value = [...activeList, ...disabledList]
+  }
   dragIndex.value = null
+  dragOverIndex.value = null
 }
 
 function onDragEnd() {
   dragIndex.value = null
+  dragOverIndex.value = null
 }
 
 function resetOrderOnly() {
@@ -306,7 +315,7 @@ onMounted(() => {
           style="-webkit-app-region: no-drag;"
           @click="closeWindow"
         >
-          <div class="i-solar:close-square-linear text-lg" />
+          <div class="i-solar:close-circle-outline text-lg" />
         </button>
       </div>
 
@@ -428,10 +437,15 @@ onMounted(() => {
                         :key="btn.id"
                         draggable="true"
                         class="group flex items-center justify-between border border-white/5 rounded-xl bg-black/25 px-3 py-2 transition-all duration-200 hover:border-white/10 hover:bg-black/45"
-                        :class="{ 'opacity-50 border-emerald-500/30 bg-emerald-500/5': dragIndex === index }"
+                        :class="{
+                          'opacity-50 border-emerald-500/30 bg-emerald-500/5': dragIndex === index,
+                          'border-t-2 border-t-emerald-400/80': dragOverIndex === index && dragIndex !== null && index < dragIndex,
+                          'border-b-2 border-b-emerald-400/80': dragOverIndex === index && dragIndex !== null && index > dragIndex,
+                        }"
                         @dragstart="onDragStart(index, $event)"
                         @dragover="onDragOver(index, $event)"
-                        @drop="onDrop($event)"
+                        @dragleave="onDragLeave(index)"
+                        @drop="onDrop(index, $event)"
                         @dragend="onDragEnd"
                       >
                         <!-- Left Handlebar -->
@@ -439,7 +453,7 @@ onMounted(() => {
                           <div
                             class="flex cursor-grab items-center justify-center px-0.5 py-1 text-neutral-500 transition-colors hover:text-neutral-300"
                           >
-                            <span class="i-solar:double-alt-arrow-down-bold rotate-90 text-sm" />
+                            <span class="i-solar:menu-dots-square-linear text-sm" />
                           </div>
 
                           <!-- Icon and Label -->
@@ -455,7 +469,7 @@ onMounted(() => {
                           title="Disable button"
                           @click="disableButton(btn.id)"
                         >
-                          <span class="i-solar:close-square-linear text-base" />
+                          <span class="i-solar:close-circle-outline text-base" />
                         </button>
                       </div>
                     </transition-group>
