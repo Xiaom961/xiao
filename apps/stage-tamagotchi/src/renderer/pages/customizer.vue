@@ -80,6 +80,7 @@ function onDragStart(index: number, event: DragEvent) {
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.dropEffect = 'move'
+    event.dataTransfer.setData('text/plain', index.toString())
   }
 }
 
@@ -88,6 +89,9 @@ function onDragOver(index: number, event: DragEvent) {
   if (dragIndex.value === null)
     return
   dragOverIndex.value = index
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
 }
 
 function onDragLeave(index: number) {
@@ -453,7 +457,7 @@ onMounted(() => {
                           <div
                             class="flex cursor-grab items-center justify-center px-0.5 py-1 text-neutral-500 transition-colors hover:text-neutral-300"
                           >
-                            <span class="i-solar:menu-dots-square-linear text-sm" />
+                            <span class="i-lucide:grip-vertical text-sm" />
                           </div>
 
                           <!-- Icon and Label -->
@@ -465,11 +469,11 @@ onMounted(() => {
 
                         <!-- Right Close "x" to Disable -->
                         <button
-                          class="cursor-pointer rounded p-1 text-neutral-500 transition-colors hover:bg-white/5 hover:text-red-400"
+                          class="cursor-pointer p-1 text-red-500 transition-colors hover:text-red-400"
                           title="Disable button"
                           @click="disableButton(btn.id)"
                         >
-                          <span class="i-solar:close-circle-outline text-base" />
+                          <span class="i-lucide:x block text-base" />
                         </button>
                       </div>
                     </transition-group>
