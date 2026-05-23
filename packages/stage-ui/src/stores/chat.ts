@@ -858,6 +858,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             resetStreamIdleTimeout()
             switch (event.type) {
               case 'tool-call':
+                await parser.end()
                 toolCallQueue.enqueue({
                   type: 'tool-call',
                   toolCall: event,
