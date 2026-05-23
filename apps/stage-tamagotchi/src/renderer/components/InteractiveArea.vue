@@ -274,13 +274,14 @@ async function handleSend() {
 
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
   }
-  catch (error) {
+  catch {
     // restore on failure
     messageInput.value = textToSend
     attachments.value = attachmentsToSend.map(att => ({
       ...att,
       url: URL.createObjectURL(new Blob([Uint8Array.from(atob(att.data), c => c.charCodeAt(0))], { type: att.mimeType })),
     }))
+    toast.error('Message failed to send. Draft restored.')
   }
 }
 

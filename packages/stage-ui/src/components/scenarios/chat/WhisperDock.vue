@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, ref, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 import { useChatOrchestratorStore } from '../../../stores/chat'
 import { useAiriCardStore } from '../../../stores/modules/airi-card'
@@ -67,7 +68,7 @@ async function send() {
   if (!text || isSending.value)
     return
 
-  console.log('[WhisperDock] Triggered send() with text:', text)
+  console.info('[WhisperDock] Triggered send() with text:', text)
 
   isSending.value = true
 
@@ -78,7 +79,7 @@ async function send() {
       return
     }
 
-    // Clear the input immediately for snappy feel
+    // Clear input optimistically for snappy feel
     inputText.value = ''
 
     await chatStore.ingest(text, {
@@ -87,12 +88,15 @@ async function send() {
       tools: props.tools,
     })
 
-    // Auto-close after sending
+    // Auto-close after successful send
     dismiss()
   }
   catch (err) {
     console.error('[WhisperDock] Failed to send:', err)
     isSending.value = false
+    // Restore text draft so it is not lost
+    inputText.value = text
+    toast.error('Message failed to send. Draft restored.')
   }
 }
 

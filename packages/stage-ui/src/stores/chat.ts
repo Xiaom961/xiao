@@ -1143,16 +1143,56 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     if (!isMainWindow) {
       chatLog('Ingesting from secondary window. Broadcasting to main window.')
-      postInput({
-        sendingMessage,
-        options: {
-          ...options,
-          chatProvider: typeof options.chatProvider === 'string' ? options.chatProvider : undefined,
-          tools: undefined,
-        },
-        targetSessionId: sessionId,
+      const clientMessageId = nanoid()
+      const metadata = { ...options.metadata, clientMessageId }
+
+      return new Promise<void>((resolve, reject) => {
+        let timeoutId: ReturnType<typeof setTimeout> | null = null
+        let stopWatch: (() => void) | null = null
+
+        const cleanup = () => {
+          if (timeoutId) {
+            clearTimeout(timeoutId)
+            timeoutId = null
+          }
+          if (stopWatch) {
+            stopWatch()
+            stopWatch = null
+          }
+        }
+
+        // Wait up to 5 seconds for the message to be sync-broadcasted back
+        timeoutId = setTimeout(() => {
+          cleanup()
+          reject(new Error('Ingestion timeout: main process did not acknowledge the message.'))
+        }, 5000)
+
+        stopWatch = watch(
+          () => chatSession.getSessionMessages(sessionId),
+          (messages) => {
+            const found = messages.some((m) => {
+              const meta = (m as any).metadata
+              return meta && meta.clientMessageId === clientMessageId
+            })
+            if (found) {
+              cleanup()
+              resolve()
+            }
+          },
+          { immediate: true, deep: true },
+        )
+
+        postInput({
+          sendingMessage,
+          options: {
+            ...options,
+            chatProvider: typeof options.chatProvider === 'string' ? options.chatProvider : undefined,
+            tools: undefined,
+            metadata,
+          },
+          targetSessionId: sessionId,
+        })
       })
-      return Promise.resolve()
     }
 
     const liveSessionStore = useLiveSessionStore()
