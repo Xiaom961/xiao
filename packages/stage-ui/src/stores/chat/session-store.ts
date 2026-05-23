@@ -50,7 +50,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
   const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
-  const shortTermMemoryBlockLimit = 3
 
   function getCurrentUserId() {
     return userId.value || 'local'
@@ -198,7 +197,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function buildShortTermMemoryContext(characterId: string) {
-    const blocks = shortTermMemory.getCharacterBlocks(characterId).slice(0, shortTermMemoryBlockLimit)
+    const cardStore = useAiriCardStore()
+    const card = cardStore.getCard(characterId)
+    const limit = card?.extensions?.airi?.shortTermMemory?.windowSize ?? 3
+    const blocks = shortTermMemory.getCharacterBlocks(characterId).slice(0, limit)
     if (blocks.length === 0)
       return ''
 

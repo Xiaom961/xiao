@@ -39,6 +39,7 @@ Concise mapping of conceptual features to technical file paths for rapid context
 - **ACT Pipeline**: `packages/stage-ui/src/composables/use-llm-marker-parser.ts` (Parser) | `packages/stage-ui-three/src/services/expression.ts` (Execution)
 - **Memory (Long-term / Semantic)**: `packages/stage-ui/src/stores/memory-text-journal.ts` (IndexedDB) | `Settings -> Memory -> Long Term`
 - **Memory (Short-term / Episodic)**: `packages/stage-ui/src/stores/memory-short-term.ts` (Daily summaries / Episode segmentation)
+- **Memory (Lifetime Artifact / Eternal Thread)**: `packages/stage-ui/src/stores/memory-lifetime.ts` (Pinia store & generation pipeline) | `packages/stage-ui/src/types/lifetime-memory.ts` (Type models) | `packages/stage-ui/src/database/repos/lifetime-memory.repo.ts` (IndexedDB persistence) | `packages/stage-ui/src/database/repos/provisioning-session.repo.ts` (Draft/session persistence) | `packages/stage-pages/src/pages/settings/modules/components/LifetimeProvisioningModal.vue` (Setup modal with token budget selector) | `packages/stage-pages/src/pages/settings/modules/components/LifetimeHistoryModal.vue` (Foundation history / re-synthesis)
 - **Cognitive Dreaming (Consolidation)**: `packages/stage-ui/src/stores/proactivity.ts` (Idle task logic)
 - **Text Journal Operations**: `write`, `search` (Involved in tool definitions)
 - **Semantic Search Index**: `Transformers.js` / `Orama` / `Voy` (Local indexing in `IndexedDB`)
@@ -72,6 +73,28 @@ Concise mapping of conceptual features to technical file paths for rapid context
 - `apps/stage-tamagotchi`: Electron-specific main/renderer code.
 - `docs/content/en/docs/advanced/architecture/`: Source for all detailed architecture specifications.
 - `docs/design-prospective-rich-journal.md`: Specification for the Cognitive Memory / Dreaming UI.
+
+## Memory (Short-Term Memory / Active Pulse) Settings & Injection
+
+- **Configuration Fields**: Stored under `extensions.airi.shortTermMemory` in `airi-card.ts` / `card.schema.ts`:
+  - `windowSize` (default `3`): Number of past daily summaries injected into the prompt.
+  - `tokenBudgetPerDay` (default `1000`): Target token limit for daily summarizations.
+- **Settings Screen**: `packages/stage-pages/src/pages/settings/modules/memory-short-term.vue` (Active Pulse dashboard)
+- **Rebuilding & Synthesis**: `rebuildFromHistory()` and `rebuildToday()` in `memory-short-term.ts` process daily buckets scoped to the character's `tokenBudgetPerDay`.
+- **Prompt Injection**: `buildShortTermMemoryContext()` in `session-store.ts` slices character summaries by `windowSize` and appends them as hidden context during message/session generation.
+
+## Memory & Lifetime Artifact (Eternal Thread) Pipeline
+
+- **Aggregate Source Docs**: `collectSourceDocs()` aggregates data across three tiers:
+  1. Raw turn history (`chatSessionsRepo`)
+  2. Short-term memory blocks (`shortTermMemoryRepo`)
+  3. Long-term journal entries (`textJournalRepo`)
+- **Chunking & Durable Fact Extraction**: Processes documents in chunks defined by `contextLimitTokens` (~64K tokens default). Extracts key facts using `ChunkArchiveJsonSchema`.
+- **Base Synthesis**: Flattens facts across chunks and uses `buildBaseArchivePrompt` to write the first canonical profile with `LifetimeArchiveJsonSchema`.
+- **Relational Distillation Passes**:
+  - **Pass 1 (Dedupe & Core Framing)**: Compresses the base content into bullet lists using `DistillPass1Schema`. Desired bullet counts are scaled dynamically by `ratio = targetTokens / 1000`.
+  - **Pass 2 (Caveman Refinement)**: Final compaction enforcing target size budget (`targetTokens`), removal of articles/pleasantries, and duplication pruning.
+- **Persistence**: Saved as `LifetimeMemoryArtifact` in `lifetime-memory.repo.ts`. Session draft status is kept in `provisioning-session.repo.ts`.
 
 ## Nicknames Index
 
