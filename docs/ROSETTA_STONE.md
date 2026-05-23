@@ -90,3 +90,14 @@ Concise mapping of conceptual features to technical file paths for rapid context
 - **"bubble layer"** / **"user bubble layer"** -> `user-item.vue`
 - **"edit mode"** -> Inline editing of a user message inside `user-item.vue` (`handleEdit`, `handleCommitEdit`)
 
+## Ingestion & Input Pipeline Architecture (Lessons Learned)
+
+- **Main vs. Secondary Windows**: The Main Window is the Control Strip (serving `/` or `#` route, where `isMainWindow` is `true`). Secondary windows (like the Chatbox `#/chat` and Actor Stage `#/actor`) are not the main window.
+- **Fire-and-Forget Pitfall**: Since input textareas / WhisperDocks are located in secondary windows, calling `chatStore.ingest` historically resolved instantly (Promise.resolve) after posting the input to the main window over `useBroadcastChannel('airi-chat-input-bridge')`. If the main window was deadlocked, out-of-sync due to HMR, or reloaded, the message was swallowed and permanently lost since the secondary window had already cleared the input.
+- **Verification Loop Implementation**: To prevent message loss:
+  1. Secondary window `ingest` generates a `clientMessageId` and appends it to metadata.
+  2. It returns a promise that sets up a 5-second safety timeout and watches the local `chatSession.getSessionMessages()` for the matching `clientMessageId`.
+  3. When the main window processes the input and writes it to history, the `session-store` broadcasts `session-updated` cross-window.
+  4. The secondary window's store receives the broadcast, appends the message, and the watcher resolves the promise.
+  5. If it times out, the promise rejects, allowing the UI (`InteractiveArea` and `WhisperDock`) to restore the draft text/attachments and show a toast warning.
+
