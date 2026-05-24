@@ -154,7 +154,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   function findLive2dReferences(obj: any, refs: string[] = []): string[] {
     if (typeof obj === 'string') {
       const lower = obj.toLowerCase()
-      const exts = ['.moc3', '.png', '.json', '.jpg', '.jpeg']
+      const exts = ['.moc3', '.png', '.json', '.jpg', '.jpeg', '.wav', '.mp3', '.ogg', '.aac', '.flac', '.m4a']
       if (exts.some(ext => lower.endsWith(ext))) {
         if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
           refs.push(obj)
