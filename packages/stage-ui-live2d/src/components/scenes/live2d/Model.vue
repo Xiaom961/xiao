@@ -378,7 +378,7 @@ async function resolveMetadata() {
 
 async function loadModel() {
   const hash = window.location.hash || '#/'
-  const isStage = hash === '#/' || hash.startsWith('#/stage')
+  const isStage = hash === '#/' || hash.startsWith('#/stage') || hash.startsWith('#/actor')
   config.sound = isStage
 
   await until(modelLoading).not.toBeTruthy()
@@ -646,7 +646,7 @@ async function loadModel() {
       localCurrentMotion.value = { group, index }
 
       const hash = window.location.hash || '#/'
-      const isStage = hash === '#/' || hash.startsWith('#/stage')
+      const isStage = hash === '#/' || hash.startsWith('#/stage') || hash.startsWith('#/actor')
 
       if (!isStage && audio) {
         try {
