@@ -347,6 +347,26 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
             toast.info(`Live2D ZIP requires self-healing! Repairing package...`)
           }
 
+          // Self-Healing Step: Identify a "master" model (the one with the largest motions dictionary)
+          let masterModel: any = null
+          let maxMotionsCount = 0
+          for (const m of modelsToProcess) {
+            let count = 0
+            if (m.data && m.data.FileReferences && m.data.FileReferences.Motions) {
+              for (const group of Object.keys(m.data.FileReferences.Motions)) {
+                count += m.data.FileReferences.Motions[group]?.length || 0
+              }
+            }
+            if (count > maxMotionsCount) {
+              maxMotionsCount = count
+              masterModel = m
+            }
+          }
+
+          if (masterModel) {
+            console.log(`[DisplayModels] Selected master model for motion dictionary: "${masterModel.manifestPath.split(/[\\/]/).pop()!}" with ${maxMotionsCount} motions.`)
+          }
+
           let index = 1
           for (const model of modelsToProcess) {
             const manifestBasename = model.manifestPath.split(/[\\/]/).pop()!
@@ -365,6 +385,72 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
             if (!model.data.FileReferences.Motions) {
               model.data.FileReferences.Motions = {}
             }
+
+            // Detect if this model has empty or barebones motions list
+            let motionsCount = 0
+            for (const group of Object.keys(model.data.FileReferences.Motions)) {
+              motionsCount += model.data.FileReferences.Motions[group]?.length || 0
+            }
+
+            // If it is barebones, copy and adapt from master model
+            if (motionsCount < 10 && masterModel && model !== masterModel) {
+              let masterIndex = null
+              const masterMocMatch = masterModel.mocFile.match(/Moc_(\d+)\.moc3$/i)
+              if (masterMocMatch) {
+                masterIndex = masterMocMatch[1]
+              }
+
+              if (masterIndex !== null && modelIndex !== null) {
+                console.log(`[DisplayModels] [Self-Healing] Restoring empty motions dictionary from master model index ${masterIndex} -> ${modelIndex}...`)
+                const copiedMotions = JSON.parse(JSON.stringify(masterModel.data.FileReferences.Motions))
+
+                // Adapt motions: replace file path endings from masterIndex to modelIndex
+                const adaptMotions = (obj: any): any => {
+                  if (typeof obj === 'string') {
+                    const fromRegex = new RegExp(`_File_${masterIndex}`, 'gi')
+                    const toStr = `_File_${modelIndex}`
+                    if (obj.toLowerCase().endsWith('.json') && fromRegex.test(obj)) {
+                      return obj.replace(fromRegex, toStr)
+                    }
+                  }
+                  else if (Array.isArray(obj)) {
+                    return obj.map(adaptMotions)
+                  }
+                  else if (obj && typeof obj === 'object') {
+                    const newObj: any = {}
+                    for (const key of Object.keys(obj)) {
+                      newObj[key] = adaptMotions(obj[key])
+                    }
+                    return newObj
+                  }
+                  return obj
+                }
+
+                model.data.FileReferences.Motions = adaptMotions(copiedMotions)
+                console.log(`[DisplayModels] [Self-Healing] Restored motions successfully: ${Object.keys(model.data.FileReferences.Motions).length} groups.`)
+              }
+            }
+
+            // Generic typo correction (e.g. `.ogg3` -> `.ogg` in Sound properties)
+            const cleanseMotions = (obj: any): any => {
+              if (typeof obj === 'string') {
+                if (obj.toLowerCase().endsWith('.ogg3')) {
+                  return obj.substring(0, obj.length - 1)
+                }
+              }
+              else if (Array.isArray(obj)) {
+                return obj.map(cleanseMotions)
+              }
+              else if (obj && typeof obj === 'object') {
+                const newObj: any = {}
+                for (const key of Object.keys(obj)) {
+                  newObj[key] = cleanseMotions(obj[key])
+                }
+                return newObj
+              }
+              return obj
+            }
+            model.data.FileReferences.Motions = cleanseMotions(model.data.FileReferences.Motions)
 
             const isMultiModelNaming = modelIndex !== null
             const motionRegex = isMultiModelNaming
