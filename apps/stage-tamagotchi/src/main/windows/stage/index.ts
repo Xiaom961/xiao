@@ -10,7 +10,7 @@ import clickDragPlugin from 'electron-click-drag-plugin'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { throttle } from 'es-toolkit'
 import { isLinux } from 'std-env'
 
@@ -20,6 +20,11 @@ import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { baseUrl, load, withHashRoute } from '../../libs/electron/location'
 import { ensureWindowInVisibleBounds } from '../shared/display'
 import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
+
+let isAppQuitting = false
+app.on('before-quit', () => {
+  isAppQuitting = true
+})
 
 let isStageVisible = true
 
@@ -117,6 +122,9 @@ export async function setupActorStageWindow(params: {
   })
 
   window.on('close', (event) => {
+    if (isAppQuitting) {
+      return
+    }
     event.preventDefault()
     window.hide()
   })
