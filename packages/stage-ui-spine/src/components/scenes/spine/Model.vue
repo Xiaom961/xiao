@@ -114,7 +114,7 @@ function onCanvasMouseMove(event: MouseEvent) {
 
   let found = false
   for (const area of model0HitAreas) {
-    const bone = skeleton.findBone(area.name)
+    const bone = skeleton.findBone(area.id || area.name)
     if (!bone)
       continue
 
@@ -158,9 +158,9 @@ function onCanvasClick(event: MouseEvent) {
   console.log(`[Spine Click] Scaled/Real: (${realClickX.toFixed(2)}, ${realClickY.toFixed(2)})`)
 
   for (const area of model0HitAreas) {
-    const bone = skeleton.findBone(area.name)
+    const bone = skeleton.findBone(area.id || area.name)
     if (!bone) {
-      console.warn(`[Spine Click] Hit area bone "${area.name}" not found.`)
+      console.warn(`[Spine Click] Hit area bone "${area.id || area.name}" not found.`)
       continue
     }
 
@@ -533,7 +533,7 @@ async function loadModel() {
             console.log('[Spine Debug] Skeleton Origin:', { x: skeleton.x, y: skeleton.y, scaleX: skeleton.scaleX, scaleY: skeleton.scaleY })
 
             for (const area of model0HitAreas) {
-              const bone = skeleton.findBone(area.name)
+              const bone = skeleton.findBone(area.id || area.name)
               if (bone) {
                 const boneCanvasX = canvas.value.width / 2 + bone.worldX
                 const boneCanvasY = canvas.value.height / 2 - bone.worldY
