@@ -536,13 +536,9 @@ export const useProactivityStore = defineStore('proactivity', () => {
         const messages: { role: 'system' | 'user' | 'assistant', content: string }[] = []
 
         if (airiCardStore.systemPrompt) {
-          // I know this nu uh, better than loading all language on rehypeShiki (from chat session store)
-          const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
-          const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
-
           messages.push({
             role: 'system',
-            content: codeBlockSystemPrompt + mathSyntaxSystemPrompt + airiCardStore.systemPrompt,
+            content: airiCardStore.systemPrompt,
           })
         }
 

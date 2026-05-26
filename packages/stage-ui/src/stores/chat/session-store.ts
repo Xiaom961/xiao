@@ -47,10 +47,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const loadingSessions = new Map<string, Promise<void>>()
   let ensuringSessionPromise: Promise<void> | null = null
 
-  // I know this nu uh, better than loading all language on rehypeShiki
-  const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
-  const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
-
   function getCurrentUserId() {
     return userId.value || 'local'
   }
@@ -230,7 +226,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const shortTermContext = buildShortTermMemoryContext(characterId)
     const lifetimeContext = buildLifetimeMemoryContext(characterId)
     const content = [
-      codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt,
+      prompt,
       shortTermContext,
       lifetimeContext,
     ].filter(Boolean).join('\n\n')
