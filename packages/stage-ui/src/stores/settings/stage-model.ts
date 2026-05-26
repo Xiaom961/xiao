@@ -85,6 +85,41 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     if (requestId !== stageModelUpdateSequence)
       return
 
+    const isControlStrip = typeof window !== 'undefined' && (window as any).electron && (
+      window.location.hash === '#/'
+      || window.location.hash === ''
+    )
+
+    if (isControlStrip) {
+      if (model) {
+        switch (model.format) {
+          case DisplayModelFormat.Live2dZip:
+            stageModelRenderer.value = 'live2d'
+            break
+          case DisplayModelFormat.VRM:
+            stageModelRenderer.value = 'vrm'
+            break
+          case DisplayModelFormat.SpineZip:
+            stageModelRenderer.value = 'spine'
+            break
+          case DisplayModelFormat.PMXZip:
+          case DisplayModelFormat.PMXDirectory:
+          case DisplayModelFormat.PMD:
+            stageModelRenderer.value = 'mmd'
+            break
+          default:
+            stageModelRenderer.value = 'disabled'
+            break
+        }
+        stageModelSelectedDisplayModel.value = model
+      }
+      else {
+        stageModelSelectedDisplayModel.value = undefined
+        stageModelRenderer.value = 'disabled'
+      }
+      return
+    }
+
     if (!model) {
       replaceStageModelUrl(undefined)
       cleanupMmdTextures()

@@ -213,6 +213,14 @@ export const CUSTOMIZER_CATALOG: CustomizerGroup[] = [
         defaultOnStrip: false,
       },
       {
+        id: 'actor-avatars',
+        label: 'Avatars',
+        description: 'Quickly browse and swap active models, including favorites and collection.',
+        icon: 'i-solar:user-bold-duotone',
+        type: 'menu',
+        defaultOnStrip: false,
+      },
+      {
         id: 'actor-wardrobe',
         label: 'Wardrobe (Outfits)',
         description: 'Swaps visual skins, textures, and outfit configurations.',

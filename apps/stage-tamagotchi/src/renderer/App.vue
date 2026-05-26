@@ -23,7 +23,7 @@ import { useProactivityStore } from '@proj-airi/stage-ui/stores/proactivity'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
@@ -81,7 +81,7 @@ const proactivityStore = useProactivityStore()
 async function seedTextJournalEntryFromWindow() {
   await textJournalStore.load()
   const entry = await textJournalStore.seedActiveCharacterEntry()
-  console.log('[TextJournal] Seeded entry via window.seedTextJournalEntry()', entry)
+  console.info('[TextJournal] Seeded entry via window.seedTextJournalEntry()', entry)
   return entry
 }
 
@@ -145,10 +145,18 @@ watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
+const isMainWindow = computed(() => {
+  if (typeof window === 'undefined')
+    return false
+  const path = route.path
+  const hash = window.location.hash
+  return path === '/' || path === '/index.html' || path.startsWith('/index.html') || hash === '' || hash === '#/'
+})
+
 onMounted(async () => {
   const startupAt = performance.now()
   const logStep = (label: string) => {
-    console.log(`[PipelineTTS:App] ${label} (+${Math.round(performance.now() - startupAt)}ms)`)
+    console.info(`[PipelineTTS:App] ${label} (+${Math.round(performance.now() - startupAt)}ms)`)
   }
 
   logStep('onMounted start')
@@ -230,7 +238,7 @@ onMounted(async () => {
 
   // Listen for custom toast notifications from main process
   watch(context, (ctx) => {
-    if (!ctx)
+    if (!ctx || isMainWindow.value)
       return
     ctx.on(electronShowToastEvent, (event) => {
       const payload = event?.body
@@ -330,7 +338,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ToasterRoot @close="id => toast.dismiss(id)">
+  <ToasterRoot v-if="!isMainWindow" @close="id => toast.dismiss(id)">
     <Toaster position="top-right" />
   </ToasterRoot>
   <ResizeHandler />
