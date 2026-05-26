@@ -154,24 +154,30 @@ function onCanvasClick(event: MouseEvent) {
   const realClickX = clickX * (canvas.value.width / canvas.value.clientWidth)
   const realClickY = clickY * (canvas.value.height / canvas.value.clientHeight)
 
-  console.log(`[Spine] Canvas clicked at client: (${clickX}, ${clickY}), real: (${realClickX.toFixed(2)}, ${realClickY.toFixed(2)})`)
+  console.log(`[Spine Click] Client: (${clickX}, ${clickY}) | Physical Canvas: ${canvas.value.width}x${canvas.value.height} | CSS Canvas: ${canvas.value.clientWidth}x${canvas.value.clientHeight}`)
+  console.log(`[Spine Click] Scaled/Real: (${realClickX.toFixed(2)}, ${realClickY.toFixed(2)})`)
 
   for (const area of model0HitAreas) {
     const bone = skeleton.findBone(area.name)
-    if (!bone)
+    if (!bone) {
+      console.warn(`[Spine Click] Hit area bone "${area.name}" not found.`)
       continue
+    }
 
     // Convert bone world position to canvas pixels
-    // bone.worldX/Y already include skeleton scale — no need to re-apply
-    // Origin is at the center of the canvas! Spine Y goes UP, Canvas Y goes DOWN
     const boneCanvasX = canvas.value.width / 2 + bone.worldX
     const boneCanvasY = canvas.value.height / 2 - bone.worldY
 
-    const radius = 50 // pixels
+    const radius = 250 // temporarily increase detection radius to 250px for debugging
     const dist = Math.sqrt((realClickX - boneCanvasX) ** 2 + (realClickY - boneCanvasY) ** 2)
 
+    console.log(`[Spine Click] Hit Area [${area.name}]:`)
+    console.log(`  - Bone world position: (${bone.worldX.toFixed(2)}, ${bone.worldY.toFixed(2)})`)
+    console.log(`  - Calculated Canvas Position: (${boneCanvasX.toFixed(2)}, ${boneCanvasY.toFixed(2)})`)
+    console.log(`  - Distance to click: ${dist.toFixed(2)}px (Threshold/Radius: ${radius}px)`)
+
     if (dist < radius) {
-      console.log(`[Spine] Hit detected on bone: ${area.name}`)
+      console.log(`[Spine Click] Hit detected on bone: ${area.name}`)
 
       const motionName = `tap_${area.name}`
       const motionConfig = model0Motions[motionName]
