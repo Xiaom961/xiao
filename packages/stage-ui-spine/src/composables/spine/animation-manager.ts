@@ -74,6 +74,11 @@ export function useSpineAnimationManager(
       return null
     }
 
+    if (name === '') {
+      animationState.setEmptyAnimation(SPINE_IDLE_TRACK, defaults.mixDuration)
+      return null
+    }
+
     const resolved = resolveAnimation(name) ?? listAnimations()[0]
     if (!resolved)
       return null
