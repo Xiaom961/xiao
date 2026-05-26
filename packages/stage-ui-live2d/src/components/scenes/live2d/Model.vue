@@ -14,6 +14,7 @@ import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
 import { config, Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 import {
   createBeatSyncController,
@@ -683,7 +684,10 @@ async function loadModel() {
       .flatMap(([motionName, definition]) => (definition?.map((motion: any, index: number) => ({
         motionName,
         motionIndex: index,
-        fileName: motion.File,
+        fileName: motion.File || motion.Sound || motion.Name || `Unknown_${index}`,
+        sound: motion.Sound,
+        text: motion.Text,
+        language: motion.Language,
       })) || []))
       .filter(Boolean)
 
@@ -832,6 +836,35 @@ async function loadModel() {
 
       const hash = window.location.hash || '#/'
       const isStage = hash === '#/' || hash.startsWith('#/stage') || hash.startsWith('#/actor')
+
+      const groupMotions = availableMotions.value.filter(m => m.motionName === group)
+      const activeMotionDef = groupMotions.find(m => m.motionIndex === index)
+
+      if (activeMotionDef) {
+        // Find all duplicate motions that share the exact same asset bindings
+        const siblings = groupMotions.filter(m => m.fileName === activeMotionDef.fileName && m.sound === activeMotionDef.sound)
+
+        // Coalesce text: Prefer English variations, fallback to the default/first one
+        const enLocalized = siblings.find(m => m.language && m.language.toLowerCase().startsWith('en'))
+        const defaultDef = siblings.find(m => !m.language) || activeMotionDef
+
+        const resolvedTextDef = enLocalized?.text ? enLocalized : defaultDef
+
+        if (resolvedTextDef.text) {
+          live2dStore.activeMotionText = { text: resolvedTextDef.text, language: resolvedTextDef.language }
+          if (!isStage) {
+            toast(resolvedTextDef.text, {
+              description: resolvedTextDef.language ? `Localized (${resolvedTextDef.language})` : 'Original Transcript',
+            })
+          }
+        }
+        else {
+          live2dStore.activeMotionText = null
+        }
+      }
+      else {
+        live2dStore.activeMotionText = null
+      }
 
       if (!isStage && audio) {
         try {

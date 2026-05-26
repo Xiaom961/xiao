@@ -72,7 +72,7 @@ export const useLive2d = defineStore('live2d', () => {
     y: `${position.value.y}%`,
   }))
   const currentMotion = useLocalStorageManualReset<{ group: string, index?: number }>('settings/live2d/current-motion', () => ({ group: 'Idle', index: 0 }))
-  const availableMotions = ref<{ motionName: string, motionIndex: number, fileName: string }[]>([])
+  const availableMotions = ref<{ motionName: string, motionIndex: number, fileName: string, sound?: string, text?: string, language?: string }[]>([])
   const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
   const scale = useLocalStorageManualReset('settings/live2d/scale', 1)
 
@@ -105,6 +105,7 @@ export const useLive2d = defineStore('live2d', () => {
     positionInPercentageString,
     currentMotion,
     availableMotions,
+    activeMotionText: ref<{ text: string, language?: string } | null>(null),
     motionMap,
     scale,
     availableExpressions,

@@ -71,7 +71,7 @@ const positionY = computed({
 
 const selectedRuntimeMotion = ref<string>('')
 const selectedRuntimeMotionName = ref<string>('')
-const runtimeMotions = ref<Array<{ name: string, fullPath: string, displayPath: string, group: string, index: number }>>([])
+const runtimeMotions = ref<Array<{ name: string, fullPath: string, displayPath: string, group: string, index: number, sound?: string }>>([])
 const showMotionSelector = ref(false)
 
 const airiCardStore = useAiriCardStore()
@@ -198,13 +198,23 @@ onMounted(() => {
   // Listen for available motions updates
   watch(() => live2d.availableMotions, (motions) => {
     // Show all motions with their full paths
-    runtimeMotions.value = motions.map(m => ({
-      name: m.fileName.split('/').pop() || m.fileName,
-      fullPath: m.fileName, // Full path like "hiyori_free_zh/runtime/motions/idle.motion3.json"
-      displayPath: m.fileName, // Show full path for clarity
-      group: m.motionName,
-      index: m.motionIndex,
-    }))
+    const uniqueMotions = new Map()
+    motions.forEach((m) => {
+      // Stable key combining group, file, and sound to collapse localized dupes
+      const stableKey = `${m.motionName}::${m.fileName}::${m.sound || ''}`
+      if (!uniqueMotions.has(stableKey)) {
+        uniqueMotions.set(stableKey, {
+          name: m.fileName.split('/').pop() || m.fileName,
+          fullPath: m.fileName, // Full path like "hiyori_free_zh/runtime/motions/idle.motion3.json"
+          displayPath: m.fileName, // Show full path for clarity
+          group: m.motionName,
+          index: m.motionIndex,
+          sound: m.sound,
+        })
+      }
+    })
+
+    runtimeMotions.value = Array.from(uniqueMotions.values())
 
     console.info('Available motions:', runtimeMotions.value)
   }, { immediate: true })
@@ -486,8 +496,9 @@ onUnmounted(() => {
                     <span :class="['truncate', 'min-w-0', 'flex-1']">{{ getDisplayName(motion) }}</span>
                   </div>
                 </div>
-                <div :class="['ml-4', 'truncate', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
-                  {{ motion.displayPath }}
+                <div :class="['ml-4', 'truncate', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400', 'flex', 'items-center', 'gap-1']">
+                  <div v-if="motion.sound" class="i-lucide:volume-2 shrink-0 text-primary-500" title="Has associated audio" />
+                  <span>{{ motion.displayPath }}</span>
                 </div>
               </div>
 
