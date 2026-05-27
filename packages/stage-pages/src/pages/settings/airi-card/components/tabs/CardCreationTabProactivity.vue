@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { FieldInput } from '@proj-airi/ui'
 import {
   TooltipArrow,
   TooltipContent,
@@ -11,6 +10,9 @@ import {
 defineProps<{
   sensorPayload?: string
   staticSamplePayload: string
+}>()
+const emit = defineEmits<{
+  (e: 'sparkle-click', fieldId: string): void
 }>()
 const heartbeatsEnabled = defineModel<boolean>('heartbeatsEnabled', { required: true })
 const heartbeatsIntervalMinutes = defineModel<number>('heartbeatsIntervalMinutes', { required: true })
@@ -78,8 +80,34 @@ const groundingEnabled = defineModel<boolean>('groundingEnabled', { required: tr
           </div>
           <span class="col-span-1 pl-6 text-xs text-neutral-500 sm:col-span-2">Only allow Dream State synthesis once the user has been away long enough.</span>
 
-          <div class="col-span-1 mt-2 sm:col-span-2">
-            <FieldInput v-model="heartbeatsPrompt" label="Stealth Heartbeat Prompt" description="The hidden instruction sent to the LLM during a heartbeat tick." :single-line="false" placeholder="You are evaluating a proactive heartbeat. Provide a fun comment, or output NO_REPLY to remain silent." />
+          <div class="col-span-1 mt-2 max-w-full sm:col-span-2">
+            <label class="flex flex-col gap-4">
+              <div>
+                <div class="flex items-center gap-1 text-sm font-medium">
+                  Stealth Heartbeat Prompt
+                </div>
+                <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                  The hidden instruction sent to the LLM during a heartbeat tick.
+                </div>
+              </div>
+              <div class="relative w-full">
+                <textarea
+                  v-model="heartbeatsPrompt"
+                  rows="6"
+                  placeholder="You are evaluating a proactive heartbeat. Provide a fun comment, or output NO_REPLY to remain silent."
+                  class="focus:primary-300 dark:focus:primary-400/50 text-disabled:neutral-400 dark:text-disabled:neutral-600 cursor-disabled:not-allowed w-full border-2 border-neutral-100 rounded-lg border-solid bg-neutral-50 py-1.5 pl-2 pr-9 text-sm shadow-sm outline-none transition-all duration-200 ease-in-out dark:border-neutral-900 dark:bg-neutral-950 focus:bg-neutral-50 dark:focus:bg-neutral-900"
+                />
+                <button
+                  type="button"
+                  style="position: absolute; top: 8px; right: 8px; z-index: 50; display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent;"
+                  class="text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-primary-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400"
+                  title="Optimize with AI"
+                  @click.prevent="emit('sparkle-click', 'heartbeatsPrompt')"
+                >
+                  <span i-ph:sparkle class="i-ph:sparkle animate-pulse text-lg" style="display: inline-block; width: 1.2em; height: 1.2em;" />
+                </button>
+              </div>
+            </label>
           </div>
         </div>
       </div>

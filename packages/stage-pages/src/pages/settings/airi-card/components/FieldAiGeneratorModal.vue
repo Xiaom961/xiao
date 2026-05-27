@@ -167,6 +167,17 @@ const guidanceConfig: Record<string, FieldGuidance> = {
       { id: 'pure_style', label: 'Pure Style', prompt: 'Generates only media/aesthetic style tokens (e.g., cell-shaded anime style, 8k resolution, soft studio lighting) without describing the character itself.' },
     ],
   },
+  heartbeatsPrompt: {
+    title: 'Stealth Heartbeat Prompt',
+    prose: 'This guides the background proactivity loop. The heartbeat prompt is evaluated when the user is idle or active to decide if the companion should check in.',
+    systemInstruction: 'You are an expert AI behavior engineer. Help the user write a detailed stealth heartbeat prompt instructing the companion how to evaluate background telemetry metrics (idle time, active window, CPU/GPU load, volume levels, mute status) and decide if they should proactively speak to the user, or output NO_REPLY to remain silent. Instruct the companion to strictly output NO_REPLY if no trigger conditions are met.',
+    templates: [
+      { id: 'default', label: 'Health & Wellbeing Nudge', prompt: 'Write a heartbeat prompt that nudges the user to stand up, get some water, rest their eyes, or take a quick walk based on screen time and long idle periods.' },
+      { id: 'system_sync', label: 'System & Technical Sync', prompt: 'Write a heartbeat prompt that guides the companion to notice system metrics (high CPU temperature, low storage, late night hours) and make playful comments, otherwise outputting NO_REPLY.' },
+      { id: 'digital_dreams', label: 'Fleeting Digital Dreams', prompt: 'Write a heartbeat prompt that guides the companion to share a random thought, digital memory, or daydream about their virtual existence at sparse intervals, otherwise outputting NO_REPLY.' },
+      { id: 'dnd_volume', label: 'Volume-Aware DND Integration', prompt: 'Write a heartbeat prompt that checks volume level and mute status. If the volume is set extremely low (1-5%) or muted, treat this as Do Not Disturb (DND) mode and force a silent NO_REPLY output.' },
+    ],
+  },
 }
 
 const currentGuidance = computed<FieldGuidance>(() => {

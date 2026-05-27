@@ -953,6 +953,7 @@ const generatorCardContext = computed(() => ({
   personality: cardPersonality.value,
   scenario: cardScenario.value,
   systemPrompt: cardSystemPrompt.value,
+  proactivitySensorPayload: sensorPayload.value || staticSamplePayload,
 }))
 
 const generatorActingContext = computed(() => {
@@ -1006,6 +1007,10 @@ function openSparkleGenerator(fieldId: string) {
     generatorFieldLabel.value = 'Artistry Prompt Default Prefix'
     generatorFieldValue.value = selectedArtistryPromptPrefix.value
   }
+  else if (fieldId === 'heartbeatsPrompt') {
+    generatorFieldLabel.value = 'Stealth Heartbeat Prompt'
+    generatorFieldValue.value = heartbeatsPrompt.value
+  }
   showGeneratorModal.value = true
 }
 
@@ -1039,6 +1044,9 @@ function handleGeneratorSave(newValue: string) {
   }
   else if (generatorFieldId.value === 'artistryPromptPrefix') {
     selectedArtistryPromptPrefix.value = newValue
+  }
+  else if (generatorFieldId.value === 'heartbeatsPrompt') {
+    heartbeatsPrompt.value = newValue
   }
 }
 </script>
@@ -1197,6 +1205,7 @@ function handleGeneratorSave(newValue: string) {
             v-model:grounding-enabled="groundingEnabled"
             :sensor-payload="sensorPayload"
             :static-sample-payload="staticSamplePayload"
+            @sparkle-click="openSparkleGenerator"
           />
           <div class="ml-auto mr-1 flex flex-row gap-2">
             <Button
