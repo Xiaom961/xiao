@@ -86,6 +86,7 @@ export async function setupMainWindowElectronInvokes(params: {
 
   defineInvokeHandler(context, electronControlStripSyncState, (payload) => {
     if (payload) {
+      console.log('[Main RPC] electronControlStripSyncState received payload:', JSON.stringify(payload, null, 2))
       ;(params.window as any).__control_strip_state = payload
 
       const config = params.appConfig.get()
@@ -96,6 +97,8 @@ export async function setupMainWindowElectronInvokes(params: {
         const existingConfigIndex = config.windows.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main')
         if (existingConfigIndex !== -1) {
           config.windows[existingConfigIndex].orientation = payload.orientation
+          config.windows[existingConfigIndex].collapsed = payload.collapsed
+          config.windows[existingConfigIndex].backgroundColor = payload.backgroundColor
           params.appConfig.update(config)
           ;(params.window as any).__airi_config = config.windows[existingConfigIndex]
         }
@@ -104,11 +107,14 @@ export async function setupMainWindowElectronInvokes(params: {
             title: 'AIRI',
             tag: 'main',
             orientation: payload.orientation,
+            collapsed: payload.collapsed,
+            backgroundColor: payload.backgroundColor,
           }
           config.windows.push(newWin)
           params.appConfig.update(config)
           ;(params.window as any).__airi_config = newWin
         }
+        console.log('[Main RPC] Updated window config after sync:', JSON.stringify((params.window as any).__airi_config, null, 2))
       }
     }
   })

@@ -734,8 +734,15 @@ onMounted(async () => {
 
   // Initialize orientation from main process config
   const mainConfig = await getMainWindowConfig()
+  console.log('[Renderer Page] Loaded mainConfig on mount:', mainConfig)
   if (mainConfig?.orientation) {
     controlStripStore.orientation = mainConfig.orientation
+  }
+  if (mainConfig?.collapsed !== undefined) {
+    controlStripStore.collapsed = mainConfig.collapsed
+  }
+  if (mainConfig?.backgroundColor) {
+    controlStripStore.backgroundTint = mainConfig.backgroundColor
   }
 
   // Resize window to fit Control Strip initially
