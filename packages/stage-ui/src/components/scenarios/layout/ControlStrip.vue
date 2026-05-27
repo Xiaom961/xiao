@@ -2,7 +2,7 @@
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useLive2d } from '@proj-airi/stage-ui-live2d'
 import { useCustomVrmAnimationsStore, useModelStore } from '@proj-airi/stage-ui-three'
-import { onClickOutside, useColorMode } from '@vueuse/core'
+import { onClickOutside, useColorMode, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, toRef, watch } from 'vue'
 // Ported stores & states for Popovers
@@ -115,6 +115,75 @@ const { fadeOnHoverEnabled, alwaysOnTop } = storeToRefs(controlsIslandStore)
 
 const cardStore = useAiriCardStore()
 const { cards, activeCard, activeCardId } = storeToRefs(cardStore)
+
+// ── Characters Popover — state & helpers ───────────────────────────────────
+const characterSearch = ref('')
+const characterViewMode = useLocalStorage<'list' | 'grid'>(
+  'settings/control-strip/character-view-mode',
+  'list',
+)
+// Global character favorites: max 3 IDs, FIFO pop on overflow
+const charFavIds = useLocalStorage<string[]>(
+  'settings/control-strip/character-favorites-global',
+  [],
+)
+
+const charFavEntries = computed(() =>
+  charFavIds.value
+    .map(id => [id, cards.value.get(id)] as [string, typeof cards.value extends Map<string, infer V> ? V : never])
+    .filter(([, card]) => !!card),
+)
+
+const sortedCharacters = computed(() => {
+  const query = characterSearch.value.toLowerCase().trim()
+  return [...cards.value.entries()].filter(
+    ([, card]) => !query || card.name.toLowerCase().includes(query),
+  )
+})
+
+function isCharFav(id: string) {
+  return charFavIds.value.includes(id)
+}
+
+function toggleCharFav(id: string) {
+  const favs = [...charFavIds.value]
+  const idx = favs.indexOf(id)
+  if (idx !== -1) {
+    favs.splice(idx, 1)
+  }
+  else {
+    if (favs.length >= 3)
+      favs.shift() // FIFO: drop oldest
+    favs.push(id)
+  }
+  charFavIds.value = favs
+}
+
+/** Stable hashed color class for initials badge */
+function cardInitialColor(name: string): string {
+  const palette = [
+    'bg-sky-500/25 text-sky-300',
+    'bg-purple-500/25 text-purple-300',
+    'bg-amber-500/25 text-amber-300',
+    'bg-emerald-500/25 text-emerald-300',
+    'bg-rose-500/25 text-rose-300',
+    'bg-indigo-500/25 text-indigo-300',
+    'bg-teal-500/25 text-teal-300',
+    'bg-fuchsia-500/25 text-fuchsia-300',
+  ]
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h)
+  return palette[Math.abs(h) % palette.length]
+}
+
+function handleEditActiveCard() {
+  if (!activeCardId.value)
+    return
+  window.dispatchEvent(new CustomEvent('control-strip:open-settings', {
+    detail: { route: `/settings/airi-card?cardId=${activeCardId.value}` },
+  }))
+  activePopover.value = null
+}
 
 const modelStore = useModelStore()
 const { activeExpressions } = storeToRefs(modelStore)
