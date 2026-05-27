@@ -1,8 +1,15 @@
 import searchWorkerUrl from './search.worker?worker&url'
 
+import { updateInferenceStatus } from '../../../composables/use-inference-status'
+import { getGPUCoordinator, getLoadQueue } from '../../inference/coordinator'
+import { LOAD_PRIORITY } from '../../inference/load-queue'
+
 let worker: Worker | null = null
 let nextId = 1
 const pending = new Map<number, { resolve: (val: any) => void, reject: (err: any) => void }>()
+let isModelLoaded = false
+let isModelLoading = false
+let modelLoadPromise: Promise<void> | null = null
 
 export async function getSearchWorker() {
   if (!worker) {
@@ -46,9 +53,53 @@ async function callWorker(type: string, payload?: any): Promise<any> {
   })
 }
 
+/**
+ * Explicitly load the embedding model enqueued via the LoadQueue.
+ * Establishes WebGPU device context sequentially.
+ */
+async function loadEmbeddingModel(): Promise<void> {
+  if (isModelLoaded)
+    return
+
+  if (isModelLoading && modelLoadPromise) {
+    return modelLoadPromise
+  }
+
+  isModelLoading = true
+  updateInferenceStatus('bge-small-en', { state: 'downloading', device: 'webgpu' })
+
+  modelLoadPromise = getLoadQueue().enqueue('bge-small-en', LOAD_PRIORITY.ASR - 2, async () => {
+    try {
+      await callWorker('load-model')
+
+      // Track VRAM allocation (~100 MB footprint)
+      getGPUCoordinator().requestAllocation('bge-small-en', 100 * 1024 * 1024)
+
+      isModelLoaded = true
+      updateInferenceStatus('bge-small-en', { state: 'ready', device: 'webgpu' })
+    }
+    catch (error) {
+      updateInferenceStatus('bge-small-en', { state: 'error' })
+      throw error
+    }
+    finally {
+      isModelLoading = false
+      modelLoadPromise = null
+    }
+  })
+
+  return modelLoadPromise
+}
+
 export const searchWorker = {
   init: (snapshot?: any) => callWorker('init', { snapshot }),
-  index: (documents: any[]) => callWorker('index', { documents }),
-  search: (query: string, limit?: number) => callWorker('search', { query, limit }),
+  index: async (documents: any[]) => {
+    await loadEmbeddingModel()
+    return callWorker('index', { documents })
+  },
+  search: async (query: string, limit?: number) => {
+    await loadEmbeddingModel()
+    return callWorker('search', { query, limit })
+  },
   persist: () => callWorker('persist'),
 }

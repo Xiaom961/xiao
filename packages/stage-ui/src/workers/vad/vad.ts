@@ -1,23 +1,19 @@
-import type { PreTrainedModel } from '@huggingface/transformers'
-
 import type { BaseVAD, BaseVADConfig, VADEventCallback, VADEvents } from '../../libs/audio/vad'
+import type { VADAdapter } from '../../libs/inference/adapters/vad'
 
-import { AutoModel, Tensor } from '@huggingface/transformers'
+import { createVADAdapter } from '../../libs/inference/adapters/vad'
 
 /**
  * Voice Activity Detection processor
  */
 export class VAD implements BaseVAD {
   private config: BaseVADConfig
-  private model: PreTrainedModel | undefined
-  private state: Tensor
-  private sampleRateTensor: Tensor
+  private adapter: VADAdapter
   private buffer: Float32Array
   private bufferPointer: number = 0
   private isRecording: boolean = false
   private postSpeechSamples: number = 0
   private prevBuffers: Float32Array[] = []
-  private inferenceChain: Promise<any> = Promise.resolve()
   private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<any>[]>> = {}
   private isReady: boolean = false
 
@@ -35,10 +31,9 @@ export class VAD implements BaseVAD {
     }
 
     this.config = { ...defaultConfig, ...userConfig }
+    this.adapter = createVADAdapter()
 
     this.buffer = new Float32Array(this.config.maxBufferDuration * this.config.sampleRate)
-    this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
-    this.state = new Tensor('float32', new Float32Array(2 * 1 * 128), [2, 1, 128])
   }
 
   /**
@@ -48,10 +43,14 @@ export class VAD implements BaseVAD {
     try {
       this.emit('status', { type: 'info', message: 'Loading VAD model...' })
 
-      // Full-precision
-      this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', { config: { model_type: 'custom' } as any, dtype: 'fp32' })
-      this.isReady = true
+      await this.adapter.load((p) => {
+        this.emit('status', {
+          type: 'info',
+          message: `Downloading VAD model: ${p.percent.toFixed(0)}%`,
+        })
+      })
 
+      this.isReady = true
       this.emit('status', { type: 'info', message: 'VAD model loaded successfully' })
     }
     catch (error) {
@@ -100,7 +99,7 @@ export class VAD implements BaseVAD {
 
     const wasRecording = this.isRecording
 
-    // Perform VAD on the input buffer
+    // Perform VAD on the input buffer using the off-thread worker
     const isSpeech = await this.detectSpeech(inputBuffer)
 
     // Calculate derived constants
@@ -178,28 +177,22 @@ export class VAD implements BaseVAD {
    * Detect speech in an audio buffer
    */
   private async detectSpeech(buffer: Float32Array): Promise<boolean> {
-    const input = new Tensor('float32', buffer, [1, buffer.length])
+    try {
+      const speechProb = await this.adapter.detectSpeech(buffer, this.config.sampleRate)
 
-    const { stateN, output } = await (this.inferenceChain = this.inferenceChain.then(() =>
-      this.model?.({
-        input,
-        sr: this.sampleRateTensor,
-        state: this.state,
-      }),
-    ))
+      this.emit('debug', { message: 'VAD score', data: { probability: speechProb } })
 
-    // Update the state
-    this.state = stateN
-    // Get the speech probability
-    const speechProb = output.data[0]
-
-    this.emit('debug', { message: 'VAD score', data: { probability: speechProb } })
-
-    // Apply thresholds
-    return (
-      speechProb > this.config.speechThreshold
-      || (this.isRecording && speechProb >= this.config.exitThreshold)
-    )
+      // Apply thresholds
+      return (
+        speechProb > this.config.speechThreshold
+        || (this.isRecording && speechProb >= this.config.exitThreshold)
+      )
+    }
+    catch (error) {
+      // Gracefully handle cancelled or failed inferences
+      this.emit('status', { type: 'error', message: `VAD inference failed: ${error}` })
+      return false
+    }
   }
 
   /**
@@ -262,11 +255,6 @@ export class VAD implements BaseVAD {
     if (newConfig.maxBufferDuration || newConfig.sampleRate) {
       this.buffer = new Float32Array(this.config.maxBufferDuration * this.config.sampleRate)
       this.bufferPointer = 0
-    }
-
-    // Update sample rate tensor if needed
-    if (newConfig.sampleRate) {
-      this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
     }
   }
 }

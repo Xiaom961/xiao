@@ -290,6 +290,12 @@ globalThis.addEventListener('message', async (e) => {
         break
       }
 
+      case 'load-model': {
+        await getEmbedder()
+        globalThis.postMessage({ id, type: 'model-ready' })
+        break
+      }
+
       case 'index': {
         const { documents: nextDocuments } = payload
         let indexedCount = 0
