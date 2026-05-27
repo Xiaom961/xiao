@@ -241,7 +241,11 @@ function selectMonitor(target: 'actor' | 'chat', m: number) {
   applySizePreset(target, undefined, selectedAlignment.value)
 }
 
-onClickOutside(popoverRef, () => {
+onClickOutside(popoverRef, (event) => {
+  const target = event.target as HTMLElement
+  if (target && target.closest('.control-strip-btn')) {
+    return
+  }
   activePopover.value = null
 })
 
@@ -749,7 +753,7 @@ function getShortLabel(btnId: string): string {
           'relative flex items-center justify-center overflow-hidden',
           'w-9 h-9 rounded-full border border-white/15 dark:border-white/5',
           'bg-white/15 hover:bg-white/25 dark:bg-white/5 dark:hover:bg-white/15 text-neutral-800 dark:text-neutral-200',
-          'transition-all duration-200 hover:scale-105 active:scale-90 cursor-pointer',
+          'transition-all duration-200 hover:scale-105 active:scale-90 cursor-pointer control-strip-btn',
         ]"
         :title="getButtonTitle(btn.id, btn.label)"
         @mouseenter="hoveredButtonId = btn.id"
