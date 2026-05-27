@@ -444,6 +444,11 @@ export const useProactivityStore = defineStore('proactivity', () => {
   }
 
   async function evaluateHeartbeat(options?: { force?: boolean }) {
+    const config = activeCard.value?.extensions?.airi?.heartbeats
+    if (!config?.enabled && !options?.force) {
+      return
+    }
+
     console.time('[Proactivity] evaluateHeartbeat')
     try {
       if (isHeartbeatEvaluating.value && !options?.force) {
@@ -458,13 +463,6 @@ export const useProactivityStore = defineStore('proactivity', () => {
       if (!activeCard.value) {
         // eslint-disable-next-line no-console
         console.log('[Proactivity] Aborted: No active card selected.', { activeCard: activeCard.value })
-        return
-      }
-
-      const config = activeCard.value?.extensions?.airi?.heartbeats
-      if (!config?.enabled && !options?.force) {
-        // eslint-disable-next-line no-console
-        console.log('[Proactivity] Aborted: Heartbeats are disabled for this card.', { config })
         return
       }
 

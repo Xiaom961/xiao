@@ -145,6 +145,17 @@ const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
 const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, mouthLerpWindowMs: 50 }
 
+// Broadcast speaking state (mouthOpenSize, nowSpeaking) to other windows (e.g., actor.vue)
+interface SpeakingState {
+  mouthOpenSize: number
+  nowSpeaking: boolean
+}
+const { post: postSpeakingState } = useBroadcastChannel<SpeakingState, SpeakingState>({ name: 'airi-speaking-state' })
+
+watch([mouthOpenSize, nowSpeaking], ([mouth, speaking]) => {
+  postSpeakingState({ mouthOpenSize: mouth, nowSpeaking: speaking })
+})
+
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
@@ -831,23 +842,10 @@ chatHookCleanups.push(onBeforeSend(async () => {
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
   // const orchestrator = useChatOrchestratorStore()
   const intent = ensureSpeechIntent()
-  if (import.meta.env.DEV) {
-    console.info('[PipelineTTS:Stage] onTokenLiteral triggered:', {
-      hash: window.location.hash,
-      hasIntent: !!intent,
-      intentId: intent?.intentId,
-      literalPreview: literal.slice(0, 10),
-    })
-  }
 
   if (!intent)
     return
   currentChatIntentReceivedLiteral.value = true
-  console.info('[PipelineTTS:Stage] onTokenLiteral -> forwarding to speech', {
-    intentId: intent.intentId,
-    length: literal.length,
-    preview: literal.slice(0, 120),
-  })
   intent.writeLiteral(literal)
 }))
 

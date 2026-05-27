@@ -2676,8 +2676,19 @@ export const useProvidersStore = defineStore('providers', () => {
                     throw new Error('Voice parameter is required')
                   }
 
+                  const workerManager = await workerManagerPromise
+
+                  // Ensure the model is loaded before generating speech
+                  const modelId = _config.model as string
+                  if (modelId) {
+                    const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+                    if (modelDef) {
+                      await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+                    }
+                  }
+
                   // Generate audio in the worker thread
-                  const buffer = await (await workerManagerPromise).generate(text, voice)
+                  const buffer = await workerManager.generate(text, voice)
 
                   return new Response(buffer, {
                     status: 200,

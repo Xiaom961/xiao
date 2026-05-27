@@ -149,18 +149,8 @@ export function createChatHooks() {
   }
 
   async function emitTokenLiteralHooks(literal: string, context: ChatStreamEventContext) {
-    if (import.meta.env.DEV) {
-      console.log(`[PipelineTTS:Hook] Emitting from ${window.location.hash || 'main'}:`, {
-        literal: literal.slice(0, 50),
-        listeners: onTokenLiteralHooks.length,
-      })
-    }
     for (const hook of onTokenLiteralHooks)
       await hook(literal, context)
-
-    if (import.meta.env.DEV) {
-      console.log(`[PipelineTTS:Hook] Loop Finished in ${window.location.hash || 'main'}`)
-    }
   }
 
   async function emitTokenSpecialHooks(special: string, context: ChatStreamEventContext) {

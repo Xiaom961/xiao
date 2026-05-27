@@ -145,12 +145,12 @@ watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
+const initialHash = typeof window !== 'undefined' ? window.location.hash : ''
+
 const isMainWindow = computed(() => {
   if (typeof window === 'undefined')
     return false
-  const path = route.path
-  const hash = window.location.hash
-  return path === '/' || path === '/index.html' || path.startsWith('/index.html') || hash === '' || hash === '#/'
+  return initialHash === '' || initialHash === '#/' || initialHash === '#'
 })
 
 onMounted(async () => {
@@ -168,8 +168,10 @@ onMounted(async () => {
   logStep('Initializing context bridge')
   await contextBridgeStore.initialize().catch((err: any) => console.error('[PipelineTTS:App] FAILED context bridge init:', err))
 
-  proactivityStore.registerTools(builtinTools)
-  proactivityStore.startHeartbeatLoop()
+  if (isMainWindow.value) {
+    proactivityStore.registerTools(builtinTools)
+    proactivityStore.startHeartbeatLoop()
+  }
 
   logStep('Initializing Analytics & Card stores')
   analyticsStore.initialize()

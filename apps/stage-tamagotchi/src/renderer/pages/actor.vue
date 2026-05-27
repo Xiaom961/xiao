@@ -5,12 +5,13 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseArou
 import { WhisperDock } from '@proj-airi/stage-ui/components'
 import { RendererStage } from '@proj-airi/stage-ui/components/scenes'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores'
+import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsControlStrip } from '@proj-airi/stage-ui/stores/settings/control-strip'
 import { useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings/controls-island'
 import { usePositioningStore } from '@proj-airi/stage-ui/stores/settings/positioning'
 import { Button } from '@proj-airi/ui'
-import { refDebounced } from '@vueuse/core'
+import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
@@ -29,6 +30,22 @@ const positioningStore = usePositioningStore()
 
 const controlsIslandStore = useSettingsControlsIsland()
 const { fadeOnHoverEnabled } = storeToRefs(controlsIslandStore)
+
+const speakingStore = useSpeakingStore()
+const { mouthOpenSize } = storeToRefs(speakingStore)
+
+interface SpeakingState {
+  mouthOpenSize: number
+  nowSpeaking: boolean
+}
+const { data: speakingState } = useBroadcastChannel<SpeakingState, SpeakingState>({ name: 'airi-speaking-state' })
+
+watch(speakingState, (val) => {
+  if (val) {
+    speakingStore.mouthOpenSize = val.mouthOpenSize
+    speakingStore.nowSpeaking = val.nowSpeaking
+  }
+})
 
 const scale = computed(() => {
   return positioningStore.getPosition(stageModelSelected.value).scale
@@ -156,6 +173,7 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
           :x-offset="xOffset"
           :y-offset="yOffset"
           :scale="scale"
+          :mouth-open-size="mouthOpenSize"
           @scale-change="handleScaleChange"
           @offset-change="handleOffsetChange"
         />
