@@ -448,11 +448,12 @@ onMounted(() => {
                         v-for="(btn, index) in activeButtons"
                         :key="btn.id"
                         draggable="true"
+                        style="-webkit-user-drag: element;"
                         class="group flex items-center justify-between border border-white/5 rounded-xl bg-black/25 px-3 py-2 transition-all duration-200 hover:border-white/10 hover:bg-black/45"
                         :class="{
                           'opacity-50 border-emerald-500/30 bg-emerald-500/5': dragIndex === index,
-                          'border-t-2 border-t-emerald-400/80': dragOverIndex === index && dragIndex !== null && index < dragIndex,
-                          'border-b-2 border-b-emerald-400/80': dragOverIndex === index && dragIndex !== null && index > dragIndex,
+                          'drag-over-top': dragOverIndex === index && dragIndex !== null && index < dragIndex,
+                          'drag-over-bottom': dragOverIndex === index && dragIndex !== null && index > dragIndex,
                         }"
                         @dragstart="onDragStart(index, $event)"
                         @dragover="onDragOver(index, $event)"
@@ -705,6 +706,13 @@ onMounted(() => {
 .list-leave-to {
   opacity: 0;
   transform: translateY(12px);
+}
+
+.drag-over-top {
+  box-shadow: inset 0 2px 0 0 #34d399 !important;
+}
+.drag-over-bottom {
+  box-shadow: inset 0 -2px 0 0 #34d399 !important;
 }
 </style>
 
