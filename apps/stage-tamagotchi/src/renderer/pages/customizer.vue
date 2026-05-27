@@ -76,14 +76,12 @@ const dragIndex = ref<number | null>(null)
 const dragOverIndex = ref<number | null>(null)
 
 function onDragStart(index: number, event: DragEvent) {
+  dragIndex.value = index
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.dropEffect = 'move'
     event.dataTransfer.setData('text/plain', index.toString())
   }
-  setTimeout(() => {
-    dragIndex.value = index
-  }, 0)
 }
 
 function onDragOver(index: number, event: DragEvent) {
@@ -453,7 +451,6 @@ onMounted(() => {
                         style="-webkit-user-drag: element;"
                         class="group flex items-center justify-between border border-white/5 rounded-xl bg-black/25 px-3 py-2 transition-all duration-200 hover:border-white/10 hover:bg-black/45"
                         :class="{
-                          'opacity-50 border-emerald-500/30 bg-emerald-500/5': dragIndex === index,
                           'drag-over-top': dragOverIndex === index && dragIndex !== null && index < dragIndex,
                           'drag-over-bottom': dragOverIndex === index && dragIndex !== null && index > dragIndex,
                         }"
