@@ -1,152 +1,56 @@
-# Phase B Buy-In: Chat store layer (#1775 store slice)
+# Phase B Buy-In: Local-First Mandate & De-Clouding Direction
 
-Companion: [`project-selective-upstream-sync-phase-a-buy-in.md`](./project-selective-upstream-sync-phase-a-buy-in.md) (Phase A skipped except #1819 cherry-picks).
+Companion Docs:
+- [`project-selective-upstream-sync-phase-a-buy-in.md`](./project-selective-upstream-sync-phase-a-buy-in.md) (Phase A skipped except #1819 context store hardening)
+- [`project-selective-upstream-sync-shortlist.md`](./project-selective-upstream-sync-shortlist.md)
 
-**Status:** Review only — **no wholesale port recommended.**
-
----
-
-## What “Phase B” means in our manifest
-
-From [`project-selective-upstream-sync-p1-file-manifest.md`](./project-selective-upstream-sync-p1-file-manifest.md):
-
-| Slice | PRs | Files |
-|-------|-----|--------|
-| **Phase B** | Mostly **#1775** (+ #1819 context-store if not cherry-picked yet) | `session-store.ts`, `data-store.ts`, small `chat.ts` edits |
-| **Phase C** | Same **#1775** | `libs/chat-sync/*`, `sessions-drawer.vue`, server WS, `ChatArea.vue` |
-
-**Important:** Phase B and Phase C are **one product** upstream — **signed-in cloud chat sync** (`feat(stage-ui): chat sync`, #1775). You cannot adopt upstream’s Phase B `session-store` without the Phase C `chat-sync` stack; the store imports and calls `createChatWsClient`, `reconcileLocalAndRemote`, `cloudChatId`, `cloudMaxSeq`, etc.
-
-With **#1826 skipped** and **#1819** handled separately, Phase B ≈ **“how upstream wires session storage to cloud sync.”**
+**Status:** WHOSALE REJECT of Upstream #1775. Our direction is active **De-Clouding** to reinforce strict local privacy.
 
 ---
 
-## What upstream #1775 is trying to do
+## 🏛️ The Architectural Mandate: Strict Local-First Privacy
 
-**Goal:** After login, chat sessions and messages **sync across devices/tabs** via:
+Upstream introduced signed-in cloud chat sync (#1775) under the guise of a "profile switcher" with no opt-out, quietly routing private user conversations to external hosted servers.
 
-- REST: list/create/delete chats, reconcile local IndexedDB vs server
-- WebSocket: `sendMessages`, `newMessages`, `pullMessages` (seq cursor per session)
-- UI: **Conversations drawer** (list / new / delete sessions)
-
-**Explicit from PR body:** Anonymous / offline behavior unchanged — no WS, no REST; IndexedDB only.
-
----
-
-## What your fork already has (overlap + divergence)
-
-### You already split chat stores (Phase B was never “greenfield”)
-
-You have: `session-store`, `data-store`, `stream-store`, `context-store`, hooks, context-providers, `session-message-merge`, etc. Upstream did **not** invent store splitting for you.
-
-### You already have optional **cloud** sync — different architecture
-
-| | Your fork | Upstream #1775 |
-|--|-----------|----------------|
-| When | `remoteSyncEnabled` + `isAuthenticated` | Signed-in cloud user (`userId !== 'local'`) |
-| Transport | **Bulk REST** `POST .../chats/sync` per session (`scheduleSync` / `syncSessionToRemote`) | **WebSocket RPC** + incremental seq merge |
-| Session meta | No `cloudChatId` / `cloudMaxSeq` | Maps local session ↔ cloud chat + seq cursor |
-| Multi-tab (same machine) | **`BroadcastChannel`** on stream events + ingest handshake in `chat.ts` | WS `newMessages` + ID dedupe |
-| Multi-device | Bulk sync on demand (if enabled) | Real-time push + pull on reconnect |
-| Conversations UI | **No** `sessions-drawer` | 360-line drawer component |
-
-So upstream is **not** “better session store” — it is **real-time multi-device cloud sync** plus drawer UX. Your fork already chose **simpler bulk upload** when cloud is enabled.
-
-### You said: no online sign-in on desktop
-
-If desktop stays **local-first** and you do not productize moeru’s hosted account flow:
-
-- **~95% of #1775 (Phase B + C together) is out of scope.**
-- Your existing local path (IDB + `BroadcastChannel` for tamagotchi windows) already covers **same-machine** multi-surface needs without their WS stack.
+Our fork firmly rejects this direction:
+1. **Desktop-First, Offline-Only**: The fork is a desktop-first, local-first application. We do not host external online services or route private chats to remote servers.
+2. **De-Clouding Path**: Instead of syncing cloud features, our future path is to actively **strip out** remaining out-of-sync cloud sync hooks and WebSocket sync skeletons. (Note: Upstream sneakily smuggled their cloud sync layers under a deceptive commit titled "profile switcher". The actual character/card switching features—originally the profile switcher on the old Control Island and now the "characters" button on the control strip—remain fully active and protected; only the smuggled cloud sync components are targeted for purging.)
+3. **No Cloud-Chat ID Coupling**: Any attempts to introduce `cloudChatId` or upstream's WebSocket cursors are wholesale rejected.
 
 ---
 
-## Read-only diff: high-signal hunks
+## 🗄️ Multi-Session UX: Fork vs Upstream
 
-### 1. `session-store` — tightly coupled to cloud (skip wholesale)
+Upstream historically implemented multi-session capabilities in their data models but failed to expose any UI for users to leverage it.
 
-Upstream `session-store.ts` (~1440 lines) adds imports from `libs/chat-sync` and:
-
-- `reconcileCloudSessions()` on WS open / login
-- `pushMessageToCloud` / `pullCloudMessages` per `cloudChatId`
-- Outbox + tombstones for offline DELETE retry
-- `cloudSyncReady`, `outboxPendingCount` exports
-
-**Verdict:** Adopting upstream’s file = adopting Phase C + server stack. **Not worth squeeze** for local-first fork.
-
-### 2. `deleteSession` ordering — **possible micro cherry-pick**
-
-**Upstream fix (worth reading):** Mutate in-memory + index **first**, then `enqueuePersist` delete, then fire-and-forget cloud DELETE. Avoids a race where `persistSession` during network await **resurrects** deleted rows.
-
-**Your fork today (`deleteSession`):**
-
-```text
-await enqueuePersist(() => delete from IDB)   // await first
-then delete in-memory maps
-```
-
-That is the **opposite order** of upstream’s documented bugfix — you may still have the “deleted session reappears” race if anything persists during the await.
-
-**Verdict:** **Cherry-pick the pattern** (sync memory → persist → optional remote) **without** cloud tombstones/WS. Small, local-only patch.
-
-### 3. `loadSession` resurrection guard — **possible micro cherry-pick**
-
-Upstream added after `await chatSessionsRepo.getSession`:
-
-```text
-if (!sessionMetas.value[sessionId]) return   // deleted while we were in IDB
-```
-
-Your `loadSession` lacks this — if user deletes from a future drawer while load is in flight, you can **resurrect** the session in memory/IDB.
-
-**Verdict:** Worth porting **3 lines** if you add/have session list UI — independent of cloud.
-
-### 4. `data-store.ts` (#1775: +2 / -9)
-
-Tiny delegation tweak as session-store owns more cloud hooks upstream. **No standalone value** without full #1775.
-
-### 5. `chat.ts` (#1775: +26 / -5)
-
-Hooks orchestrator to `pushMessageToCloud` / cloud sync readiness. **Skip** with #1826 skipped and no cloud WS.
-
-### 6. #1819 files in Phase B manifest
-
-`context-store` / `context-bridge` — you are **already cherry-picking** via other agent. Not Phase B review scope here.
-
-### 7. #1826-only Phase B files (`context-prompt.ts`, `datetime-prefix.ts` in `stores/chat/`)
-
-Part of core-agent extraction. **Skip** with Phase A decision.
+* **The Upstream Solution**: Recently introduced a `sessions-drawer` UI component tightly coupled to their online cloud-sync WebSocket architecture.
+* **The Fork Solution (Already Implemented & Superior)**: We have already built a dedicated **Memory Management** popover and **Session Management** modal directly inside the Chatbox toolbar. This gives users full, intuitive, local control over character-specific session switching and history creation—independent of any cloud infrastructure.
 
 ---
 
-## Juice vs squeeze
+## 🔍 Upstream #1775 Diff & Squeeze Assessment
 
-| Approach | Effort | Reward for your fork |
-|----------|--------|----------------------|
-| **Skip all of Phase B + C** | None | Correct default if no cloud sign-in product |
-| **Full #1775** | Very high (WS client, mapper, server-runtime, drawer, session rewrite) | Multi-device cloud chat — **only if you want moeru’s online product** |
-| **Micro patches only** | Low (delete order + loadSession guard) | Fixes real races; no architectural churn |
-| **Port `sessions-drawer` only** | Medium | Local conversation list UX — **build against your IDB**, not upstream drawer + cloud |
+### 1. `session-store.ts` (Reject wholesale)
+Upstream's updated store (~1,440 lines) couples in-memory indexing with `libs/chat-sync` and WS clients (`reconcileCloudSessions`, outbox retries, cloud outbox counts).
+* **Verdict**: Reject. Adopting this would introduce massive cloud-centric bloat and break our `BroadcastChannel` same-machine multi-window synchronization.
 
----
+### 2. `data-store.ts` and `chat.ts` edits (Reject)
+These are tiny delegation tweaks designed to hook message compositions to remote pushes.
+* **Verdict**: Reject. Irrelevant without a cloud server.
 
-## Recommendation
-
-1. **Do not treat Phase B as a port target** — it is the storage half of **#1775 cloud sync**, which you are not pursuing on desktop.
-2. **Do not merge upstream `session-store.ts`** — you would replace a working bulk-sync + local broadcast design with a cloud-coupled 1.4k-line store.
-3. **Consider micro cherry-picks** (no `libs/chat-sync`):
-   - `deleteSession`: in-memory/index first, then persist (mirror upstream comment block)
-   - `loadSession`: post-await “still exists?” guard
-4. **Phase C** (same PR): same verdict — skip unless you want hosted multi-device chat; see table above.
-5. Your **local multi-window** story stays: `BroadcastChannel` + `context-bridge` + secondary-window `ingest` — already fork-specific and **not** what #1775 replaces.
+### 3. Local IDB Micro Patches (Consider separately)
+We will port two critical local IndexedDB bugfixes independent of cloud sync:
+* **`deleteSession` Ordering**: Change our current await-persist-first pattern to delete in-memory index **first**, then persist to IDB asynchronously. This prevents in-flight updates from resurrecting deleted sessions.
+* **`loadSession` Guard**: Add a post-await check to ensure a session wasn't deleted while loading from IndexedDB.
 
 ---
 
-## Decision log
+## 🎯 Synthesized Direction Summary
 
-| Date | Decision | Notes |
-|------|----------|-------|
-| 2026-05-27 | Phase B wholesale: **skip** | Same PR as Phase C; cloud WS sync |
-| 2026-05-27 | Optional micro patches | deleteSession order, loadSession guard |
-| | Phase A #1826 | Skipped |
-| | Phase A #1819 | Cherry-pick in progress (other agent) |
+| Area | Upstream (#1775) | Fork Direction |
+|------|------------------|----------------|
+| **Primary Goal** | Multi-device WebSocket cloud replication | **Absolute Local Privacy & Desktop Autonomy** |
+| **Session Control** | Sessions Drawer (cloud-coupled) | **Memory Management Popover (Local IDB)** |
+| **Store Architecture** | WS cursors + Outbox retries | **Strictly Offline IDB + same-machine `BroadcastChannel`** |
+| **Sync Logic** | Real-time WebSocket replication | **De-clouding** (purge profile switcher remnants) |
+| **Action** | Adopt Cloud Store Slice | **Micro-patch local IDB bugs; skip the rest** |

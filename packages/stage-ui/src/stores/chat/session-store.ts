@@ -379,6 +379,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     const loadPromise = (async () => {
       const stored = await chatSessionsRepo.getSession(sessionId)
+
+      // NOTICE: Guard against mid-flight session deletions during the async IDB fetch.
+      // If the session is no longer registered in our character index, abort loading.
+      const characterId = stored?.meta.characterId
+      const characterIndex = characterId ? index.value?.characters[characterId] : undefined
+      if (!characterIndex || !characterIndex.sessions[sessionId]) {
+        console.info(`[ChatSession] loadSession aborted: session ${sessionId} was deleted mid-flight.`)
+        return
+      }
+
       if (stored) {
         const currentMessages = sessionMessages.value[sessionId] ?? []
         const mergedMessages = force
@@ -823,12 +833,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!characterId)
       return
 
-    await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
-
+    // NOTICE: Delete from local reactive memory first to clear the state immediately,
+    // preventing in-flight updates or broadcast events from resurrecting it during IDB await.
     delete sessionMessages.value[sessionId]
     delete sessionMetas.value[sessionId]
     delete sessionGenerations.value[sessionId]
     loadedSessions.delete(sessionId)
+
+    await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
 
     const characterIndex = index.value?.characters[characterId]
     if (characterIndex) {
