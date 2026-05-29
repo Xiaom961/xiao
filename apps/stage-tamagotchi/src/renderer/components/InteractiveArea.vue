@@ -241,6 +241,8 @@ function updateWindowTitle() {
     document.title = nextTitle
 }
 
+let isOptimisticClearing = false
+
 async function handleSend() {
   if (isComposing.value) {
     return
@@ -254,10 +256,11 @@ async function handleSend() {
 
   const attachmentsToSend = attachments.value.map(att => ({ ...att }))
 
-  // optimistic clear
+  // optimistic clear without deleting draft from localStorage immediately
+  isOptimisticClearing = true
   messageInput.value = ''
-  localStorage.removeItem('airi-chatbox-draft')
   attachments.value = []
+  isOptimisticClearing = false
 
   if (isImagineMode.value) {
     const artistryStore = useAutonomousArtistryStore()
@@ -513,6 +516,10 @@ let throttleTimeout: ReturnType<typeof setTimeout> | null = null
 watch(messageInput, (newVal) => {
   updateWindowTitle()
 
+  if (isOptimisticClearing) {
+    return
+  }
+
   const now = Date.now()
   const timeSinceLastSave = now - lastSaveTime
 
@@ -525,6 +532,8 @@ watch(messageInput, (newVal) => {
       clearTimeout(throttleTimeout)
     }
     throttleTimeout = setTimeout(() => {
+      if (isOptimisticClearing)
+        return
       localStorage.setItem('airi-chatbox-draft', newVal)
       lastSaveTime = Date.now()
     }, 5000 - timeSinceLastSave)

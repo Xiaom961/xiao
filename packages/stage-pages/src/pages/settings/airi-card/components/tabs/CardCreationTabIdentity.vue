@@ -10,7 +10,6 @@ const cardNickname = defineModel<string>('cardNickname', { required: true })
 const cardDescription = defineModel<string>('cardDescription', { required: true })
 const cardNotes = defineModel<string>('cardNotes', { required: true })
 const cardSystemPrompt = defineModel<string>('cardSystemPrompt', { required: true })
-const cardPostHistoryInstructions = defineModel<string>('cardPostHistoryInstructions', { required: true })
 const cardVersion = defineModel<string>('cardVersion', { required: true })
 
 const { t } = useI18n()
@@ -95,36 +94,6 @@ const { t } = useI18n()
           </label>
         </div>
 
-        <div class="max-w-full">
-          <label class="flex flex-col gap-4">
-            <div>
-              <div class="flex items-center gap-1 text-sm font-medium">
-                {{ t('settings.pages.card.posthistoryinstructions') }}
-                <span class="text-red-500">*</span>
-              </div>
-              <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                {{ t('settings.pages.card.creation.fields_info.posthistoryinstructions') }}
-              </div>
-            </div>
-            <div class="relative w-full">
-              <textarea
-                v-model="cardPostHistoryInstructions"
-                rows="6"
-                :placeholder="t('settings.pages.card.posthistoryinstructions')"
-                class="focus:primary-300 dark:focus:primary-400/50 text-disabled:neutral-400 dark:text-disabled:neutral-600 cursor-disabled:not-allowed w-full border-2 border-neutral-100 rounded-lg border-solid bg-neutral-50 py-1.5 pl-2 pr-9 text-sm shadow-sm outline-none transition-all duration-200 ease-in-out dark:border-neutral-900 dark:bg-neutral-950 focus:bg-neutral-50 dark:focus:bg-neutral-900"
-              />
-              <button
-                type="button"
-                style="position: absolute; top: 8px; right: 8px; z-index: 50; display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent;"
-                class="text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-primary-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400"
-                title="Optimize with AI"
-                @click.prevent="emit('sparkle-click', 'postHistoryInstructions')"
-              >
-                <span i-ph:sparkle class="i-ph:sparkle animate-pulse text-lg" style="display: inline-block; width: 1.2em; height: 1.2em;" />
-              </button>
-            </div>
-          </label>
-        </div>
         <div class="version-row">
           <FieldInput
             v-model="cardVersion"

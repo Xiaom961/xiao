@@ -135,6 +135,9 @@ const generationTemperature = ref<number | undefined>(undefined)
 const generationTopP = ref<number | undefined>(undefined)
 const generationContextWidth = ref<number | undefined>(undefined)
 const generationAdvancedJson = ref<string>('{\n  \n}')
+const generationReasoningFallback = ref<boolean>(true)
+const compactionStrategy = ref<string>('none')
+const compactionMinKeepTurns = ref<number | undefined>(15)
 const selectedActingModelExpressionPrompt = ref<string>('')
 const selectedActingSpeechExpressionPrompt = ref<string>('')
 const selectedActingSpeechMannerismPrompt = ref<string>('')
@@ -652,6 +655,7 @@ async function saveCard(card: Card): Promise<boolean> {
     temperature: normalizeOptionalNumber(generationTemperature.value),
     topP: normalizeOptionalNumber(generationTopP.value),
     contextWidth: normalizeOptionalNumber(generationContextWidth.value),
+    reasoningFallback: generationReasoningFallback.value,
   }
   let generationAdvanced: Record<string, any> | undefined
 
@@ -750,6 +754,10 @@ async function saveCard(card: Card): Promise<boolean> {
             ...generationKnown,
           },
           advanced: generationAdvanced,
+          compaction: {
+            strategy: compactionStrategy.value,
+            minKeepTurns: compactionMinKeepTurns.value ?? 15,
+          },
         },
         groundingEnabled: groundingEnabled.value,
         visual_assets: existingAiriExt?.visual_assets || {},
@@ -821,11 +829,14 @@ function initializeCard(): Card {
   generationTemperature.value = normalizeOptionalNumber(airiExt?.generation?.known?.temperature)
   generationTopP.value = normalizeOptionalNumber(airiExt?.generation?.known?.topP)
   generationContextWidth.value = normalizeOptionalNumber(airiExt?.generation?.known?.contextWidth)
+  generationReasoningFallback.value = airiExt?.generation?.known?.reasoningFallback ?? true
   generationAdvancedJson.value = airiExt?.generation?.advanced ? JSON.stringify(airiExt.generation.advanced, null, 2) : '{\n  \n}'
   selectedActingModelExpressionPrompt.value = airiExt?.acting?.modelExpressionPrompt || DEFAULT_ACTING_MODEL_PROMPT
   selectedActingSpeechExpressionPrompt.value = airiExt?.acting?.speechExpressionPrompt || DEFAULT_ACTING_SPEECH_EXPRESSION_PROMPT
   selectedActingSpeechMannerismPrompt.value = airiExt?.acting?.speechMannerismPrompt || DEFAULT_ACTING_SPEECH_MANNERISM_PROMPT
   selectedActingIdleAnimations.value = [...(airiExt?.acting?.idleAnimations || [])]
+  compactionStrategy.value = airiExt?.generation?.compaction?.strategy || 'none'
+  compactionMinKeepTurns.value = airiExt?.generation?.compaction?.minKeepTurns ?? 15
   try {
     selectedArtistryConfigStr.value = airiExt?.artistry?.options ? JSON.stringify(airiExt.artistry.options, null, 2) : '{\n  \n}'
   }
@@ -1100,7 +1111,6 @@ function handleGeneratorSave(newValue: string) {
             v-model:card-description="cardDescription"
             v-model:card-notes="cardNotes"
             v-model:card-system-prompt="cardSystemPrompt"
-            v-model:card-post-history-instructions="cardPostHistoryInstructions"
             v-model:card-version="cardVersion"
             @sparkle-click="openSparkleGenerator"
           />
@@ -1121,10 +1131,15 @@ function handleGeneratorSave(newValue: string) {
             v-model:generation-top-p="generationTopP"
             v-model:generation-context-width="generationContextWidth"
             v-model:generation-advanced-json="generationAdvancedJson"
+            v-model:generation-reasoning-fallback="generationReasoningFallback"
+            v-model:card-post-history-instructions="cardPostHistoryInstructions"
+            v-model:compaction-strategy="compactionStrategy"
+            v-model:compaction-min-keep-turns="compactionMinKeepTurns"
             :provider-options="generationProviderOptions"
             :model-options="generationModelOptions"
             :provider-placeholder="getDefaultPlaceholder(selectedConsciousnessProvider || consciousnessProvider)"
             :model-placeholder="getDefaultPlaceholder(selectedConsciousnessModel || defaultConsciousnessModel)"
+            @sparkle-click="openSparkleGenerator"
           />
           <CardCreationTabActing
             v-else-if="activeTab === 'acting'"

@@ -88,8 +88,13 @@ export interface CharacterGenerationConfig {
     temperature?: number
     topP?: number
     contextWidth?: number
+    reasoningFallback?: boolean
   }
   advanced?: Record<string, any>
+  compaction?: {
+    strategy?: string
+    minKeepTurns?: number
+  }
   importedPresetMeta?: {
     source?: 'sillytavern' | 'manual' | 'unknown'
     originalKeys?: string[]
@@ -521,6 +526,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       model: activeConsciousnessModel.value,
       known: {
         contextWidth: undefined,
+        reasoningFallback: true,
       },
       advanced: undefined,
       importedPresetMeta: undefined,
@@ -646,8 +652,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           temperature: existingExtension?.generation?.known?.temperature,
           topP: existingExtension?.generation?.known?.topP,
           contextWidth: existingExtension?.generation?.known?.contextWidth ?? defaultGeneration.known?.contextWidth,
+          reasoningFallback: existingExtension?.generation?.known?.reasoningFallback ?? defaultGeneration.known?.reasoningFallback,
         },
         advanced: existingExtension?.generation?.advanced,
+        compaction: {
+          strategy: existingExtension?.generation?.compaction?.strategy ?? 'none',
+          minKeepTurns: existingExtension?.generation?.compaction?.minKeepTurns ?? 15,
+        },
         importedPresetMeta: existingExtension?.generation?.importedPresetMeta,
       },
       acting: {

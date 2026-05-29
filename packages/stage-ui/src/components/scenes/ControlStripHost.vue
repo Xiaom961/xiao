@@ -868,7 +868,8 @@ chatHookCleanups.push(onStreamEnd(async () => {
 
 chatHookCleanups.push(onAssistantResponseEnd(async (message) => {
   if (!currentChatIntentReceivedLiteral.value) {
-    const fallbackSpeech = categorizeResponse(message, activeChatProvider.value).speech.trim()
+    const cardFallback = activeCard.value?.extensions?.airi?.generation?.known?.reasoningFallback
+    const fallbackSpeech = categorizeResponse(message, activeChatProvider.value, { reasoningFallback: cardFallback !== false }).speech.trim()
     if (fallbackSpeech) {
       const intent = ensureSpeechIntent()
       console.info('[Stage] onAssistantResponseEnd -> fallback speech literal', {

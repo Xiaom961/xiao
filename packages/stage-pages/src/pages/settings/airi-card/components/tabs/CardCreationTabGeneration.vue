@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { FieldCheckbox, FieldInput, FieldTextArea, Select } from '@proj-airi/ui'
 import { watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 defineProps<{
   providerOptions: { value: string, label: string }[]
   modelOptions: { value: string, label: string }[]
   providerPlaceholder: string
   modelPlaceholder: string
+}>()
+
+const emit = defineEmits<{
+  (e: 'sparkle-click', fieldId: string): void
 }>()
 
 const generationEnabled = defineModel<boolean>('generationEnabled', { required: true })
@@ -17,6 +22,11 @@ const generationTemperature = defineModel<number | undefined>('generationTempera
 const generationTopP = defineModel<number | undefined>('generationTopP', { required: true })
 const generationContextWidth = defineModel<number | undefined>('generationContextWidth', { required: true })
 const generationAdvancedJson = defineModel<string>('generationAdvancedJson', { required: true })
+const generationReasoningFallback = defineModel<boolean>('generationReasoningFallback', { required: true })
+const cardPostHistoryInstructions = defineModel<string>('cardPostHistoryInstructions', { required: true })
+const compactionStrategy = defineModel<string>('compactionStrategy', { required: true })
+const compactionMinKeepTurns = defineModel<number | undefined>('compactionMinKeepTurns', { required: true })
+const { t } = useI18n()
 
 function updateGlobalContextMap() {
   if (!generationContextWidth.value || !generationProvider.value || !generationModel.value)
@@ -53,11 +63,17 @@ watch([generationContextWidth, generationProvider, generationModel], () => {
       Keys that work for one provider or model may be ignored or rejected by another. Start simple, and treat these as character-specific generation defaults rather than guaranteed cross-provider behavior.
     </div>
 
-    <div class="mx-auto mb-6 w-90%">
+    <div class="mx-auto mb-6 w-90% flex flex-col gap-4">
       <FieldCheckbox
         v-model="generationEnabled"
         label="Use character-specific generation settings"
         description="When disabled, this card inherits the global chat generation defaults."
+      />
+      <FieldCheckbox
+        v-model="generationReasoningFallback"
+        label="Fall back to reasoning on empty speech"
+        description="If the model outputs everything inside reasoning tags (leaving speech empty), use the reasoning text as the spoken content."
+        :disabled="!generationEnabled"
       />
     </div>
 
@@ -118,11 +134,67 @@ watch([generationContextWidth, generationProvider, generationModel], () => {
       <FieldInput
         v-model="generationContextWidth"
         class="field-block"
-        label="Context Width"
-        description="The maximum token capacity for this character (e.g. 4096, 128000). Drives the visual context meter."
+        label="Context Width (Compaction Threshold)"
+        description="The token threshold that triggers history compaction and drives the visual context meter."
         type="number"
         placeholder="4096"
       />
+
+      <div class="field-block">
+        <label class="mb-2 flex flex-row items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+          <div i-solar:tuning-square-bold-duotone />
+          Compaction Strategy
+        </label>
+        <Select
+          v-model="compactionStrategy"
+          :options="[
+            { value: 'none', label: 'None (Disabled)' },
+            { value: 'prune', label: 'Prune History Only' },
+            { value: 'distill', label: 'Distill & Summarize (Premium)' },
+          ]"
+          class="w-full"
+        />
+      </div>
+
+      <FieldInput
+        v-model="compactionMinKeepTurns"
+        class="field-block"
+        label="Compaction Preservation Window"
+        description="The number of recent messages to always keep un-compacted."
+        type="number"
+        placeholder="15"
+      />
+
+      <div class="advanced-block">
+        <label class="flex flex-col gap-4">
+          <div>
+            <div class="flex items-center gap-1 text-sm font-medium">
+              {{ t('settings.pages.card.posthistoryinstructions') }}
+              <span class="text-red-500">*</span>
+            </div>
+            <div class="text-xs text-neutral-500 dark:text-neutral-400">
+              {{ t('settings.pages.card.creation.fields_info.posthistoryinstructions') }}
+            </div>
+          </div>
+          <div class="relative w-full">
+            <textarea
+              v-model="cardPostHistoryInstructions"
+              rows="6"
+              :placeholder="t('settings.pages.card.posthistoryinstructions')"
+              class="focus:primary-300 dark:focus:primary-400/50 text-disabled:neutral-400 dark:text-disabled:neutral-600 cursor-disabled:not-allowed w-full border-2 border-neutral-100 rounded-lg border-solid bg-neutral-50 py-1.5 pl-2 pr-9 text-sm shadow-sm outline-none transition-all duration-200 ease-in-out dark:border-neutral-900 dark:bg-neutral-950 focus:bg-neutral-50 dark:focus:bg-neutral-900"
+            />
+            <button
+              type="button"
+              style="position: absolute; top: 8px; right: 8px; z-index: 50; display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent;"
+              class="text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-primary-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400"
+              title="Optimize with AI"
+              @click.prevent="emit('sparkle-click', 'postHistoryInstructions')"
+            >
+              <span i-ph:sparkle class="i-ph:sparkle animate-pulse text-lg" style="display: inline-block; width: 1.2em; height: 1.2em;" />
+            </button>
+          </div>
+        </label>
+      </div>
 
       <FieldTextArea
         v-model="generationAdvancedJson"

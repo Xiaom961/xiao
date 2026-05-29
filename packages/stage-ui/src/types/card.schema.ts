@@ -110,6 +110,7 @@ const AiriExtensionSchema = looseObject({
       maxTokens: optional(number()),
       temperature: optional(number()),
       topP: optional(number()),
+      reasoningFallback: optional(boolean()),
     })),
     advanced: optional(record(string(), unknown())),
     importedPresetMeta: optional(looseObject({

@@ -104,13 +104,21 @@ async function handleRetry() {
     return
 
   // Truncate messages up to (but not including) this user message!
+  const originalMessages = JSON.parse(JSON.stringify(messages))
   const nextMessages = messages.slice(0, index)
   chatSession.setSessionMessages(activeSessionId, nextMessages)
 
-  // Now ingest the message content again!
-  await chatOrchestrator.ingest(content.value, {})
-
-  toast.success('Retrying message...')
+  try {
+    // Now ingest the message content again!
+    await chatOrchestrator.ingest(content.value, {})
+    toast.success('Retrying message...')
+  }
+  catch (err) {
+    console.error('[Retry] Failed:', err)
+    // Restore the original messages list!
+    chatSession.setSessionMessages(activeSessionId, originalMessages)
+    toast.error('Failed to retry message. Conversation restored.')
+  }
 }
 
 async function handleFork() {

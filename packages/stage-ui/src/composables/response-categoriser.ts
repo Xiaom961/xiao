@@ -151,6 +151,7 @@ export function stripMarkers(text: string) {
 export function categorizeResponse(
   response: string,
   _providerId?: string,
+  options?: { reasoningFallback?: boolean },
 ): CategorizedResponse {
   // Extract all tags dynamically
   const extractedTags = extractAllTags(response)
@@ -210,10 +211,18 @@ export function categorizeResponse(
   // Speech is everything outside tags
   const speech = speechParts.join(' ').trim()
 
+  const finalSpeech = stripMarkers(speech || '')
+  const finalReasoning = stripMarkers(reasoning || '')
+
+  let resolvedSpeech = finalSpeech
+  if (!finalSpeech.trim() && finalReasoning.trim() && options?.reasoningFallback) {
+    resolvedSpeech = finalReasoning
+  }
+
   return {
     segments,
-    speech: stripMarkers(speech || ''),
-    reasoning: stripMarkers(reasoning || ''),
+    speech: resolvedSpeech,
+    reasoning: finalReasoning,
     raw: response,
   }
 }

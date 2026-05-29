@@ -16,6 +16,7 @@ import { useAnalytics } from '../composables'
 import { createLlmJsonInterceptor } from '../composables/llm-json-interceptor'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
+import { useCompactionStore } from './chat/compaction'
 import { createDatetimeContext, createEternalRecordContext, createExpressionsContext, createScenesContext, createStickersContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { createChatHooks } from './chat/hooks'
@@ -185,6 +186,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       return
 
     chatSession.ensureSession(sessionId)
+
+    // Execute history compaction if limit has been reached
+    const compactionStore = useCompactionStore()
+    if (compactionStore.shouldCompact(sessionId)) {
+      await compactionStore.executeCompaction(sessionId)
+    }
 
     // Inject current datetime context before composing the message
     chatContext.ingestContextMessage(createDatetimeContext())
@@ -400,10 +407,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           const speechOnly = categorizer.filterToSpeech(text, streamPosition)
           streamPosition += text.length
 
+          const cardFallback = activeCard.value?.extensions?.airi?.generation?.known?.reasoningFallback
           const current = categorizer.getCurrent()
           if (current) {
-            ;(buildingMessage as any).categorization = {
-              speech: current.speech,
+            const finalSpeech = current.speech || (cardFallback !== false && current.reasoning ? current.reasoning : '')
+             ;(buildingMessage as any).categorization = {
+              speech: finalSpeech,
               reasoning: current.reasoning,
             }
           }
@@ -726,7 +735,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             if (isStaleGeneration())
               return
 
-            const finalCategorization = categorizeResponse(fullText, effectiveProviderId)
+            const cardFallback = activeCard.value?.extensions?.airi?.generation?.known?.reasoningFallback
+            const finalCategorization = categorizeResponse(fullText, effectiveProviderId, { reasoningFallback: cardFallback !== false })
 
             ;(buildingMessage as any).categorization = {
               speech: finalCategorization.speech,
@@ -1005,6 +1015,25 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       }
 
       // Turn loop ended
+      const cardFallback = activeCard.value?.extensions?.airi?.generation?.known?.reasoningFallback
+      const fallbackActive = cardFallback !== false
+      const speechText = typeof buildingMessage.content === 'string' ? buildingMessage.content : ''
+      if (!speechText.trim() && (buildingMessage as any).categorization?.reasoning?.trim() && fallbackActive) {
+        const fallbackText = (buildingMessage as any).categorization.reasoning
+        buildingMessage.content = fallbackText
+        // Check if there is no text slice to display, and add one if missing
+        const textSlice = buildingMessage.slices.find(s => s.type === 'text')
+        if (textSlice && textSlice.type === 'text') {
+          textSlice.text = fallbackText
+        }
+        else {
+          buildingMessage.slices.push({
+            type: 'text',
+            text: fallbackText,
+          })
+        }
+        updateUI()
+      }
 
       // --- NO_REPLY Guard ---
       // If the model explicitly chose to remain silent, we abort downstream processing.
