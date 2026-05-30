@@ -429,6 +429,7 @@ async function loadModel() {
             }
 
             skeleton = new spine.Skeleton(skeletonData)
+            console.log('[Spine Debug] Loaded bones:', skeleton.bones.map(b => b.data.name))
             skeleton.setToSetupPose()
             applyTransformFromStore()
 
@@ -509,6 +510,9 @@ async function loadModel() {
           animationState.apply(skeleton)
           if (props.mouthOpenSize !== undefined) {
             const mouthBone = skeleton.findBone('mouth') || skeleton.findBone('jaw') || skeleton.findBone('mouth_open')
+            if (props.mouthOpenSize > 0) {
+              console.log('[Spine Mouth Debug] mouthOpenSize:', props.mouthOpenSize, 'mouthBone found:', !!mouthBone)
+            }
             if (mouthBone) {
               mouthBone.y = mouthBone.data.y - (props.mouthOpenSize * 15)
             }
