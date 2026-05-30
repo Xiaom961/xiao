@@ -71,6 +71,7 @@ const {
 
 let isUnmounted = false
 let loggedBBoxThisLoad = false
+let isTalkActive = false
 const modelLoadMutex = new Mutex()
 const modelLoading = ref(false)
 
@@ -252,11 +253,13 @@ function disposeSpine() {
   animationManager = undefined
   skeleton = undefined
   animationState = undefined
+  isTalkActive = false
 }
 
 async function loadModel() {
   await modelLoadMutex.acquire()
   loggedBBoxThisLoad = false
+  isTalkActive = false
   model0ScaleFactor = 1
 
   modelLoading.value = true
@@ -429,6 +432,17 @@ async function loadModel() {
             }
 
             skeleton = new spine.Skeleton(skeletonData)
+
+            const talkAnim = skeletonData.animations.find(a => a.name === 'talk_start' || a.name.includes('talk'))
+            if (talkAnim) {
+              console.log('[Spine Debug] talk_start timelines:', talkAnim.timelines.map((t: any) => {
+                const type = t.constructor ? t.constructor.name : 'Unknown'
+                const bone = t.boneIndex !== undefined ? skeletonData.bones[t.boneIndex]?.name : undefined
+                const slot = t.slotIndex !== undefined ? skeletonData.slots[t.slotIndex]?.name : undefined
+                return { type, bone, slot }
+              }))
+            }
+
             console.log('[Spine Debug] Loaded bones:', skeleton.bones.map(b => b.data.name))
             skeleton.setToSetupPose()
             applyTransformFromStore()
@@ -508,11 +522,30 @@ async function loadModel() {
           }
           animationState.update(delta * animationSpeed.value)
           animationState.apply(skeleton)
+
           if (props.mouthOpenSize !== undefined) {
-            const mouthBone = skeleton.findBone('mouth') || skeleton.findBone('jaw') || skeleton.findBone('mouth_open')
-            if (props.mouthOpenSize > 0) {
-              console.log('[Spine Mouth Debug] mouthOpenSize:', props.mouthOpenSize, 'mouthBone found:', !!mouthBone)
+            const mouthOpen = props.mouthOpenSize > 0
+            if (mouthOpen !== isTalkActive) {
+              isTalkActive = mouthOpen
+              if (mouthOpen) {
+                const hasTalkStart = skeleton.data.findAnimation('talk_start') !== null
+                if (hasTalkStart) {
+                  animationState.setAnimation(4, 'talk_start', true)
+                }
+              }
+              else {
+                const hasTalkEnd = skeleton.data.findAnimation('talk_end') !== null
+                if (hasTalkEnd) {
+                  animationState.setAnimation(4, 'talk_end', false)
+                }
+                else {
+                  animationState.setEmptyAnimation(4, 0.2)
+                }
+              }
             }
+
+            // Fallback for bone-driven mouths
+            const mouthBone = skeleton.findBone('mouth') || skeleton.findBone('jaw') || skeleton.findBone('mouth_open')
             if (mouthBone) {
               mouthBone.y = mouthBone.data.y - (props.mouthOpenSize * 15)
             }
