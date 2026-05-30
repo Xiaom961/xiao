@@ -418,6 +418,16 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
         return
       }
 
+      // Retrieve previous scratchpad state from latest director note that has a scratchpad
+      let previousScratchpad = ''
+      if (directorNotes.value && directorNotes.value.length > 0) {
+        const sortedNotes = [...directorNotes.value].sort((a, b) => b.createdAt - a.createdAt)
+        const lastNoteWithScratchpad = sortedNotes.find(n => !!n.scratchpad)
+        if (lastNoteWithScratchpad) {
+          previousScratchpad = lastNoteWithScratchpad.scratchpad || ''
+        }
+      }
+
       // 1. Compose the "Director" prompt based on target
       const airiExt = activeCard.extensions?.airi as any
       artistLog('DEBUG: Full airi extension:', JSON.stringify(airiExt, null, 2))
@@ -455,12 +465,21 @@ A high grade (warranted) should be given for:
 
 Character Personality: ${activeCard.personality}
 ${conceptsInstruction}
+
+DIRECTOR'S VISUAL SCRATCHPAD INSTRUCTIONS:
+You maintain a persistent "scratchpad" state board (maximum 1000 characters) to track visual and spatial states (e.g. location, outfits, held items, time/lighting). This runs complementary to the recent sliding history window. You should follow these guidelines for the scratchpad:
+1. Format: Write the state in a clean, structured YAML-like format (e.g., "Location: Asuka's room\nOutfit: Yellow sundress\nHeld Items: Spezi bottle"). Do NOT use prose.
+2. Contradiction Override: The sliding history window is the source of truth for immediate changes. If the history explicitly or implicitly contradicts the previous scratchpad state (e.g. they moved to the elevator), update the scratchpad state immediately.
+3. Common Sense Pruning: Clean up/prune old or temporary states that are no longer logical or active in the current situation (e.g. if she finished the Spezi or left the room, remove it from the state).
+4. Strict 1000-character budget: Keep it compact. If it exceeds 1000 characters, it will be hard truncated. Use dense key-value pairs.
+
 Output EXACTLY this JSON format and nothing else:
 {
   "reasoning": "Quick explanation of why this scene is visually interesting or boring",
   "intensity": 1-100,
   "prompt": "Highly detailed, illustrative prompt for the image generator capturing the character's reaction and scene. Use Mori's style (masterpiece, high quality, manga style, intricate details)",
-  "title": "Short descriptive title for the scene"${conceptsSchema}
+  "title": "Short descriptive title for the scene"${conceptsSchema},
+  "scratchpad": "The updated scratchpad block following the instructions above"
 }`
 
       const systemPrompt = target === 'assistant'
@@ -479,6 +498,10 @@ ${commonInstructions}`
       const historyText = recentHistory.map(m => `[${m.role === 'assistant' ? 'Companion' : 'User'}]: ${m.content}`).join('\n\n')
 
       const analysisPrompt = `Consider the recent history between the user and the character for context and inspiration, then analyze the latest ${target === 'assistant' ? 'response from the companion' : 'input from the user'} to decide if a visual manifestation is needed.
+
+---
+PREVIOUS VISUAL STATE (Director's Scratchpad):
+${previousScratchpad || '(Initial scene setup. Scratchpad is currently empty. Define the starting location, outfits, and items.)'}
 
 ---
 CURRENTLY ACTIVE CONCEPTS:
@@ -559,12 +582,14 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
 
       const analysis = JSON.parse(jsonContent)
       const selectedConcepts: string[] = Array.isArray(analysis.selected_concepts) ? analysis.selected_concepts : []
+      const scratchpadText: string = typeof analysis.scratchpad === 'string' ? analysis.scratchpad.substring(0, 1000) : ''
       artistLog('Parsed Analysis Result:', {
         intensity: analysis.intensity,
         reasoning: analysis.reasoning,
         title: analysis.title,
         prompt: analysis.prompt,
         selected_concepts: selectedConcepts,
+        scratchpad: scratchpadText,
       })
 
       // 3.5 Stack Folding: Resolve the next concept stack and fold into final values
@@ -604,13 +629,6 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         notificationDescription += `\n🎯 Concepts: ${selectedConcepts.join(', ')}`
       }
 
-      const invoker = getGenerateHeadless()
-      invoker.showToast({
-        message: 'Director\'s Decision',
-        description: notificationDescription,
-        duration: 7000,
-      })
-
       const sessionId = chatSessionStore.activeSessionId
       const noteId = Date.now().toString()
       const noteState = thresholdMet ? 'pending' : 'done'
@@ -626,6 +644,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         target,
         state: noteState,
         selected_concepts: selectedConcepts,
+        scratchpad: scratchpadText,
         createdAt: Date.now(),
       })
 

@@ -9,6 +9,7 @@ export interface DirectorNote {
   target?: 'user' | 'assistant'
   state: 'pending' | 'done'
   selected_concepts?: string[]
+  scratchpad?: string
   createdAt: number
   isArchived?: boolean
 }

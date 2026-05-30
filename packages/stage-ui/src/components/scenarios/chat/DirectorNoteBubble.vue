@@ -38,6 +38,12 @@ const isExpanded = ref(false)
         </p>
       </div>
 
+      <!-- Scratchpad State Section -->
+      <div v-if="note.scratchpad" class="mt-1 flex flex-col gap-1 border-t border-purple-500/10 pt-2">
+        <span class="text-[10px] text-purple-400 font-bold tracking-wider uppercase">Visual State Board</span>
+        <pre class="whitespace-pre-wrap border border-purple-500/10 rounded bg-purple-950/20 p-1.5 text-[11px] text-purple-300 leading-relaxed font-mono">{{ note.scratchpad }}</pre>
+      </div>
+
       <div v-if="note.state === 'pending' || note.selected_concepts?.length || (note.intensity >= 70 && note.state === 'done')" class="mt-1 flex items-center justify-between border-t border-purple-500/20 pt-2">
         <div class="flex items-center gap-2">
           <template v-if="note.state === 'pending'">

@@ -142,6 +142,17 @@ const directorNote = computed(() => {
                   {{ directorNote.content }}
                 </p>
               </div>
+
+              <!-- Visual State Scratchpad Section -->
+              <div v-if="directorNote.scratchpad" class="mt-3">
+                <div class="mb-2 flex items-center gap-1.5 text-[10px] text-primary-500 font-bold tracking-wider uppercase">
+                  <div i-solar:database-bold-duotone />
+                  Visual State Board (Scratchpad)
+                </div>
+                <div class="rounded-lg bg-neutral-50 p-3 text-xs leading-relaxed dark:bg-neutral-800/50">
+                  <pre class="whitespace-pre-wrap text-[11px] text-neutral-600 leading-relaxed font-mono dark:text-neutral-400">{{ directorNote.scratchpad }}</pre>
+                </div>
+              </div>
             </div>
           </div>
         </div>
