@@ -203,6 +203,10 @@ app.whenReady().then(async () => {
   )
 
   session.defaultSession.on('will-download', async (_event, item, webContents) => {
+    if (webContents.getType() !== 'webview') {
+      return
+    }
+
     const filename = item.getFilename()
     const ext = filename.split('.').pop()?.toLowerCase()
 
