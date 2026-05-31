@@ -87,7 +87,7 @@ function toggleConcept(conceptId: string) {
   const extension = JSON.parse(JSON.stringify(props.card.extensions || {}))
   if (!extension.airi)
     extension.airi = {}
-  extension.airi.active_concepts = next
+  extension.airi.active_concepts = Array.from(new Set(next))
 
   cardStore.updateCard(props.cardId, {
     ...props.card,

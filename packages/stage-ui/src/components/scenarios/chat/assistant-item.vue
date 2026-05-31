@@ -3,7 +3,7 @@ import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatSlicesText 
 
 import { useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -159,29 +159,18 @@ async function handleRetry() {
 
   // Find the user message before this assistant message!
   if (index > 0 && messages[index - 1].role === 'user') {
-    const userMsg = messages[index - 1]
-    const content = userMsg.content
-
-    // Truncate history at index - 1 (remove user message and all after it!)
-    const nextMessages = messages.slice(0, index - 1)
+    // Truncate history at index (keep user message at index-1, remove assistant message and all after it!)
+    const nextMessages = messages.slice(0, index)
     await chatSession.setSessionMessages(activeSessionId, nextMessages)
 
-    // Now ingest the user message content again!
-    let textToIngest = ''
-    if (typeof content === 'string') {
-      textToIngest = content
-    }
-    else if (Array.isArray(content)) {
-      const textPart = content.find(part => 'type' in part && part.type === 'text') as { text?: string } | undefined
-      textToIngest = textPart?.text || ''
-    }
-
-    if (textToIngest) {
-      await chatOrchestrator.ingest(textToIngest, {})
+    try {
+      // Ingest with triggerOnly: true to trigger generation from the user message that is already in history
+      await chatOrchestrator.ingest('', { triggerOnly: true })
       toast.success('Retrying message...')
     }
-    else {
-      toast.error('Cannot retry: User message content is empty.')
+    catch (err) {
+      console.error('[Retry] Failed:', err)
+      toast.error('Failed to retry message.')
     }
   }
   else {
@@ -289,6 +278,112 @@ async function handleForkAndSwitch() {
     }
   }
 }
+
+const isEditing = ref(false)
+const isSavingEdit = ref(false)
+const editContent = ref('')
+const editorRef = useTemplateRef<HTMLDivElement>('editorRef')
+
+function handleEdit() {
+  isEditing.value = true
+  const raw = props.message.content
+  if (typeof raw === 'string') {
+    editContent.value = raw
+  }
+  else if (Array.isArray(raw)) {
+    const textPart = raw.find(part => 'type' in part && part.type === 'text') as { text?: string } | undefined
+    editContent.value = textPart?.text || ''
+  }
+  else {
+    editContent.value = ''
+  }
+
+  void nextTick(() => {
+    if (editorRef.value) {
+      editorRef.value.textContent = editContent.value
+      editorRef.value.focus()
+
+      const range = document.createRange()
+      const selection = window.getSelection()
+      if (selection) {
+        range.selectNodeContents(editorRef.value)
+        range.collapse(false)
+        selection.removeAllRanges()
+        selection.addRange(range)
+      }
+    }
+  })
+}
+
+function handleCancelEdit() {
+  isEditing.value = false
+}
+
+async function handleCommitEdit() {
+  if (!props.message.id || isSavingEdit.value)
+    return
+
+  const activeSessionId = chatSession.activeSessionId
+  if (!activeSessionId)
+    return
+
+  if (editorRef.value) {
+    const newText = (editorRef.value.textContent || '').trim()
+    if (!newText) {
+      toast.error('Message content cannot be empty.')
+      return
+    }
+
+    isSavingEdit.value = true
+    try {
+      const messages = chatSession.getSessionMessages(activeSessionId)
+      const index = messages.findIndex(msg => msg.id === props.message.id)
+
+      if (index === -1)
+        return
+
+      const raw = props.message.content
+      let updatedContent: any
+      if (typeof raw === 'string') {
+        updatedContent = newText
+      }
+      else if (Array.isArray(raw)) {
+        updatedContent = raw.map((part) => {
+          if (part && typeof part === 'object' && 'type' in part && part.type === 'text') {
+            return { ...part, text: newText }
+          }
+          return part
+        })
+      }
+      else {
+        updatedContent = newText
+      }
+
+      // Copy message array, update content of the index directly
+      const nextMessages = JSON.parse(JSON.stringify(messages))
+      nextMessages[index].content = updatedContent
+
+      // Update slices to render the new content instantly
+      nextMessages[index].slices = [
+        { type: 'text', text: newText },
+      ]
+
+      // Pure in-place save: set session messages without slicing or ingesting
+      await chatSession.setSessionMessages(activeSessionId, nextMessages)
+
+      isEditing.value = false
+      toast.success('Response updated.')
+    }
+    catch (err) {
+      console.error('[EditCommit] Failed:', err)
+      toast.error('Failed to update response.')
+    }
+    finally {
+      isSavingEdit.value = false
+    }
+  }
+}
+
 const isLatestAssistantMessage = computed(() => {
   const activeSessionId = chatSession.activeSessionId
   if (!activeSessionId)
@@ -593,7 +688,7 @@ const dynamicStyles = computed(() => {
     />
     <ChatActionMenu
       :copy-text="copyText"
-      :can-edit="false"
+      :can-edit="true"
       placement="right"
       @copy="handleCopy"
       @delete="handleDelete"
@@ -602,6 +697,7 @@ const dynamicStyles = computed(() => {
       @delete-following="handleDeleteFollowing"
       @fork-switch="handleForkAndSwitch"
       @journal="handleJournal"
+      @edit="handleEdit"
     >
       <template #default="{ setMeasuredElement }">
         <div class="w-full flex flex-row gap-2">
@@ -624,7 +720,7 @@ const dynamicStyles = computed(() => {
             <div v-if="message.content === 'NO_REPLY' || message.rawContent === 'NO_REPLY'" class="py-1 text-sm text-neutral-500/70 italic dark:text-neutral-400/70">
               The character chose not to respond in this turn
             </div>
-            <div v-else-if="resolvedSlices.length > 0" class="break-words" :class="mood ? 'text-neutral-800 dark:text-neutral-200' : 'text-primary-700 dark:primary-100'">
+            <div v-else-if="resolvedSlices.length > 0 && !isEditing" class="break-words" :class="mood ? 'text-neutral-800 dark:text-neutral-200' : 'text-primary-700 dark:primary-100'">
               <template v-for="(slice, sliceIndex) in resolvedSlices" :key="sliceIndex">
                 <ChatToolCallBlock
                   v-if="slice.type === 'tool-call'"
@@ -645,6 +741,38 @@ const dynamicStyles = computed(() => {
               </template>
             </div>
             <div v-else-if="showLoader" i-eos-icons:three-dots-loading />
+
+            <!-- In-place Assistant Message Editor -->
+            <div
+              v-show="isEditing"
+              ref="editorRef"
+              contenteditable="true"
+              class="my-0 min-h-[1lh] w-full break-words rounded-md bg-white/5 p-2 text-neutral-800 shadow-inner outline-none ring-2 ring-primary-500/50 transition-colors -mx-2 dark:bg-black/10 dark:text-neutral-200"
+              @keydown.shift.enter.prevent="handleCommitEdit"
+              @keydown.esc.prevent="handleCancelEdit"
+            />
+
+            <div
+              v-if="isEditing"
+              class="absolute z-10 flex gap-1 border border-neutral-200 rounded-full bg-white/95 p-1 shadow-md backdrop-blur-sm -bottom-3 -right-3 dark:border-neutral-700 dark:bg-neutral-800/95"
+            >
+              <button
+                :disabled="isSavingEdit"
+                title="Cancel (Esc)"
+                class="h-6 w-6 flex items-center justify-center rounded-full text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950/50"
+                @click="handleCancelEdit"
+              >
+                <div class="i-solar:close-circle-bold text-sm" />
+              </button>
+              <button
+                :disabled="isSavingEdit"
+                title="Commit (Shift+Enter)"
+                class="h-6 w-6 flex items-center justify-center rounded-full text-emerald-500 transition-colors hover:bg-emerald-50 disabled:opacity-50 dark:hover:bg-emerald-950/50"
+                @click="handleCommitEdit"
+              >
+                <div class="i-solar:check-circle-bold text-sm" />
+              </button>
+            </div>
 
             <div v-if="message.categorization?.reasoning" mt-1 text-xs text-neutral-500 font-normal italic dark:text-neutral-400>
               {{ t('stage.chat.reasoning_only') }}

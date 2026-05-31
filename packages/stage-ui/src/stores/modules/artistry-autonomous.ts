@@ -143,7 +143,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
       // Director picked a new Base: wipe visual stack, preserve non-visual identity layers
       const primaryBase = newBases[newBases.length - 1]
       artistLog('Stack Resolve: New Base detected, preserving identity layers.', { primaryBase, identity: nonVisualLayers, layers: newLayers })
-      return [primaryBase, ...nonVisualLayers, ...newLayers]
+      return Array.from(new Set([primaryBase, ...nonVisualLayers, ...newLayers]))
     }
 
     // Director picked only Layers: preserve existing Base and non-visual identity layers, clear old modifiers
@@ -152,7 +152,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
     nextStack.push(...nonVisualLayers)
     nextStack.push(...newLayers)
     artistLog('Stack Resolve: Refreshing modifiers, keeping base and identity.', { currentBase, identity: nonVisualLayers, layers: newLayers })
-    return nextStack
+    return Array.from(new Set(nextStack))
   }
 
   /**

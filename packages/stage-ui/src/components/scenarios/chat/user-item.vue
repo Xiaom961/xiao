@@ -103,14 +103,14 @@ async function handleRetry() {
   if (index === -1)
     return
 
-  // Truncate messages up to (but not including) this user message!
+  // Truncate messages after this user message (keep this user message in history!)
   const originalMessages = JSON.parse(JSON.stringify(messages))
-  const nextMessages = messages.slice(0, index)
+  const nextMessages = messages.slice(0, index + 1)
   await chatSession.setSessionMessages(activeSessionId, nextMessages)
 
   try {
-    // Now ingest the message content again!
-    await chatOrchestrator.ingest(content.value, {})
+    // Ingest with triggerOnly: true to generate response without appending the message again
+    await chatOrchestrator.ingest('', { triggerOnly: true })
     toast.success('Retrying message...')
   }
   catch (err) {
