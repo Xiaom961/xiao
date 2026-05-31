@@ -12,14 +12,6 @@ export const TTS_SPECIAL_TOKEN = '\u2063'
 const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
-const openBrackets = new Map<string, string>([
-  ['[', ']'],
-  ['(', ')'],
-  ['（', '）'],
-  ['【', '】'],
-  ['<', '>'],
-])
-const closeBrackets = new Set([']', ')', '）', '】', '>'])
 
 export interface TtsInputChunk {
   text: string
@@ -69,7 +61,6 @@ export async function* chunkTtsInput(
   let chunk = ''
   let chunkWordsCount = 0
 
-  const bracketStack: string[] = []
   let previousValue: string | undefined
   let current = await iterator.next()
 
@@ -82,29 +73,6 @@ export async function* chunkTtsInput(
       continue
     }
 
-    if (value === '\n') {
-      bracketStack.length = 0
-    }
-
-    if (openBrackets.has(value)) {
-      bracketStack.push(openBrackets.get(value)!)
-    }
-    else if (closeBrackets.has(value)) {
-      if (bracketStack.length > 0 && bracketStack[bracketStack.length - 1] === value) {
-        bracketStack.pop()
-      }
-    }
-    else if (value === '*') {
-      if (bracketStack.length > 0 && bracketStack[bracketStack.length - 1] === '*') {
-        bracketStack.pop()
-      }
-      else {
-        bracketStack.push('*')
-      }
-    }
-
-    const isInBracket = bracketStack.length > 0
-
     const flush = value === TTS_FLUSH_INSTRUCTION
     const special = value === TTS_SPECIAL_TOKEN
     const hard = hardPunctuations.has(value)
@@ -113,7 +81,7 @@ export async function* chunkTtsInput(
     let next: IteratorResult<string, any> | undefined
     let afterNext: IteratorResult<string, any> | undefined
 
-    if (flush || special || (hard && !isInBracket) || (soft && !isInBracket)) {
+    if (flush || special || hard || soft) {
       switch (value) {
         case '.':
         case ',': {

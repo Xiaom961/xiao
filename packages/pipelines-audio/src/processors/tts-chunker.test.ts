@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { chunkTtsInput, processNarrative } from './tts-chunker'
+import { processNarrative } from './tts-chunker'
 
 describe('processNarrative', () => {
   it('should not strip narrative if stripNarrative is false', () => {
@@ -34,16 +34,5 @@ describe('processNarrative', () => {
   it('should handle mixed bracket types with keepNarrativeText', () => {
     const text = 'Start <hidden> [box] (round) *star* End'
     expect(processNarrative(text, { stripNarrative: true, keepNarrativeText: true })).toBe('Start hidden box round star End')
-  })
-})
-
-describe('chunkTtsInput', () => {
-  it('should not split sentences on punctuation inside narrative brackets', async () => {
-    const text = 'Hello *[she wheezes, slapping the table lightly]* how are you?'
-    const chunks = []
-    for await (const chunk of chunkTtsInput(text)) {
-      chunks.push(chunk.text)
-    }
-    expect(chunks).toEqual(['Hello *[she wheezes, slapping the table lightly]* how are you?'])
   })
 })
