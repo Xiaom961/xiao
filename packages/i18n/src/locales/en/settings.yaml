@@ -221,7 +221,8 @@ pages:
       fields_info:
         subtitle: You can put here some details about the character you are creating,
           explain his history and context, and how your interactions should be
-          answered, if you need help writing use the ✨ icon to have your AI generate suggestions.
+          answered, if you need help writing use the ✨ icon to have your AI
+          generate suggestions.
         identity_prompting: These fields all help define the character, but they are not
           separate runtime layers today. System Prompt is used in AIRI's active
           prompt assembly. Post-History Instructions is currently kept mainly
@@ -663,6 +664,8 @@ pages:
         loading: Loading registry...
         stars: '{count} stars'
         no-results: No servers found for "{query}"
+    cloud-sync:
+      title: Cloud Sync Settings
   providers:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
@@ -1158,8 +1161,11 @@ pages:
           one endpoint
       virtual-audio-studio:
         title: Audio Studio
-        description: Voice Library - Build virtual voice profiles with custom effects and
-          dialog filters
+        description: Voice Library - Build virtual voice profiles with custom effects
+          and dialog filters
+      local-fs:
+        settings:
+          title: Local File System / Samba Configuration
     title: Providers
   connection:
     description: Configure WebSocket server connection

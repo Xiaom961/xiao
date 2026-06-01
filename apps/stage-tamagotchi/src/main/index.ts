@@ -878,6 +878,113 @@ app.whenReady().then(async () => {
         }
       })
 
+      // BYOS Local FS Sync IPC Handlers
+      ipcMain.handle('byos-fs:validate-path', async (_event, data: { path: string }) => {
+        const fs = await import('node:fs/promises')
+        const path = await import('node:path')
+        try {
+          await fs.access(data.path)
+          // Try writing a temporary test file to ensure it's writable
+          const testFile = path.join(data.path, '.byos-write-test')
+          await fs.writeFile(testFile, 'test')
+          await fs.unlink(testFile)
+          return { success: true }
+        }
+        catch (error) {
+          return { success: false, error: String(error) }
+        }
+      })
+
+      ipcMain.handle('byos-fs:write-file', async (_event, data: { dir: string, relPath: string, content: string, encoding?: 'utf-8' | 'base64' }) => {
+        const fs = await import('node:fs/promises')
+        const path = await import('node:path')
+        const fullPath = path.join(data.dir, data.relPath)
+        try {
+          await fs.mkdir(path.dirname(fullPath), { recursive: true })
+          const buffer = data.encoding === 'base64'
+            ? Buffer.from(data.content, 'base64')
+            : data.content
+          await fs.writeFile(fullPath, buffer)
+          return { success: true }
+        }
+        catch (error) {
+          console.error('[BYOS-FS] Failed to write file:', error)
+          return { success: false, error: String(error) }
+        }
+      })
+
+      ipcMain.handle('byos-fs:read-file', async (_event, data: { dir: string, relPath: string, encoding?: 'utf-8' | 'base64' }) => {
+        const fs = await import('node:fs/promises')
+        const path = await import('node:path')
+        const fullPath = path.join(data.dir, data.relPath)
+        try {
+          const encoding = data.encoding || 'utf-8'
+          if (encoding === 'base64') {
+            const buffer = await fs.readFile(fullPath)
+            return { success: true, content: buffer.toString('base64') }
+          }
+          else {
+            const content = await fs.readFile(fullPath, 'utf-8')
+            return { success: true, content }
+          }
+        }
+        catch (error) {
+          console.error('[BYOS-FS] Failed to read file:', error)
+          return { success: false, error: String(error) }
+        }
+      })
+
+      ipcMain.handle('byos-fs:delete-file', async (_event, data: { dir: string, relPath: string }) => {
+        const fs = await import('node:fs/promises')
+        const path = await import('node:path')
+        const fullPath = path.join(data.dir, data.relPath)
+        try {
+          await fs.unlink(fullPath)
+          return { success: true }
+        }
+        catch (error) {
+          if ((error as any).code === 'ENOENT') {
+            return { success: true }
+          }
+          console.error('[BYOS-FS] Failed to delete file:', error)
+          return { success: false, error: String(error) }
+        }
+      })
+
+      ipcMain.handle('byos-fs:list-files', async (_event, data: { dir: string }) => {
+        const fs = await import('node:fs/promises')
+        const path = await import('node:path')
+        try {
+          const results: Array<{ relPath: string, mtime: number, size: number }> = []
+          async function scan(currentDir: string) {
+            const entries = await fs.readdir(currentDir, { withFileTypes: true })
+            for (const entry of entries) {
+              const fullPath = path.join(currentDir, entry.name)
+              if (entry.isDirectory()) {
+                await scan(fullPath)
+              }
+              else if (entry.isFile()) {
+                const stat = await fs.stat(fullPath)
+                results.push({
+                  relPath: path.relative(data.dir, fullPath),
+                  mtime: stat.mtimeMs,
+                  size: stat.size,
+                })
+              }
+            }
+          }
+          await scan(data.dir)
+          return { success: true, files: results }
+        }
+        catch (error) {
+          if ((error as any).code === 'ENOENT') {
+            return { success: true, files: [] }
+          }
+          console.error('[BYOS-FS] Failed to list files:', error)
+          return { success: false, files: [], error: String(error) }
+        }
+      })
+
       ipcMain.on('provider-validation-result', (_, data: { providerId: string, valid: boolean, reason: string, config: any }) => {
         if (data.valid)
           return

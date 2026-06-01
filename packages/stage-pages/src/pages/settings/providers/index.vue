@@ -5,6 +5,7 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSyncEngineStore } from '@proj-airi/stage-ui/stores/sync-engine'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,6 +16,7 @@ const route = useRoute()
 const router = useRouter()
 const providersStore = useProvidersStore()
 const artistryStore = useArtistryStore()
+const syncEngineStore = useSyncEngineStore()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
 const { trackProviderClick } = useAnalytics()
 
@@ -24,6 +26,27 @@ const {
   allAudioTranscriptionProvidersMetadata,
   allVisionProvidersMetadata,
 } = storeToRefs(providersStore)
+
+const allCloudProvidersMetadata = computed(() => {
+  return [
+    {
+      id: 'local-fs',
+      category: 'cloud',
+      icon: 'i-solar:folder-with-files-bold-duotone',
+      iconColor: 'text-amber-500',
+      name: 'Local File System',
+      localizedName: 'Local File System / Samba',
+      description: 'Synchronize data to a local path or mounted Samba network share.',
+      localizedDescription: 'Synchronize data to a local path or mounted Samba network share.',
+      configured: !!syncEngineStore.fsBackupPath,
+      to: '/settings/providers/cloud/local-fs',
+      pricing: 'free',
+      deployment: 'local',
+      beginnerRecommended: true,
+      iconImage: undefined,
+    },
+  ]
+})
 
 const allArtistryProvidersMetadata = computed(() => {
   return [
@@ -113,6 +136,13 @@ const providerBlocksConfig = [
     title: 'Vision',
     description: 'Vision-Language model providers. e.g. OpenRouter, OpenAI, Ollama.',
     providersRef: allVisionProvidersMetadata,
+  },
+  {
+    id: 'cloud',
+    icon: 'i-solar:cloud-bold-duotone',
+    title: 'Cloud & Storage',
+    description: 'Storage adapters for backups and multi-device database/asset sync.',
+    providersRef: allCloudProvidersMetadata,
   },
 ]
 

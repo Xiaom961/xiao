@@ -15,6 +15,7 @@ import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
+import { useSyncEngineStore } from '../stores/sync-engine'
 
 export interface Module {
   id: string
@@ -41,6 +42,7 @@ export function useModulesList() {
   const factorioStore = useFactorioStore()
   const artistryStore = useArtistryStore()
   const visionStore = useVisionStore()
+  const syncEngineStore = useSyncEngineStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
 
   const modulesList = computed<Module[]>(() => [
@@ -159,6 +161,15 @@ export function useModulesList() {
       icon: 'i-solar:music-notes-bold-duotone',
       to: '/settings/modules/beat-sync',
       configured: beatSyncState.value?.isActive ?? false,
+      category: 'essential',
+    },
+    {
+      id: 'cloud-sync',
+      name: 'Cloud Sync',
+      description: 'Synchronize database and assets.',
+      icon: 'i-solar:cloud-bold-duotone',
+      to: '/settings/modules/cloud-sync',
+      configured: syncEngineStore.syncEnabled,
       category: 'essential',
     },
   ])
