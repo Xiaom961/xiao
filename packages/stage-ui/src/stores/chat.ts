@@ -1051,7 +1051,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (!speechText.trim() && (buildingMessage as any).categorization?.reasoning?.trim() && fallbackActive) {
         const fallbackText = (buildingMessage as any).categorization.reasoning
         buildingMessage.content = fallbackText
-        fullText = fallbackText // Set fullText to fallbackText so downstream hooks receive speech text
         // Check if there is no text slice to display, and add one if missing
         const textSlice = buildingMessage.slices.find(s => s.type === 'text')
         if (textSlice && textSlice.type === 'text') {

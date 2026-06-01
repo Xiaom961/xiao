@@ -353,17 +353,6 @@ async function handleCommitEdit() {
   }
 }
 
-const hasContentText = computed(() => {
-  const content = props.message.content
-  if (typeof content === 'string') {
-    return !!content.trim()
-  }
-  if (Array.isArray(content)) {
-    return content.some(part => part && typeof part === 'object' && 'type' in part && part.type === 'text' && !!(part as any).text?.trim())
-  }
-  return false
-})
-
 const isLatestAssistantMessage = computed(() => {
   const activeSessionId = chatSession.activeSessionId
   if (!activeSessionId)
@@ -754,7 +743,7 @@ const dynamicStyles = computed(() => {
               </button>
             </div>
 
-            <div v-if="message.categorization?.reasoning && !hasContentText" mt-1 text-xs text-neutral-500 font-normal italic dark:text-neutral-400>
+            <div v-if="message.categorization?.reasoning" mt-1 text-xs text-neutral-500 font-normal italic dark:text-neutral-400>
               {{ t('stage.chat.reasoning_only') }}
             </div>
 
