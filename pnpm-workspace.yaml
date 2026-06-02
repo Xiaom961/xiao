@@ -8,6 +8,7 @@ packages:
   - examples/**
   - docs/**
   - apps/**
+  - '!apps/stage-pocket'
   - '!**/dist/**'
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
