@@ -356,6 +356,45 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         if (k.startsWith(PREFIX)) {
           const conflictData = await storage.getItemRaw<any>(k)
           if (conflictData) {
+            // Enrich chat session details for local & remote sides to aid user in conflict resolution UI
+            if (conflictData.key.startsWith('local:chat/sessions/')) {
+              try {
+                const localVal = await storage.getItemRaw<any>(conflictData.key)
+                let remoteVal: any = null
+                const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
+                  dir: fsBackupPath.value,
+                  relPath: conflictData.remoteRelPath,
+                })
+                if (readRes.success && readRes.content) {
+                  try {
+                    remoteVal = JSON.parse(readRes.content)
+                  }
+                  catch (e) {}
+                }
+
+                conflictData.sessionDetails = {
+                  local: localVal
+                    ? {
+                        characterId: localVal.meta?.characterId || '',
+                        title: localVal.meta?.title || '',
+                        messageCount: localVal.messages?.length || localVal.meta?.messageCount || 0,
+                        lastMessage: localVal.messages?.[localVal.messages.length - 1]?.content || '',
+                      }
+                    : null,
+                  remote: remoteVal
+                    ? {
+                        characterId: remoteVal.meta?.characterId || '',
+                        title: remoteVal.meta?.title || '',
+                        messageCount: remoteVal.messages?.length || remoteVal.meta?.messageCount || 0,
+                        lastMessage: remoteVal.messages?.[remoteVal.messages.length - 1]?.content || '',
+                      }
+                    : null,
+                }
+              }
+              catch (e) {
+                console.error('[SyncEngine] Failed to enrich conflict details:', e)
+              }
+            }
             list.push(conflictData)
           }
         }

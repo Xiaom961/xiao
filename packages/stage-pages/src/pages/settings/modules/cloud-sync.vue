@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSyncEngineStore } from '@proj-airi/stage-ui/stores/sync-engine'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -6,6 +7,15 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const syncStore = useSyncEngineStore()
+const cardStore = useAiriCardStore()
+
+function getConflictCharacterName(conflict: any): string {
+  const charId = conflict.sessionDetails?.local?.characterId || conflict.sessionDetails?.remote?.characterId
+  if (!charId)
+    return ''
+  const card = cardStore.cards.get(charId)
+  return card?.name || charId
+}
 
 const {
   syncEnabled,
@@ -193,8 +203,11 @@ function cleanKeyLabel(key: string): string {
       <div class="flex flex-col gap-3">
         <div v-for="conflict in conflicts" :key="conflict.key" class="flex flex-col gap-3 border border-rose-200/50 rounded-lg bg-white p-3 dark:border-rose-900/20 dark:bg-neutral-900">
           <div class="flex items-center justify-between border-b border-neutral-100 pb-2 dark:border-neutral-800">
-            <span class="break-all pr-2 text-xs text-neutral-800 font-semibold dark:text-neutral-200">
-              {{ cleanKeyLabel(conflict.key) }}
+            <span class="flex flex-wrap items-center gap-2 break-all pr-2 text-xs text-neutral-800 font-semibold dark:text-neutral-200">
+              <span v-if="getConflictCharacterName(conflict)" class="shrink-0 rounded bg-primary-500/10 px-2 py-0.5 text-xs text-primary-600 font-bold dark:bg-primary-500/20 dark:text-primary-400">
+                {{ getConflictCharacterName(conflict) }}
+              </span>
+              <span>{{ cleanKeyLabel(conflict.key) }}</span>
             </span>
             <span class="shrink-0 text-[10px] text-neutral-400 dark:text-neutral-500">
               {{ new Date(conflict.conflictTime).toLocaleTimeString() }}
@@ -203,28 +216,40 @@ function cleanKeyLabel(key: string): string {
 
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <!-- Local Version info -->
-            <div class="rounded bg-neutral-50 p-2 dark:bg-neutral-800/50">
+            <div class="flex flex-col gap-1 rounded bg-neutral-50 p-2 dark:bg-neutral-800/50">
               <div class="text-[10px] text-neutral-400 font-medium uppercase dark:text-neutral-500">
                 Local (This Device)
               </div>
-              <div class="mt-0.5 text-xs text-neutral-800 font-bold dark:text-neutral-200">
+              <div class="text-xs text-neutral-800 font-bold dark:text-neutral-200">
                 {{ formatSize(conflict.localSize) }}
               </div>
               <div class="text-[10px] text-neutral-500 dark:text-neutral-400">
                 {{ new Date(conflict.localTimestamp).toLocaleString() }}
               </div>
+              <div v-if="conflict.sessionDetails?.local" class="mt-1 flex flex-col gap-0.5 border-t border-neutral-200/50 pt-1 text-[10px] text-neutral-500 dark:border-neutral-700/50 dark:text-neutral-400">
+                <div>Messages: <span class="font-semibold">{{ conflict.sessionDetails.local.messageCount }}</span></div>
+                <div v-if="conflict.sessionDetails.local.lastMessage" class="max-w-[280px] truncate italic">
+                  Last: "{{ conflict.sessionDetails.local.lastMessage }}"
+                </div>
+              </div>
             </div>
 
             <!-- Remote Version info -->
-            <div class="rounded bg-neutral-50 p-2 dark:bg-neutral-800/50">
+            <div class="flex flex-col gap-1 rounded bg-neutral-50 p-2 dark:bg-neutral-800/50">
               <div class="text-[10px] text-neutral-400 font-medium uppercase dark:text-neutral-500">
                 Remote (Cloud/Backup)
               </div>
-              <div class="mt-0.5 text-xs text-neutral-800 font-bold dark:text-neutral-200">
+              <div class="text-xs text-neutral-800 font-bold dark:text-neutral-200">
                 {{ formatSize(conflict.remoteSize) }}
               </div>
               <div class="text-[10px] text-neutral-500 dark:text-neutral-400">
                 {{ new Date(conflict.remoteTimestamp).toLocaleString() }}
+              </div>
+              <div v-if="conflict.sessionDetails?.remote" class="mt-1 flex flex-col gap-0.5 border-t border-neutral-200/50 pt-1 text-[10px] text-neutral-500 dark:border-neutral-700/50 dark:text-neutral-400">
+                <div>Messages: <span class="font-semibold">{{ conflict.sessionDetails.remote.messageCount }}</span></div>
+                <div v-if="conflict.sessionDetails.remote.lastMessage" class="max-w-[280px] truncate italic">
+                  Last: "{{ conflict.sessionDetails.remote.lastMessage }}"
+                </div>
               </div>
             </div>
           </div>
