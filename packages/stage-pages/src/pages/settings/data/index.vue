@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
-import { useBackupStore } from '@proj-airi/stage-ui/stores/backup'
+import { useSyncEngineStore } from '@proj-airi/stage-ui/stores/sync-engine'
 import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import {
   DialogContent,
@@ -10,67 +10,11 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-// Restore backup states
-const showRestoreModal = ref(false)
-const showConfirmWarning = ref(false)
-const backupsList = ref<{ name: string, date: string, path: string }[]>([])
-const selectedBackupDir = ref('')
-const restoreOptions = ref({
-  characters: true,
-  sessions: true,
-  memory: true,
-  localStorage: true,
-})
-const restoring = ref(false)
-const restoreErrorMessage = ref('')
-
-async function openRestoreModal() {
-  restoreErrorMessage.value = ''
-  backupsList.value = await backupStore.listBackups()
-  if (backupsList.value.length > 0) {
-    selectedBackupDir.value = backupsList.value[0].path
-  }
-  else {
-    selectedBackupDir.value = ''
-  }
-  showRestoreModal.value = true
-}
-
-function triggerRestoreConfirm() {
-  if (!selectedBackupDir.value)
-    return
-  showConfirmWarning.value = true
-}
-
-async function handlePerformRestore() {
-  restoring.value = true
-  restoreErrorMessage.value = ''
-  try {
-    const result = await backupStore.restoreBackup(selectedBackupDir.value, restoreOptions.value)
-    if (result.success) {
-      showConfirmWarning.value = false
-      showRestoreModal.value = false
-      setStatus('Backup restored successfully! Reloading application...', 'success')
-      setTimeout(() => {
-        location.reload()
-      }, 1500)
-    }
-    else {
-      restoreErrorMessage.value = result.error || 'Failed to restore backup'
-    }
-  }
-  catch (err: any) {
-    restoreErrorMessage.value = err.message || 'Restore failed'
-  }
-  finally {
-    restoring.value = false
-  }
-}
 const {
   deleteAllModels,
   resetProvidersSettings,
@@ -86,9 +30,12 @@ const {
   importBackgrounds,
   deleteAllData,
   resetDesktopApplicationState,
+  getOrphanedGroups,
+  nukeOrphanedGroups,
+  restoreOrphanedGroups,
 } = useDataMaintenance()
 
-const backupStore = useBackupStore()
+const syncEngineStore = useSyncEngineStore()
 
 const statusMessage = ref('')
 const statusTone = ref<'neutral' | 'success' | 'error'>('neutral')
@@ -193,19 +140,81 @@ async function handleImport(event: Event) {
   }
 }
 
-const formattedLastBackupTime = computed(() => {
-  if (!backupStore.lastBackupTime)
+const formattedBackupLocation = computed(() => {
+  if (syncEngineStore.activeProvider === 'local-fs') {
+    return syncEngineStore.fsBackupPath
+  }
+  return ''
+})
+
+const formattedLastSyncTime = computed(() => {
+  if (!syncEngineStore.lastSyncTime)
     return 'Never'
-  return new Date(backupStore.lastBackupTime).toLocaleString()
+  return new Date(syncEngineStore.lastSyncTime).toLocaleString()
 })
 
 async function handleTriggerBackup() {
-  const backupPathResult = await backupStore.triggerBackup()
-  if (backupPathResult) {
-    setStatus(`Backup completed successfully at: ${backupPathResult}`)
+  await syncEngineStore.triggerSync()
+  if (!syncEngineStore.syncError) {
+    setStatus(`Backup completed successfully!`)
   }
   else {
-    setStatus('Backup failed!', 'error')
+    setStatus(`Backup failed: ${syncEngineStore.syncError}`, 'error')
+  }
+}
+
+const orphanedGroups = ref<{ characterId: string, sessionCount: number, lastActive: number, preview: string }[]>([])
+const isModalOpen = ref(false)
+const selectedOrphans = ref<string[]>([])
+
+async function loadOrphans() {
+  orphanedGroups.value = await getOrphanedGroups()
+}
+
+onMounted(() => {
+  loadOrphans()
+})
+
+function openManageModal() {
+  selectedOrphans.value = []
+  isModalOpen.value = true
+  loadOrphans()
+}
+
+function selectAll() {
+  selectedOrphans.value = orphanedGroups.value.map(g => g.characterId)
+}
+
+function deselectAll() {
+  selectedOrphans.value = []
+}
+
+async function confirmNuke() {
+  if (confirm(`Are you sure you want to delete all sessions associated with the selected character IDs? This action is permanent and cannot be undone.`)) {
+    try {
+      await nukeOrphanedGroups(selectedOrphans.value)
+      selectedOrphans.value = []
+      setStatus(`Successfully nuked selected orphaned sessions!`)
+      await loadOrphans()
+    }
+    catch (e) {
+      console.error(e)
+      setStatus(e instanceof Error ? e.message : String(e), 'error')
+    }
+  }
+}
+
+async function handleRestore() {
+  try {
+    await restoreOrphanedGroups(selectedOrphans.value)
+    const count = selectedOrphans.value.length
+    selectedOrphans.value = []
+    setStatus(`Successfully restored ${count} companion(s)!`)
+    await loadOrphans()
+  }
+  catch (e) {
+    console.error(e)
+    setStatus(e instanceof Error ? e.message : String(e), 'error')
   }
 }
 </script>
@@ -334,22 +343,44 @@ async function handleTriggerBackup() {
             Configure auto-backup or trigger a manual backup.
           </p>
           <div class="mt-2 text-sm text-neutral-500">
-            <div>Backup Path: <span class="font-mono">{{ backupStore.backupPath || '~/Documents/AIRI-Backups' }}</span></div>
-            <div>Last Backup: <span class="font-mono">{{ formattedLastBackupTime }}</span></div>
+            <div>Backup Provider: <span class="font-semibold">{{ syncEngineStore.activeProvider === 'local-fs' ? 'Local File System / Samba' : syncEngineStore.activeProvider }}</span></div>
+            <div v-if="formattedBackupLocation">
+              Backup Location: <span class="font-mono">{{ formattedBackupLocation }}</span>
+            </div>
+            <div>Last Backup: <span class="font-mono">{{ formattedLastSyncTime }}</span></div>
           </div>
         </div>
         <div class="flex flex-col items-start gap-2 sm:items-end">
           <div class="flex flex-wrap gap-2">
-            <Button :variant="backupStore.isBackupEnabled ? 'primary' : 'secondary'" @click="backupStore.isBackupEnabled = !backupStore.isBackupEnabled">
-              {{ backupStore.isBackupEnabled ? 'Auto-Backup Enabled' : 'Auto-Backup Disabled' }}
+            <Button :variant="syncEngineStore.syncEnabled ? 'primary' : 'secondary'" @click="syncEngineStore.syncEnabled = !syncEngineStore.syncEnabled">
+              {{ syncEngineStore.syncEnabled ? 'Auto-Backup Enabled' : 'Auto-Backup Disabled' }}
             </Button>
-            <Button variant="secondary" @click="openRestoreModal">
-              Restore Backup
-            </Button>
-            <Button variant="primary" @click="handleTriggerBackup">
+            <Button variant="primary" :disabled="syncEngineStore.isSyncing" @click="handleTriggerBackup">
               Trigger Backup
             </Button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Orphaned Sessions Maintenance -->
+    <div class="border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900/60">
+      <div class="grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+        <div class="flex flex-col gap-1 md:max-w-[560px]">
+          <div class="text-lg font-medium">
+            Orphaned Sessions Maintenance
+          </div>
+          <p class="text-sm text-neutral-600 dark:text-neutral-400">
+            Clean up or restore chat histories left behind by deleted characters.
+          </p>
+          <div class="mt-2 text-sm text-neutral-500">
+            Orphaned Groups Found: <span class="font-semibold">{{ orphanedGroups.length }}</span>
+          </div>
+        </div>
+        <div class="flex flex-col items-start gap-2 sm:items-end">
+          <Button variant="secondary" @click="openManageModal">
+            Manage Orphans
+          </Button>
         </div>
       </div>
     </div>
@@ -508,138 +539,123 @@ async function handleTriggerBackup() {
         </div>
       </div>
     </div>
-
-    <!-- Restore Backup Modal -->
-    <DialogRoot :open="showRestoreModal" @update:open="showRestoreModal = $event">
-      <DialogPortal>
-        <DialogOverlay class="fixed inset-0 z-110 bg-black/60 backdrop-blur-md data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-        <DialogContent class="fixed left-1/2 top-1/2 z-110 m-0 max-h-[90vh] max-w-xl w-[90vw] flex flex-col overflow-hidden border border-neutral-200 rounded-2xl bg-white shadow-2xl -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-900">
-          <!-- Header -->
-          <div class="border-b border-neutral-100 p-6 dark:border-neutral-800">
-            <div class="flex items-center gap-3">
-              <div class="rounded-xl bg-primary-500/10 p-2 text-primary-500">
-                <div class="i-solar:database-bold-duotone text-2xl" />
-              </div>
-              <div>
-                <DialogTitle class="text-lg text-neutral-800 font-bold dark:text-neutral-100">
-                  Restore Backup
-                </DialogTitle>
-                <p class="text-xs text-neutral-500">
-                  Select a backup and choose what components to restore.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Body -->
-          <div class="flex-1 overflow-y-auto p-6 space-y-4">
-            <!-- Backup List -->
-            <div>
-              <h4 class="mb-2 text-xs text-neutral-700 font-bold dark:text-neutral-300">
-                Available Backups (Latest first):
-              </h4>
-              <div class="h-[250px] flex flex-col gap-2 overflow-y-auto border border-neutral-200 rounded-xl bg-neutral-50/50 p-2 dark:border-neutral-700 dark:bg-neutral-950">
-                <div
-                  v-for="backup in backupsList"
-                  :key="backup.path"
-                  class="flex cursor-pointer items-center justify-between border rounded-xl p-3 text-xs transition-all"
-                  :class="selectedBackupDir === backup.path ? 'border-primary-500 bg-primary-500/5 text-primary-600 dark:text-primary-400' : 'border-neutral-200 text-neutral-600 hover:border-primary-300 dark:border-neutral-800 dark:text-neutral-400'"
-                  @click="selectedBackupDir = backup.path"
-                >
-                  <span class="font-semibold font-mono">{{ backup.name }}</span>
-                  <span class="text-[10px] text-neutral-400">{{ new Date(backup.date).toLocaleString() }}</span>
-                </div>
-                <div v-if="backupsList.length === 0" class="flex flex-col items-center justify-center py-12 text-center text-xs text-neutral-500">
-                  <div class="i-solar:empty-folder-linear mb-2 text-3xl text-neutral-400" />
-                  No backups found in folder.
-                </div>
-              </div>
-            </div>
-
-            <!-- Options -->
-            <div class="space-y-2">
-              <h4 class="text-xs text-neutral-700 font-bold dark:text-neutral-300">
-                Components to Restore:
-              </h4>
-              <div class="grid grid-cols-2 gap-3 border border-neutral-200 rounded-xl bg-neutral-50/30 p-4 text-xs dark:border-neutral-700 dark:bg-neutral-950/30">
-                <label class="flex cursor-pointer items-center gap-2.5 text-neutral-700 dark:text-neutral-300">
-                  <input v-model="restoreOptions.characters" type="checkbox" class="h-4 w-4 border-neutral-300 rounded text-primary-600 accent-primary-500 focus:ring-primary-500">
-                  <span>Characters</span>
-                </label>
-                <label class="flex cursor-pointer items-center gap-2.5 text-neutral-700 dark:text-neutral-300">
-                  <input v-model="restoreOptions.sessions" type="checkbox" class="h-4 w-4 border-neutral-300 rounded text-primary-600 accent-primary-500 focus:ring-primary-500">
-                  <span>Sessions</span>
-                </label>
-                <label class="flex cursor-pointer items-center gap-2.5 text-neutral-700 dark:text-neutral-300">
-                  <input v-model="restoreOptions.memory" type="checkbox" class="h-4 w-4 border-neutral-300 rounded text-primary-600 accent-primary-500 focus:ring-primary-500">
-                  <span>Memory</span>
-                </label>
-                <label class="flex cursor-pointer items-center gap-2.5 text-neutral-700 dark:text-neutral-300">
-                  <input v-model="restoreOptions.localStorage" type="checkbox" class="h-4 w-4 border-neutral-300 rounded text-primary-600 accent-primary-500 focus:ring-primary-500">
-                  <span>LocalStorage</span>
-                </label>
-              </div>
-            </div>
-
-            <!-- Error message -->
-            <div v-if="restoreErrorMessage" class="border border-red-500/30 rounded-xl bg-red-500/10 p-3 text-xs text-red-600 dark:text-red-400">
-              {{ restoreErrorMessage }}
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div class="flex items-center justify-end gap-3 border-t border-neutral-100 bg-neutral-50/50 p-6 dark:border-neutral-800 dark:bg-black/20">
-            <Button
-              variant="secondary"
-              label="Cancel"
-              @click="showRestoreModal = false"
-            />
-            <Button
-              variant="primary"
-              label="Restore"
-              icon="i-solar:history-linear"
-              :disabled="backupsList.length === 0 || !selectedBackupDir"
-              @click="triggerRestoreConfirm"
-            />
-          </div>
-        </DialogContent>
-      </DialogPortal>
-    </DialogRoot>
-
-    <!-- Secondary Confirmation Dialog -->
-    <DialogRoot :open="showConfirmWarning" @update:open="showConfirmWarning = $event">
-      <DialogPortal>
-        <DialogOverlay class="fixed inset-0 z-120 bg-black/60 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-        <DialogContent class="fixed left-1/2 top-1/2 z-120 m-0 max-w-md w-[90vw] flex flex-col overflow-hidden border border-red-200/50 rounded-2xl bg-white shadow-2xl -translate-x-1/2 -translate-y-1/2 dark:border-red-900/30 dark:bg-neutral-900">
-          <div class="p-6 space-y-4">
-            <div class="flex items-center gap-3 text-red-600 dark:text-red-400">
-              <div class="i-solar:danger-bold-duotone text-3xl" />
-              <DialogTitle class="text-base font-bold">
-                Confirm Restore
-              </DialogTitle>
-            </div>
-            <p class="text-xs text-neutral-600 leading-relaxed dark:text-neutral-400">
-              Warning: Restoring your backup may overwrite existing data. Are you sure?
-            </p>
-          </div>
-          <div class="flex items-center justify-end gap-3 border-t border-neutral-100 bg-neutral-50/50 p-4 dark:border-neutral-800 dark:bg-black/20">
-            <Button
-              variant="secondary"
-              label="Cancel"
-              :disabled="restoring"
-              @click="showConfirmWarning = false"
-            />
-            <Button
-              variant="danger"
-              label="Confirm & Restore"
-              :disabled="restoring"
-              @click="handlePerformRestore"
-            />
-          </div>
-        </DialogContent>
-      </DialogPortal>
-    </DialogRoot>
   </div>
+
+  <DialogRoot :open="isModalOpen" @update:open="isModalOpen = $event">
+    <DialogPortal>
+      <DialogOverlay class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
+      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-5xl w-[92vw] flex flex-col border border-neutral-200 rounded-2xl bg-white p-6 shadow-2xl -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800">
+        <div class="h-full flex flex-col gap-6 overflow-hidden">
+          <div class="flex items-center justify-between border-b border-neutral-200 pb-3 dark:border-neutral-700">
+            <div>
+              <DialogTitle class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-xl text-transparent font-bold">
+                Manage Orphaned Sessions
+              </DialogTitle>
+              <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Preview, restore, or purge session histories from characters that have been deleted.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto pr-1">
+            <div v-if="orphanedGroups.length === 0" class="flex flex-col items-center justify-center py-12 text-neutral-500 dark:text-neutral-400">
+              <div class="mb-2 text-4xl">
+                🎉
+              </div>
+              <p class="text-sm font-medium">
+                No orphaned session groups found.
+              </p>
+              <p class="mt-1 text-xs text-neutral-400">
+                Everything is clean!
+              </p>
+            </div>
+            <div v-else class="flex flex-col gap-4">
+              <div class="flex items-center gap-2">
+                <Button variant="secondary" size="sm" @click="selectAll">
+                  Select All
+                </Button>
+                <Button variant="secondary" size="sm" @click="deselectAll">
+                  Deselect All
+                </Button>
+              </div>
+
+              <div class="overflow-x-auto border border-neutral-200 rounded-xl dark:border-neutral-700">
+                <table class="w-full border-collapse text-left">
+                  <thead>
+                    <tr class="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
+                      <th class="w-10 p-3" />
+                      <th class="p-3 text-xs text-neutral-500 font-semibold uppercase dark:text-neutral-400">
+                        Character ID
+                      </th>
+                      <th class="w-24 p-3 text-xs text-neutral-500 font-semibold uppercase dark:text-neutral-400">
+                        Sessions
+                      </th>
+                      <th class="w-40 p-3 text-xs text-neutral-500 font-semibold uppercase dark:text-neutral-400">
+                        Last Active
+                      </th>
+                      <th class="p-3 text-xs text-neutral-500 font-semibold uppercase dark:text-neutral-400">
+                        Preview
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="group in orphanedGroups"
+                      :key="group.characterId"
+                      class="border-b border-neutral-100 dark:border-neutral-800 last:border-none hover:bg-neutral-50/50 dark:hover:bg-neutral-900/30"
+                    >
+                      <td class="p-3 text-center">
+                        <input
+                          v-model="selectedOrphans"
+                          type="checkbox"
+                          :value="group.characterId"
+                          class="h-4 w-4 cursor-pointer accent-primary-500"
+                        >
+                      </td>
+                      <td class="dark:text-neutral-250 p-3 text-sm text-neutral-800 font-medium font-mono">
+                        {{ group.characterId }}
+                      </td>
+                      <td class="p-3 text-sm text-neutral-600 dark:text-neutral-400">
+                        {{ group.sessionCount }}
+                      </td>
+                      <td class="whitespace-nowrap p-3 text-sm text-neutral-600 dark:text-neutral-400">
+                        {{ group.lastActive ? new Date(group.lastActive).toLocaleString() : 'Never' }}
+                      </td>
+                      <td class="max-w-xs truncate p-3 text-xs text-neutral-500 font-normal md:max-w-md dark:text-neutral-400">
+                        {{ group.preview || 'No messages' }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between border-t border-neutral-200 pt-4 dark:border-neutral-700">
+            <Button
+              variant="secondary"
+              label="Close"
+              @click="isModalOpen = false"
+            />
+            <div class="flex gap-2">
+              <Button
+                variant="danger"
+                label="Nuke Selected"
+                :disabled="selectedOrphans.length === 0"
+                @click="confirmNuke"
+              />
+              <Button
+                variant="primary"
+                label="Restore Selected"
+                :disabled="selectedOrphans.length === 0"
+                @click="handleRestore"
+              />
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
 </template>
 
 <route lang="yaml">

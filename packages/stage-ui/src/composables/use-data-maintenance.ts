@@ -3,6 +3,7 @@ import type { ChatSessionsExport } from '../types/chat-session'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useLive2d } from '@proj-airi/stage-ui-live2d'
 
+import { chatSessionsRepo } from '../database/repos/chat-sessions.repo'
 import { useBackgroundStore } from '../stores/background'
 import { useChatOrchestratorStore } from '../stores/chat'
 import { useChatSessionStore } from '../stores/chat/session-store'
@@ -229,6 +230,132 @@ export function useDataMaintenance() {
     resetModulesSettings()
   }
 
+  // --- Orphaned Sessions Maintenance ---
+
+  async function getOrphanedGroups() {
+    const chatStoreAny = chatStore as any
+    if (!chatStoreAny.ready) {
+      await chatStoreAny.initialize()
+    }
+    const index = chatStoreAny.index
+    if (!index)
+      return []
+
+    const cards = airiCardStore.cards
+    const orphans = []
+
+    for (const [characterId, charIndex] of Object.entries(index.characters) as [string, any][]) {
+      if (!cards.has(characterId)) {
+        const sessions = Object.values(charIndex.sessions) as any[]
+        const sessionCount = sessions.length
+        let lastActive = 0
+        for (const s of sessions) {
+          if (s && s.updatedAt > lastActive) {
+            lastActive = s.updatedAt
+          }
+        }
+
+        const activeSessionId = charIndex.activeSessionId
+        let preview = ''
+        if (activeSessionId) {
+          try {
+            const sessionRecord = await chatSessionsRepo.getSession(activeSessionId)
+            const messages = sessionRecord?.messages ?? []
+            const lastMsg = messages[messages.length - 1]
+            if (lastMsg) {
+              let text = ''
+              if (typeof lastMsg.content === 'string') {
+                text = lastMsg.content
+              }
+              else if (Array.isArray(lastMsg.content)) {
+                text = lastMsg.content.map((part: any) => {
+                  if (typeof part === 'string')
+                    return part
+                  if (part && typeof part === 'object' && 'text' in part)
+                    return String(part.text ?? '')
+                  return ''
+                }).join('')
+              }
+              preview = text.length > 300 ? text.slice(0, 300) : text
+            }
+          }
+          catch (e) {
+            console.error(`Failed to load session preview for ${activeSessionId}`, e)
+          }
+        }
+
+        orphans.push({
+          characterId,
+          sessionCount,
+          lastActive,
+          preview,
+        })
+      }
+    }
+
+    return orphans
+  }
+
+  async function nukeOrphanedGroups(characterIds: string[]) {
+    const chatStoreAny = chatStore as any
+    if (!chatStoreAny.ready) {
+      await chatStoreAny.initialize()
+    }
+    const index = chatStoreAny.index
+    if (!index)
+      return
+
+    for (const characterId of characterIds) {
+      const charIndex = index.characters[characterId] as any
+      if (charIndex) {
+        const sessionIds = Object.keys(charIndex.sessions)
+        for (const sessionId of sessionIds) {
+          await chatSessionsRepo.deleteSession(sessionId)
+          delete chatStoreAny.sessionMessages[sessionId]
+          delete chatStoreAny.sessionMetas[sessionId]
+          delete chatStoreAny.sessionGenerations[sessionId]
+        }
+        delete index.characters[characterId]
+      }
+    }
+    await chatStoreAny.persistIndex()
+  }
+
+  async function restoreOrphanedGroups(characterIds: string[]) {
+    const nextCards = new Map(airiCardStore.cards)
+
+    for (const characterId of characterIds) {
+      nextCards.set(characterId, {
+        name: characterId,
+        nickname: '',
+        version: '1.0.0',
+        description: 'Restored from orphaned sessions',
+        personality: '',
+        scenario: '',
+        greetings: [],
+        greetingsGroupOnly: [],
+        systemPrompt: '',
+        postHistoryInstructions: '',
+        messageExample: [],
+        tags: [],
+        extensions: {
+          airi: {
+            modules: {
+              consciousness: { provider: '', model: '' },
+              speech: { provider: '', model: '', voice_id: '' },
+              displayModelId: 'preset-live2d-1',
+              activeBackgroundId: 'none',
+            },
+            agents: {},
+            groundingEnabled: false,
+          },
+        },
+      } as any)
+    }
+
+    airiCardStore.cards = nextCards
+  }
+
   return {
     deleteAllModels,
     resetProvidersSettings,
@@ -244,5 +371,8 @@ export function useDataMaintenance() {
     importBackgrounds,
     deleteAllData,
     resetDesktopApplicationState,
+    getOrphanedGroups,
+    nukeOrphanedGroups,
+    restoreOrphanedGroups,
   }
 }

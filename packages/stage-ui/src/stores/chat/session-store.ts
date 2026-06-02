@@ -1109,5 +1109,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     exportSessions,
     importSessions,
     refreshActiveSystemMessage,
+
+    index,
+    persistIndex,
+    sessionGenerations,
   }
 })

@@ -307,6 +307,13 @@ export const useBackgroundStore = defineStore('background', () => {
     }
 
     try {
+      // Clear deletion metadata if any exists
+      try {
+        const { storage } = await import('../database/storage')
+        await storage.removeItem(`local:sync-metadata/deleted-backgrounds/${id}`)
+      }
+      catch (e) {}
+
       await localforage.setItem(id, entry)
       ensureObjectUrl(id, blob)
 
@@ -334,6 +341,15 @@ export const useBackgroundStore = defineStore('background', () => {
   async function removeBackground(id: string) {
     try {
       await localforage.removeItem(id)
+
+      // Save deletion to sync metadata so the sync engine can propagate it
+      try {
+        const { storage } = await import('../database/storage')
+        await storage.setItemRaw(`local:sync-metadata/deleted-backgrounds/${id}`, Date.now())
+      }
+      catch (e) {
+        console.error('[BackgroundStore] Failed to write deletion metadata:', e)
+      }
 
       const nextEntries = new Map(entries.value)
       nextEntries.delete(id)
