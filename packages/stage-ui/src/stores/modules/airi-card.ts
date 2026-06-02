@@ -3,6 +3,7 @@ import type { Card, ccv3 } from '@proj-airi/ccc'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useLive2d } from '@proj-airi/stage-ui-live2d'
 import { useModelStore } from '@proj-airi/stage-ui-three'
+import { until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { safeParse } from 'valibot'
@@ -230,6 +231,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // (QuotaExceededError). We store it in IndexedDB under local:airi-cards so the sync engine
   // can sync it as a first-class key without the localStorage dump/restore bridge.
   const cards = ref<Map<string, AiriCard>>(new Map())
+  const cardsLoading = ref(true)
   const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default')
 
   // One-time migration: move legacy localStorage airi-cards → IndexedDB, then clear the old key
@@ -257,6 +259,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function loadCards() {
+    cardsLoading.value = true
     await migrateFromLocalStorage()
     try {
       const raw = await storage.getItemRaw<[string, AiriCard][]>('local:airi-cards')
@@ -266,6 +269,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
     catch (e) {
       console.error('[AiriCard] Failed to load cards from IndexedDB:', e)
+    }
+    finally {
+      cardsLoading.value = false
     }
   }
 
@@ -348,6 +354,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   const addCard = async (card: AiriCard | Card | ccv3.CharacterCardV3) => {
+    await until(cardsLoading).toBe(false)
     const newCardId = nanoid()
 
     // Extract embedded background before it gets stripped
@@ -372,13 +379,15 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return newCardId
   }
 
-  const removeCard = (id: string) => {
+  const removeCard = async (id: string) => {
+    await until(cardsLoading).toBe(false)
     const nextCards = new Map(cards.value)
     nextCards.delete(id)
     void persistCards(nextCards)
   }
 
-  const updateCard = (id: string, updates: Partial<AiriCard> | Partial<Card> | Partial<ccv3.CharacterCardV3>) => {
+  const updateCard = async (id: string, updates: Partial<AiriCard> | Partial<Card> | Partial<ccv3.CharacterCardV3>) => {
+    await until(cardsLoading).toBe(false)
     const existingCard = cards.value.get(id)
     if (!existingCard)
       return false
@@ -394,7 +403,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
-  const toggleGrounding = (id: string) => {
+  const toggleGrounding = async (id: string) => {
+    await until(cardsLoading).toBe(false)
     const card = cards.value.get(id)
     if (!card) {
       console.warn('[AiriCard] toggleGrounding: card not found for id', id)
@@ -416,7 +426,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // Verify persistence
   }
 
-  const setAutonomousArtistry = (id: string, enabled: boolean) => {
+  const setAutonomousArtistry = async (id: string, enabled: boolean) => {
+    await until(cardsLoading).toBe(false)
     const card = cards.value.get(id)
     if (!card)
       return
@@ -510,6 +521,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function activateCard(id: string, force = false) {
+    await until(cardsLoading).toBe(false)
     isModelSyncPrevented.value = false
     activeCardId.value = id
     await syncCardState(cards.value.get(id), force)
@@ -854,6 +866,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function initialize() {
+    await until(cardsLoading).toBe(false)
     // Compact and normalize all cards on startup and persist any changes back to IndexedDB
     const compacted = compactAllCardsMap(cards.value)
     const nextCards = new Map(compacted)
@@ -1012,6 +1025,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function seedDefaults(selectedId: string) {
+    await until(cardsLoading).toBe(false)
     await initialize()
 
     if (selectedId && cards.value.has(selectedId)) {
