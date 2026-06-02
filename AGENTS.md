@@ -204,6 +204,12 @@ Concise mapping of conceptual features to technical file paths for rapid context
   - `// REVIEW:` concerns/needs another eye
   - `// NOTICE:` magic numbers, hacks, important context, external references/links
 
+## Upstream Remote Restrictions
+
+- **Never** push to upstream, rebase from upstream, or touch/look at the upstream remote unless explicitly authorized by the user.
+- The `upstream` remote and this fork are highly divergent codebases (approximately 2000 commits apart). Rebasing/merging with upstream will cause severe conflicts and break the codebase.
+- The user does not have maintainer access to the upstream repository. It exists purely as a read-only remote for reference purposes if explicitly requested.
+
 ## PR / Workflow Tips
 
 - Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji optional).
