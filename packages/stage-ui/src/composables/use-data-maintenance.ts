@@ -246,12 +246,24 @@ export function useDataMaintenance() {
 
     for (const [characterId, charIndex] of Object.entries(index.characters) as [string, any][]) {
       if (!cards.has(characterId)) {
-        const sessions = Object.values(charIndex.sessions) as any[]
-        const sessionCount = sessions.length
+        let messageCount = 0
         let lastActive = 0
-        for (const s of sessions) {
-          if (s && s.updatedAt > lastActive) {
-            lastActive = s.updatedAt
+        for (const [sid, s] of Object.entries(charIndex.sessions) as [string, any][]) {
+          if (s) {
+            let sessionMsgCount = s.messageCount ?? 0
+            if (sessionMsgCount === 0) {
+              try {
+                const sessionRecord = await chatSessionsRepo.getSession(sid)
+                sessionMsgCount = sessionRecord?.messages?.length ?? 0
+              }
+              catch (e) {
+                console.error(`Failed to fetch session record to count messages for ${sid}`, e)
+              }
+            }
+            messageCount += sessionMsgCount
+            if (s.updatedAt > lastActive) {
+              lastActive = s.updatedAt
+            }
           }
         }
 
@@ -276,7 +288,7 @@ export function useDataMaintenance() {
                   return ''
                 }).join('')
               }
-              preview = text.length > 300 ? text.slice(0, 300) : text
+              preview = text.length > 300 ? `...${text.slice(-300)}` : text
             }
           }
           catch (e) {
@@ -286,12 +298,15 @@ export function useDataMaintenance() {
 
         orphans.push({
           characterId,
-          sessionCount,
+          messageCount,
           lastActive,
           preview,
         })
       }
     }
+
+    // Sort by lastActive descending (newest activity first)
+    orphans.sort((a, b) => b.lastActive - a.lastActive)
 
     return orphans
   }
@@ -321,36 +336,92 @@ export function useDataMaintenance() {
     await chatStoreAny.persistIndex()
   }
 
-  async function restoreOrphanedGroups(characterIds: string[]) {
-    const nextCards = new Map(airiCardStore.cards)
+  async function restoreOrphanedGroups(mappings: string[] | Record<string, string>) {
+    const chatStoreAny = chatStore as any
+    if (!chatStoreAny.ready) {
+      await chatStoreAny.initialize()
+    }
+    const index = chatStoreAny.index
 
-    for (const characterId of characterIds) {
-      nextCards.set(characterId, {
-        name: characterId,
-        nickname: '',
-        version: '1.0.0',
-        description: 'Restored from orphaned sessions',
-        personality: '',
-        scenario: '',
-        greetings: [],
-        greetingsGroupOnly: [],
-        systemPrompt: '',
-        postHistoryInstructions: '',
-        messageExample: [],
-        tags: [],
-        extensions: {
-          airi: {
-            modules: {
-              consciousness: { provider: '', model: '' },
-              speech: { provider: '', model: '', voice_id: '' },
-              displayModelId: 'preset-live2d-1',
-              activeBackgroundId: 'none',
+    const nextCards = new Map(airiCardStore.cards)
+    const mappingObj: Record<string, string> = {}
+
+    if (Array.isArray(mappings)) {
+      for (const id of mappings) {
+        mappingObj[id] = 'new'
+      }
+    }
+    else {
+      Object.assign(mappingObj, mappings)
+    }
+
+    for (const [orphanId, targetId] of Object.entries(mappingObj)) {
+      if (targetId === 'new') {
+        nextCards.set(orphanId, {
+          name: orphanId,
+          nickname: '',
+          version: '1.0.0',
+          description: 'Restored from orphaned sessions',
+          personality: '',
+          scenario: '',
+          greetings: [],
+          greetingsGroupOnly: [],
+          systemPrompt: '',
+          postHistoryInstructions: '',
+          messageExample: [],
+          tags: [],
+          extensions: {
+            airi: {
+              modules: {
+                consciousness: { provider: '', model: '' },
+                speech: { provider: '', model: '', voice_id: '' },
+                displayModelId: 'preset-live2d-1',
+                activeBackgroundId: 'none',
+              },
+              agents: {},
+              groundingEnabled: false,
             },
-            agents: {},
-            groundingEnabled: false,
           },
-        },
-      } as any)
+        } as any)
+      }
+      else {
+        if (index && index.characters[orphanId]) {
+          if (!index.characters[targetId]) {
+            index.characters[targetId] = {
+              activeSessionId: '',
+              sessions: {},
+            }
+          }
+          const orphanCharIndex = index.characters[orphanId] as any
+          const targetCharIndex = index.characters[targetId] as any
+
+          for (const [sessionId, meta] of Object.entries(orphanCharIndex.sessions) as [string, any][]) {
+            meta.characterId = targetId
+            targetCharIndex.sessions[sessionId] = meta
+
+            try {
+              const sessionRecord = await chatSessionsRepo.getSession(sessionId)
+              if (sessionRecord) {
+                sessionRecord.meta.characterId = targetId
+                await chatSessionsRepo.saveSession(sessionId, sessionRecord)
+              }
+            }
+            catch (e) {
+              console.error(`Failed to update session record ${sessionId} during merge`, e)
+            }
+          }
+
+          if (!targetCharIndex.activeSessionId) {
+            targetCharIndex.activeSessionId = orphanCharIndex.activeSessionId
+          }
+
+          delete index.characters[orphanId]
+        }
+      }
+    }
+
+    if (index) {
+      await chatStoreAny.persistIndex()
     }
 
     airiCardStore.cards = nextCards

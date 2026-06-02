@@ -75,6 +75,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
   }
 
   const { post: broadcastBgSync } = useBroadcastChannel({ name: 'airi:background-sync' })
+  const { post: broadcastReload } = useBroadcastChannel({ name: 'airi:store-reload' })
 
   function blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -313,7 +314,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
 
   // Safety Heuristics Guard
   async function checkSyncConflict(localKey: string, localTime: number, remoteFile: { size: number, mtime: number, relPath: string }, type: 'remote-newer' | 'local-newer'): Promise<boolean> {
-    const isCritical = localKey.startsWith('local:chat/sessions/') || localKey.startsWith('local:characters/')
+    const isCritical = localKey.startsWith('local:chat/sessions/') || localKey.startsWith('local:characters/') || localKey.startsWith('local:localstorage/')
     await logDebug(`checkSyncConflict: key=${localKey}, type=${type}, critical=${isCritical}`)
     if (!isCritical)
       return false
@@ -844,6 +845,66 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     }
   }
 
+  function shouldExcludeLocalStorageKey(key: string): boolean {
+    if (key.startsWith('airi_cc_'))
+      return true
+    if (key.startsWith('settings/sync/'))
+      return true
+    return false
+  }
+
+  async function dumpLocalStorageToIndexedDb() {
+    await logDebug('dumpLocalStorageToIndexedDb starting...')
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && !shouldExcludeLocalStorageKey(key)) {
+        const val = localStorage.getItem(key) || ''
+        const cachedVal = await storage.getItemRaw<{ value: string }>(`local:localstorage/${key}`)
+        if (!cachedVal || cachedVal.value !== val) {
+          await logDebug(`dumpLocalStorageToIndexedDb: key=${key} has changed. Writing to IndexedDB.`)
+          await storage.setItemRaw(`local:localstorage/${key}`, { value: val })
+        }
+      }
+    }
+    await logDebug('dumpLocalStorageToIndexedDb completed.')
+  }
+
+  async function restoreLocalStorageFromIndexedDb() {
+    await logDebug('restoreLocalStorageFromIndexedDb starting...')
+    try {
+      const rawLocalKeys = await storage.getKeys('local')
+      const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
+      for (const fullKey of localKeys) {
+        if (fullKey.startsWith('local:localstorage/')) {
+          const key = fullKey.substring('local:localstorage/'.length)
+          if (!shouldExcludeLocalStorageKey(key)) {
+            const valObj = await storage.getItemRaw<{ value: string }>(fullKey)
+            if (valObj && typeof valObj === 'object' && 'value' in valObj) {
+              const val = valObj.value
+              if (val !== null && val !== undefined) {
+                const currentVal = localStorage.getItem(key)
+                if (currentVal !== val) {
+                  await logDebug(`restoreLocalStorageFromIndexedDb: key=${key} updated from IndexedDB.`)
+                  localStorage.setItem(key, val)
+                  window.dispatchEvent(new StorageEvent('storage', {
+                    key,
+                    newValue: val,
+                    storageArea: localStorage,
+                  }))
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    catch (e) {
+      console.error('[SyncEngine] Failed to restore localStorage from IndexedDB:', e)
+      await logDebug(`restoreLocalStorageFromIndexedDB error: ${e}`)
+    }
+    await logDebug('restoreLocalStorageFromIndexedDb completed.')
+  }
+
   // Manual Trigger Sync
   async function triggerSync() {
     if (isSyncing.value)
@@ -852,6 +913,9 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     syncError.value = ''
 
     try {
+      // 0. Dump local storage changes
+      await dumpLocalStorageToIndexedDb()
+
       // 1. Reconcile both ends
       const reconSuccess = await reconcile()
       if (!reconSuccess) {
@@ -864,11 +928,15 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         throw new Error('Failed to fully process sync outbox.')
       }
 
+      // 2.5. Restore synced values back to localStorage
+      await restoreLocalStorageFromIndexedDb()
+
       await loadConflicts()
 
       lastSyncTime.value = Date.now()
       localStorage.setItem('settings/sync/last-time', String(lastSyncTime.value))
       toast.success('Cloud Sync completed successfully')
+      broadcastReload(Date.now())
     }
     catch (err) {
       syncError.value = String(err)

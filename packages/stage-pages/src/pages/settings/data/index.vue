@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSyncEngineStore } from '@proj-airi/stage-ui/stores/sync-engine'
 import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import {
@@ -163,9 +164,20 @@ async function handleTriggerBackup() {
   }
 }
 
-const orphanedGroups = ref<{ characterId: string, sessionCount: number, lastActive: number, preview: string }[]>([])
+const airiCardStore = useAiriCardStore()
+const orphanedGroups = ref<{ characterId: string, messageCount: number, lastActive: number, preview: string }[]>([])
 const isModalOpen = ref(false)
 const selectedOrphans = ref<string[]>([])
+
+const isRestoreMappingOpen = ref(false)
+const restoreMappings = ref<Record<string, string>>({})
+
+const existingCharacters = computed(() => {
+  return Array.from(airiCardStore.cards.values()).map(card => ({
+    id: card.name,
+    name: card.nickname || card.name,
+  }))
+})
 
 async function loadOrphans() {
   orphanedGroups.value = await getOrphanedGroups()
@@ -204,12 +216,21 @@ async function confirmNuke() {
   }
 }
 
-async function handleRestore() {
+function handleRestore() {
+  restoreMappings.value = {}
+  selectedOrphans.value.forEach((id) => {
+    restoreMappings.value[id] = 'new'
+  })
+  isRestoreMappingOpen.value = true
+}
+
+async function executeRestore() {
   try {
-    await restoreOrphanedGroups(selectedOrphans.value)
-    const count = selectedOrphans.value.length
+    await restoreOrphanedGroups(restoreMappings.value)
+    const count = Object.keys(restoreMappings.value).length
+    isRestoreMappingOpen.value = false
     selectedOrphans.value = []
-    setStatus(`Successfully restored ${count} companion(s)!`)
+    setStatus(`Successfully restored/merged ${count} companion(s)!`)
     await loadOrphans()
   }
   catch (e) {
@@ -580,17 +601,14 @@ async function handleRestore() {
               </div>
 
               <div class="overflow-x-auto border border-neutral-200 rounded-xl dark:border-neutral-700">
-                <table class="w-full border-collapse text-left">
+                <table class="w-full border-collapse table-fixed text-left">
                   <thead>
                     <tr class="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
-                      <th class="w-10 p-3" />
-                      <th class="p-3 text-xs text-neutral-500 font-semibold uppercase dark:text-neutral-400">
-                        Character ID
-                      </th>
+                      <th class="w-12 p-3" />
                       <th class="w-24 p-3 text-xs text-neutral-500 font-semibold uppercase dark:text-neutral-400">
-                        Sessions
+                        Messages
                       </th>
-                      <th class="w-40 p-3 text-xs text-neutral-500 font-semibold uppercase dark:text-neutral-400">
+                      <th class="w-44 p-3 text-xs text-neutral-500 font-semibold uppercase dark:text-neutral-400">
                         Last Active
                       </th>
                       <th class="p-3 text-xs text-neutral-500 font-semibold uppercase dark:text-neutral-400">
@@ -602,26 +620,23 @@ async function handleRestore() {
                     <tr
                       v-for="group in orphanedGroups"
                       :key="group.characterId"
-                      class="border-b border-neutral-100 dark:border-neutral-800 last:border-none hover:bg-neutral-50/50 dark:hover:bg-neutral-900/30"
+                      :class="['border-b border-neutral-100 dark:border-neutral-800 last:border-none', 'hover:bg-neutral-50/50 dark:hover:bg-neutral-900/30']"
                     >
                       <td class="p-3 text-center">
                         <input
                           v-model="selectedOrphans"
                           type="checkbox"
                           :value="group.characterId"
-                          class="h-4 w-4 cursor-pointer accent-primary-500"
+                          :class="['h-4 w-4 cursor-pointer accent-primary-500']"
                         >
                       </td>
-                      <td class="dark:text-neutral-250 p-3 text-sm text-neutral-800 font-medium font-mono">
-                        {{ group.characterId }}
+                      <td :class="['p-3 text-sm text-neutral-600 dark:text-neutral-400']">
+                        {{ group.messageCount }}
                       </td>
-                      <td class="p-3 text-sm text-neutral-600 dark:text-neutral-400">
-                        {{ group.sessionCount }}
-                      </td>
-                      <td class="whitespace-nowrap p-3 text-sm text-neutral-600 dark:text-neutral-400">
+                      <td :class="['whitespace-nowrap p-3 text-sm text-neutral-600 dark:text-neutral-400']">
                         {{ group.lastActive ? new Date(group.lastActive).toLocaleString() : 'Never' }}
                       </td>
-                      <td class="max-w-xs truncate p-3 text-xs text-neutral-500 font-normal md:max-w-md dark:text-neutral-400">
+                      <td :class="['p-3 text-xs text-neutral-500 dark:text-neutral-400 font-normal line-clamp-3 whitespace-normal break-words']">
                         {{ group.preview || 'No messages' }}
                       </td>
                     </tr>
@@ -651,6 +666,56 @@ async function handleRestore() {
                 @click="handleRestore"
               />
             </div>
+          </div>
+        </div>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
+
+  <DialogRoot :open="isRestoreMappingOpen" @update:open="isRestoreMappingOpen = $event">
+    <DialogPortal>
+      <DialogOverlay class="fixed inset-0 z-110 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
+      <DialogContent class="fixed left-1/2 top-1/2 z-110 m-0 max-h-[80vh] max-w-lg w-[90vw] flex flex-col border border-neutral-200 rounded-2xl bg-white p-6 shadow-2xl -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800">
+        <div class="h-full flex flex-col gap-5 overflow-hidden">
+          <div class="border-b border-neutral-200 pb-3 dark:border-neutral-700">
+            <DialogTitle class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-lg text-transparent font-bold">
+              Restore Target Selection
+            </DialogTitle>
+            <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Map each orphaned session to a new companion card or merge into an existing companion.
+            </p>
+          </div>
+
+          <div class="flex flex-1 flex-col gap-4 overflow-y-auto pr-1">
+            <div v-for="orphanId in Object.keys(restoreMappings)" :key="orphanId" class="flex flex-col gap-2 rounded-lg bg-neutral-50 p-3 dark:bg-neutral-900/50">
+              <span class="break-all text-xs text-neutral-800 font-semibold font-mono dark:text-neutral-200">
+                {{ orphanId }}
+              </span>
+              <select
+                v-model="restoreMappings[orphanId]"
+                class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm text-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="new">
+                  ✨ Create New Companion ({{ orphanId }})
+                </option>
+                <option v-for="char in existingCharacters" :key="char.id" :value="char.id">
+                  🤝 Merge into {{ char.name }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between border-t border-neutral-200 pt-4 dark:border-neutral-700">
+            <Button
+              variant="secondary"
+              label="Cancel"
+              @click="isRestoreMappingOpen = false"
+            />
+            <Button
+              variant="primary"
+              label="Confirm Restore"
+              @click="executeRestore"
+            />
           </div>
         </div>
       </DialogContent>
