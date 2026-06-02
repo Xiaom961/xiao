@@ -267,6 +267,43 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     return Array.from(mergedMap.values())
   }
 
+  function mergeAiriCards(localVal: any, remoteVal: any): any {
+    try {
+      const localStr = localVal?.value || '[]'
+      const remoteStr = remoteVal?.value || '[]'
+      const localEntries = JSON.parse(localStr) as [string, any][]
+      const remoteEntries = JSON.parse(remoteStr) as [string, any][]
+
+      const mergedMap = new Map<string, any>()
+      for (const [id, card] of localEntries) {
+        if (id && card) {
+          mergedMap.set(id, card)
+        }
+      }
+      for (const [id, card] of remoteEntries) {
+        if (id && card) {
+          const existing = mergedMap.get(id)
+          if (existing) {
+            const existingTime = existing.updatedAt || existing.createdAt || 0
+            const remoteTime = card.updatedAt || card.createdAt || 0
+            if (remoteTime > existingTime) {
+              mergedMap.set(id, card)
+            }
+          }
+          else {
+            mergedMap.set(id, card)
+          }
+        }
+      }
+      const mergedEntries = Array.from(mergedMap.entries())
+      return { value: JSON.stringify(mergedEntries) }
+    }
+    catch (e) {
+      console.error('[SyncEngine] Failed to merge airi-cards:', e)
+      return localVal || remoteVal
+    }
+  }
+
   // Reactive State for conflicts
   const conflicts = ref<any[]>([])
 
@@ -548,11 +585,12 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           'local:memory/short-term/local',
           'local:memory/text-journal/local',
           'local:memory/echo-chips/local',
+          'local:localstorage/airi-cards',
         ].includes(localKey)
 
         if (isMergeableKey) {
-          console.log(`[SyncEngine] Key ${localKey} is mergeable. Executing array-level merge...`)
-          let remoteVal: any[] = []
+          console.log(`[SyncEngine] Key ${localKey} is mergeable. Executing merge...`)
+          let remoteVal: any = null
           const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
             dir: fsBackupPath.value,
             relPath: remoteFile.relPath,
@@ -566,13 +604,21 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             }
           }
 
-          let localVal = await storage.getItemRaw<any[]>(localKey) || []
-          if (!Array.isArray(localVal))
-            localVal = []
-          if (!Array.isArray(remoteVal))
-            remoteVal = []
+          const localVal = await storage.getItemRaw<any>(localKey)
+          let mergedVal: any = null
 
-          const mergedVal = mergeArraysById(localVal, remoteVal)
+          if (localKey === 'local:localstorage/airi-cards') {
+            mergedVal = mergeAiriCards(localVal, remoteVal)
+          }
+          else {
+            let localArr = localVal || []
+            let remoteArr = remoteVal || []
+            if (!Array.isArray(localArr))
+              localArr = []
+            if (!Array.isArray(remoteArr))
+              remoteArr = []
+            mergedVal = mergeArraysById(localArr, remoteArr)
+          }
 
           // Overwrite local
           storageState.isImportingRemoteData = true
@@ -756,11 +802,12 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             'local:memory/short-term/local',
             'local:memory/text-journal/local',
             'local:memory/echo-chips/local',
+            'local:localstorage/airi-cards',
           ].includes(item.key)
 
           if (isMergeableKey) {
             console.log(`[SyncEngine] Outbox key ${item.key} is mergeable. Merging with remote...`)
-            let remoteVal: any[] = []
+            let remoteVal: any = null
             const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
               dir: fsBackupPath.value,
               relPath,
@@ -771,13 +818,21 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
               }
               catch (e) {}
             }
-            let localVal = await storage.getItemRaw<any[]>(item.key) || []
-            if (!Array.isArray(localVal))
-              localVal = []
-            if (!Array.isArray(remoteVal))
-              remoteVal = []
+            const localVal = await storage.getItemRaw<any>(item.key)
+            let mergedVal: any = null
 
-            const mergedVal = mergeArraysById(localVal, remoteVal)
+            if (item.key === 'local:localstorage/airi-cards') {
+              mergedVal = mergeAiriCards(localVal, remoteVal)
+            }
+            else {
+              let localArr = localVal || []
+              let remoteArr = remoteVal || []
+              if (!Array.isArray(localArr))
+                localArr = []
+              if (!Array.isArray(remoteArr))
+                remoteArr = []
+              mergedVal = mergeArraysById(localArr, remoteArr)
+            }
 
             // Overwrite local
             storageState.isImportingRemoteData = true
@@ -871,6 +926,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
 
   async function restoreLocalStorageFromIndexedDb() {
     await logDebug('restoreLocalStorageFromIndexedDb starting...')
+    let anyChanged = false
     try {
       const rawLocalKeys = await storage.getKeys('local')
       const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
@@ -886,6 +942,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
                 if (currentVal !== val) {
                   await logDebug(`restoreLocalStorageFromIndexedDb: key=${key} updated from IndexedDB.`)
                   localStorage.setItem(key, val)
+                  anyChanged = true
                   window.dispatchEvent(new StorageEvent('storage', {
                     key,
                     newValue: val,
@@ -896,6 +953,13 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             }
           }
         }
+      }
+      if (anyChanged) {
+        await logDebug('restoreLocalStorageFromIndexedDb: LocalStorage changed. Reloading window...')
+        toast.info('Settings updated, reloading interface...', { duration: 1500 })
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
       }
     }
     catch (e) {
