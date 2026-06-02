@@ -253,6 +253,240 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     }
   }
 
+  async function reconcileModels(): Promise<void> {
+    console.log('[SyncEngine] Reconciling models...')
+    try {
+      // 1. Get list of deleted model IDs from sync metadata
+      const rawLocalKeys = await storage.getKeys('local')
+      const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
+      const deletedModelIds = new Set<string>()
+      const DELETED_PREFIX = 'local:sync-metadata/deleted-models/'
+      for (const k of localKeys) {
+        if (k.startsWith(DELETED_PREFIX)) {
+          deletedModelIds.add(k.substring(DELETED_PREFIX.length))
+        }
+      }
+
+      // 2. Read remote manifest
+      let manifest: { models: Record<string, { id: string, format: string, name: string, importedAt: number, previewImage?: string, hasTextures: boolean }> } = { models: {} }
+      try {
+        const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
+          dir: fsBackupPath.value,
+          relPath: 'assets/models/manifest.json',
+        })
+        if (readRes.success && readRes.content) {
+          manifest = JSON.parse(readRes.content)
+        }
+      }
+      catch (e) {
+        console.warn('[SyncEngine] Failed to read remote model manifest or it does not exist, initializing new manifest.', e)
+      }
+
+      let manifestModified = false
+
+      // 3. Process deletions (both remote and local)
+      for (const id of deletedModelIds) {
+        if (manifest.models[id]) {
+          console.log(`[SyncEngine] Deleting remote model assets for: ${id}`)
+          await electron.ipcRenderer.invoke('byos-fs:delete-file', {
+            dir: fsBackupPath.value,
+            relPath: `assets/models/${id}.bin`,
+          })
+          if (manifest.models[id].hasTextures) {
+            await electron.ipcRenderer.invoke('byos-fs:delete-file', {
+              dir: fsBackupPath.value,
+              relPath: `assets/models/${id}-textures.json`,
+            })
+          }
+          delete manifest.models[id]
+          manifestModified = true
+        }
+        await localforage.removeItem(id)
+        await localforage.removeItem(`${id}-textures`)
+        await storage.removeItem(`local:sync-metadata/timestamps/${id}`)
+        await storage.removeItem(`local:sync-metadata/deleted-models/${id}`)
+      }
+
+      // 4. Load all local models from localforage (excluding presets & deleted models)
+      const localModels = new Map<string, any>()
+      await localforage.iterate<any, void>((val, key) => {
+        if (key.startsWith('display-model-') && !deletedModelIds.has(key)) {
+          localModels.set(key, val)
+        }
+      })
+
+      // 5. Upload local-only models (not in remote manifest and not in local deleted list)
+      for (const [id, entry] of localModels.entries()) {
+        if (!manifest.models[id]) {
+          // Check if we have sync history for it (which would mean it was deleted on remote)
+          const hasSyncHistory = await storage.getItemRaw<number>(`local:sync-metadata/timestamps/${id}`)
+          if (hasSyncHistory) {
+            console.log(`[SyncEngine] Model ${id} (${entry.name}) has sync history but is missing from remote manifest. Deleting locally.`)
+            await localforage.removeItem(id)
+            await localforage.removeItem(`${id}-textures`)
+            await storage.removeItem(`local:sync-metadata/timestamps/${id}`)
+            continue
+          }
+
+          console.log(`[SyncEngine] Uploading model to remote: ${id} (${entry.name})`)
+          if (entry.file instanceof Blob || entry.file instanceof File) {
+            const base64 = await blobToBase64(entry.file)
+            const binRelPath = `assets/models/${id}.bin`
+            const uploadRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
+              dir: fsBackupPath.value,
+              relPath: binRelPath,
+              content: base64,
+              encoding: 'base64',
+            })
+            if (!uploadRes.success) {
+              console.error(`[SyncEngine] Failed to upload model binary for ${id}:`, uploadRes.error)
+              continue
+            }
+          }
+          else {
+            console.warn(`[SyncEngine] Local model ${id} does not contain a valid File/Blob.`, entry)
+            continue
+          }
+
+          // Check and upload textures if present
+          let hasTextures = false
+          const textures = await localforage.getItem<any[]>(`${id}-textures`).catch(() => null)
+          if (textures && Array.isArray(textures) && textures.length > 0) {
+            console.log(`[SyncEngine] Uploading textures for model: ${id}`)
+            const texturesData = []
+            for (const tex of textures) {
+              if (tex.file instanceof Blob || tex.file instanceof File) {
+                const texBase64 = await blobToBase64(tex.file)
+                texturesData.push({
+                  relativePath: tex.relativePath,
+                  name: tex.file.name,
+                  type: tex.file.type,
+                  base64: texBase64,
+                })
+              }
+            }
+            if (texturesData.length > 0) {
+              const texturesRelPath = `assets/models/${id}-textures.json`
+              const texUploadRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
+                dir: fsBackupPath.value,
+                relPath: texturesRelPath,
+                content: JSON.stringify(texturesData, null, 2),
+              })
+              if (texUploadRes.success) {
+                hasTextures = true
+              }
+              else {
+                console.error(`[SyncEngine] Failed to upload textures for ${id}:`, texUploadRes.error)
+              }
+            }
+          }
+
+          // Add to manifest
+          manifest.models[id] = {
+            id,
+            format: entry.format,
+            name: entry.name || '',
+            importedAt: entry.importedAt || Date.now(),
+            previewImage: entry.previewImage,
+            hasTextures,
+          }
+          manifestModified = true
+
+          // Record sync history timestamp
+          await storage.setItemRaw(`local:sync-metadata/timestamps/${id}`, Date.now())
+        }
+      }
+
+      // 6. Download remote-only models (in remote manifest but missing locally)
+      let hasDownloads = false
+      for (const [id, remoteModel] of Object.entries(manifest.models)) {
+        if (deletedModelIds.has(id))
+          continue
+        if (!localModels.has(id)) {
+          console.log(`[SyncEngine] Downloading model from remote: ${id} (${remoteModel.name})`)
+          const readBinRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
+            dir: fsBackupPath.value,
+            relPath: `assets/models/${id}.bin`,
+            encoding: 'base64',
+          })
+          if (!readBinRes.success || !readBinRes.content) {
+            console.error(`[SyncEngine] Failed to read remote model binary for ${id}:`, readBinRes.error)
+            continue
+          }
+
+          // Reconstruct File object
+          const mimeType = 'application/octet-stream'
+          const res = await fetch(`data:${mimeType};base64,${readBinRes.content}`)
+          const blob = await res.blob()
+          const fileObj = new File([blob], remoteModel.name, { type: mimeType })
+
+          const entry = {
+            id,
+            format: remoteModel.format,
+            type: 'file',
+            file: fileObj,
+            name: remoteModel.name,
+            previewImage: remoteModel.previewImage,
+            importedAt: remoteModel.importedAt,
+          }
+
+          await localforage.setItem(id, entry)
+
+          // Download textures if present
+          if (remoteModel.hasTextures) {
+            const readTexRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
+              dir: fsBackupPath.value,
+              relPath: `assets/models/${id}-textures.json`,
+            })
+            if (readTexRes.success && readTexRes.content) {
+              const texturesData = JSON.parse(readTexRes.content)
+              const textures: any[] = []
+              for (const tex of texturesData) {
+                const texMime = tex.type || 'image/png'
+                const texRes = await fetch(`data:${texMime};base64,${tex.base64}`)
+                const texBlob = await texRes.blob()
+                const texFile = new File([texBlob], tex.name, { type: texMime })
+                textures.push({
+                  relativePath: tex.relativePath,
+                  file: texFile,
+                })
+              }
+              await localforage.setItem(`${id}-textures`, textures)
+            }
+          }
+
+          // Record sync history timestamp
+          await storage.setItemRaw(`local:sync-metadata/timestamps/${id}`, Date.now())
+          hasDownloads = true
+        }
+      }
+
+      // Write updated manifest to remote
+      if (manifestModified) {
+        console.log('[SyncEngine] Writing updated model manifest to remote.')
+        await electron.ipcRenderer.invoke('byos-fs:write-file', {
+          dir: fsBackupPath.value,
+          relPath: 'assets/models/manifest.json',
+          content: JSON.stringify(manifest, null, 2),
+        })
+      }
+
+      if (hasDownloads) {
+        try {
+          const { useDisplayModelsStore } = await import('./display-models')
+          const modelStore = useDisplayModelsStore()
+          await modelStore.loadDisplayModelsFromIndexedDB()
+        }
+        catch (e) {
+          console.error('[SyncEngine] Failed to refresh display models store:', e)
+        }
+      }
+    }
+    catch (err) {
+      console.error('[SyncEngine] Model reconciliation error:', err)
+    }
+  }
+
   function getKeyForRelPath(relPath: string): string {
     const normalized = relPath.replace(/\\/g, '/')
     if (normalized.startsWith('db/') && normalized.endsWith('.json')) {
@@ -803,6 +1037,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       })
 
       await reconcileBackgrounds()
+      await reconcileModels()
 
       storageState.isImportingRemoteData = false
       return true

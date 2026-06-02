@@ -13,6 +13,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 
+import { storage } from '../database/storage'
+
 import '@proj-airi/stage-ui-live2d/utils/live2d-zip-loader'
 import '@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration'
 
@@ -666,6 +668,9 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   async function removeDisplayModel(id: string) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
     await localforage.removeItem(id)
+    await localforage.removeItem(`${id}-textures`)
+    // Track deletion for sync propagation
+    await storage.setItemRaw(`local:sync-metadata/deleted-models/${id}`, true)
     displayModels.value = displayModels.value.filter(model => model.id !== id)
   }
 

@@ -69,10 +69,8 @@ const shortTermMemory = useShortTermMemoryStore()
 const { cleanupMessages } = useChatMaintenanceStore()
 
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
-const { ingest, onAfterMessageComposed } = chatOrchestrator
+const { ingest } = chatOrchestrator
 const { messages } = storeToRefs(chatSession)
-const { streamingMessage } = storeToRefs(chatStream)
-const { sending } = storeToRefs(chatOrchestrator)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
@@ -173,12 +171,6 @@ async function handleScreenshotClick() {
   // Vision capture is typically restricted in browser unless using getDisplayMedia
   // For now, we show a toast explaining browser limitations if electron visionStore is missing
   toast.info('Vision capture is optimized for desktop. Please use the attach button for screenshots.')
-}
-
-function navigateToImageJournal() {
-  if (!activeCardId.value)
-    return
-  router.push(`/settings/airi-card?cardId=${activeCardId.value}&tab=gallery`)
 }
 
 function removeAttachment(index: number) {

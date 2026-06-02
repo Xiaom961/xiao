@@ -13,7 +13,7 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, useTheme } from '@proj-airi/ui'
+import { BasicTextarea } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
@@ -27,7 +27,6 @@ import ViewControlInputs from './ViewControls/Inputs.vue'
 
 import { BackgroundDialogPicker } from '../Backgrounds'
 
-const { isDark, toggleDark } = useTheme()
 const hearingDialogOpen = ref(false)
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
@@ -41,7 +40,6 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
 
 const {
   stageViewControlsEnabled,
-  stageViewControlsMode: viewControlsActiveMode,
 } = storeToRefs(useSettings())
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
 
