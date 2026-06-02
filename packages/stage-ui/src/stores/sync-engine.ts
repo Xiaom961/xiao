@@ -267,12 +267,13 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     return Array.from(mergedMap.values())
   }
 
+  // Merges two airi-cards Map-entry arrays. Each value is a raw JSON-stringified
+  // array of [id, card] tuples — no {value: ...} wrapper since it lives in IndexedDB natively.
   function mergeAiriCards(localVal: any, remoteVal: any): any {
     try {
-      const localStr = localVal?.value || '[]'
-      const remoteStr = remoteVal?.value || '[]'
-      const localEntries = JSON.parse(localStr) as [string, any][]
-      const remoteEntries = JSON.parse(remoteStr) as [string, any][]
+      // localVal and remoteVal are raw Map-entries arrays: [[id, card], ...]
+      const localEntries = Array.isArray(localVal) ? localVal as [string, any][] : []
+      const remoteEntries = Array.isArray(remoteVal) ? remoteVal as [string, any][] : []
 
       const mergedMap = new Map<string, any>()
       for (const [id, card] of localEntries) {
@@ -295,8 +296,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           }
         }
       }
-      const mergedEntries = Array.from(mergedMap.entries())
-      return { value: JSON.stringify(mergedEntries) }
+      return Array.from(mergedMap.entries())
     }
     catch (e) {
       console.error('[SyncEngine] Failed to merge airi-cards:', e)
@@ -585,7 +585,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           'local:memory/short-term/local',
           'local:memory/text-journal/local',
           'local:memory/echo-chips/local',
-          'local:localstorage/airi-cards',
+          'local:airi-cards',
         ].includes(localKey)
 
         if (isMergeableKey) {
@@ -607,7 +607,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           const localVal = await storage.getItemRaw<any>(localKey)
           let mergedVal: any = null
 
-          if (localKey === 'local:localstorage/airi-cards') {
+          if (localKey === 'local:airi-cards') {
             mergedVal = mergeAiriCards(localVal, remoteVal)
           }
           else {
@@ -802,7 +802,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             'local:memory/short-term/local',
             'local:memory/text-journal/local',
             'local:memory/echo-chips/local',
-            'local:localstorage/airi-cards',
+            'local:airi-cards',
           ].includes(item.key)
 
           if (isMergeableKey) {
@@ -821,7 +821,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             const localVal = await storage.getItemRaw<any>(item.key)
             let mergedVal: any = null
 
-            if (item.key === 'local:localstorage/airi-cards') {
+            if (item.key === 'local:airi-cards') {
               mergedVal = mergeAiriCards(localVal, remoteVal)
             }
             else {
@@ -901,6 +901,10 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
   }
 
   function shouldExcludeLocalStorageKey(key: string): boolean {
+    // NOTICE: airi-cards is too large (~600KB+) for localStorage quota; it is synced
+    // natively via IndexedDB under local:airi-cards so we exclude it from the dump/restore bridge.
+    if (key === 'airi-cards')
+      return true
     if (key.startsWith('airi_cc_'))
       return true
     if (key.startsWith('settings/sync/'))
