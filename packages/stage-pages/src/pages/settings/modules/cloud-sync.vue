@@ -12,10 +12,10 @@ const {
   syncInterval,
   conflictStrategy,
   activeProvider,
-  fsBackupPath,
   isSyncing,
   lastSyncTime,
   syncError,
+  conflicts,
 } = storeToRefs(syncStore)
 
 const formattedLastSync = computed(() => {
@@ -38,6 +38,19 @@ function handleConfigureProvider() {
   else {
     router.push('/settings/providers#cloud')
   }
+}
+
+function formatSize(bytes: number): string {
+  if (bytes === 0)
+    return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`
+}
+
+function cleanKeyLabel(key: string): string {
+  return key.replace('local:', '')
 }
 </script>
 
@@ -161,6 +174,83 @@ function handleConfigureProvider() {
       <div v-if="syncError" class="mt-2 flex items-center gap-2 rounded-lg bg-rose-500/10 p-3 text-sm text-rose-600 font-medium dark:text-rose-400">
         <div class="i-solar:danger-bold text-lg" />
         <span>Failed: {{ syncError }}</span>
+      </div>
+    </div>
+
+    <!-- Sync Conflicts Section -->
+    <div v-if="conflicts && conflicts.length > 0" class="flex flex-col gap-4 border border-rose-200 rounded-xl bg-rose-50/50 p-4 dark:border-rose-900/30 dark:bg-rose-950/10">
+      <div class="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+        <div class="i-solar:danger-bold animate-pulse text-xl" />
+        <h3 class="text-lg font-semibold">
+          Review Sync Conflicts
+        </h3>
+        <span class="rounded bg-rose-500 px-1.5 py-0.5 text-xs text-white font-bold">{{ conflicts.length }}</span>
+      </div>
+      <div class="text-xs text-neutral-500 dark:text-neutral-400">
+        The sync engine blocked automatic overwriting for these files because a significant data contraction was detected. Please choose which version to keep, or merge them.
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <div v-for="conflict in conflicts" :key="conflict.key" class="flex flex-col gap-3 border border-rose-200/50 rounded-lg bg-white p-3 dark:border-rose-900/20 dark:bg-neutral-900">
+          <div class="flex items-center justify-between border-b border-neutral-100 pb-2 dark:border-neutral-800">
+            <span class="break-all pr-2 text-xs text-neutral-800 font-semibold dark:text-neutral-200">
+              {{ cleanKeyLabel(conflict.key) }}
+            </span>
+            <span class="shrink-0 text-[10px] text-neutral-400 dark:text-neutral-500">
+              {{ new Date(conflict.conflictTime).toLocaleTimeString() }}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <!-- Local Version info -->
+            <div class="rounded bg-neutral-50 p-2 dark:bg-neutral-800/50">
+              <div class="text-[10px] text-neutral-400 font-medium uppercase dark:text-neutral-500">
+                Local (This Device)
+              </div>
+              <div class="mt-0.5 text-xs text-neutral-800 font-bold dark:text-neutral-200">
+                {{ formatSize(conflict.localSize) }}
+              </div>
+              <div class="text-[10px] text-neutral-500 dark:text-neutral-400">
+                {{ new Date(conflict.localTimestamp).toLocaleString() }}
+              </div>
+            </div>
+
+            <!-- Remote Version info -->
+            <div class="rounded bg-neutral-50 p-2 dark:bg-neutral-800/50">
+              <div class="text-[10px] text-neutral-400 font-medium uppercase dark:text-neutral-500">
+                Remote (Cloud/Backup)
+              </div>
+              <div class="mt-0.5 text-xs text-neutral-800 font-bold dark:text-neutral-200">
+                {{ formatSize(conflict.remoteSize) }}
+              </div>
+              <div class="text-[10px] text-neutral-500 dark:text-neutral-400">
+                {{ new Date(conflict.remoteTimestamp).toLocaleString() }}
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-1 flex flex-wrap gap-2">
+            <button
+              class="border border-neutral-200 rounded-xl px-3 py-1.5 text-xs text-neutral-700 font-semibold transition dark:border-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              @click="syncStore.resolveConflict(conflict.key, 'local')"
+            >
+              Keep Local
+            </button>
+            <button
+              class="border border-neutral-200 rounded-xl px-3 py-1.5 text-xs text-neutral-700 font-semibold transition dark:border-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              @click="syncStore.resolveConflict(conflict.key, 'remote')"
+            >
+              Keep Remote
+            </button>
+            <button
+              v-if="conflict.key.startsWith('local:chat/sessions/')"
+              class="rounded-xl bg-primary-500 px-3 py-1.5 text-xs text-white font-semibold transition hover:bg-primary-600"
+              @click="syncStore.resolveConflict(conflict.key, 'merge')"
+            >
+              Merge Message History
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

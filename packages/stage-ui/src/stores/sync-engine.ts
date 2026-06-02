@@ -232,10 +232,10 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     }
   }
 
-  // Convert relative file path back to storage key (e.g. db/chat/sessions/123.json -> local:chat/sessions/123)
   function getKeyForRelPath(relPath: string): string {
-    if (relPath.startsWith('db/') && relPath.endsWith('.json')) {
-      const clean = relPath.substring(3, relPath.length - 5)
+    const normalized = relPath.replace(/\\/g, '/')
+    if (normalized.startsWith('db/') && normalized.endsWith('.json')) {
+      const clean = normalized.substring(3, normalized.length - 5)
       return `local:${clean}`
     }
     return ''
@@ -264,6 +264,235 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       }
     }
     return Array.from(mergedMap.values())
+  }
+
+  // Reactive State for conflicts
+  const conflicts = ref<any[]>([])
+
+  async function logDebug(msg: string) {
+    console.log(`[SyncEngine] ${msg}`)
+    if (hasElectron()) {
+      try {
+        const logLine = `[${new Date().toISOString()}] ${msg}\n`
+        await electron.ipcRenderer.invoke('byos-fs:write-file', {
+          dir: 'C:\\Users\\h4rdc\\Documents\\Github\\airi-rebase-scratch',
+          relPath: 'sync-engine-debug.log',
+          content: logLine,
+          encoding: 'utf-8',
+          append: true,
+        })
+      }
+      catch (e) {
+        console.error('[SyncEngine] Debug log failed:', e)
+      }
+    }
+  }
+
+  async function loadConflicts() {
+    try {
+      const rawLocalKeys = await storage.getKeys('local')
+      const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
+      const list: any[] = []
+      const PREFIX = 'local:sync-metadata/conflicts/'
+      for (const k of localKeys) {
+        if (k.startsWith(PREFIX)) {
+          const conflictData = await storage.getItemRaw<any>(k)
+          if (conflictData) {
+            list.push(conflictData)
+          }
+        }
+      }
+      conflicts.value = list
+      await logDebug(`loadConflicts: Loaded ${list.length} conflicts.`)
+    }
+    catch (e) {
+      console.error('[SyncEngine] Failed to load conflicts:', e)
+      await logDebug(`loadConflicts error: ${e}`)
+    }
+  }
+
+  // Safety Heuristics Guard
+  async function checkSyncConflict(localKey: string, localTime: number, remoteFile: { size: number, mtime: number, relPath: string }, type: 'remote-newer' | 'local-newer'): Promise<boolean> {
+    const isCritical = localKey.startsWith('local:chat/sessions/') || localKey.startsWith('local:characters/')
+    await logDebug(`checkSyncConflict: key=${localKey}, type=${type}, critical=${isCritical}`)
+    if (!isCritical)
+      return false
+
+    try {
+      const localVal = await storage.getItemRaw(localKey)
+      const localSize = localVal ? JSON.stringify(localVal).length : 0
+      const remoteSize = remoteFile.size
+      await logDebug(`checkSyncConflict stats for ${localKey}: localSize=${localSize}, remoteSize=${remoteSize}`)
+
+      // Safety Guard Contraction Rule:
+      // A conflict is registered if the newer file is significantly smaller than the older file:
+      let isContraction = false
+      if (type === 'remote-newer') {
+        // Remote is newer but remote is much smaller than local
+        isContraction = remoteSize < localSize && localSize > 10240 && (remoteSize < 2048 || localSize > 5 * remoteSize)
+      }
+      else {
+        // Local is newer but local is much smaller than remote
+        isContraction = localSize < remoteSize && remoteSize > 10240 && (localSize < 2048 || remoteSize > 5 * localSize)
+      }
+
+      await logDebug(`checkSyncConflict outcome for ${localKey}: isContraction=${isContraction}`)
+
+      if (isContraction) {
+        await logDebug(`[WARNING] Safety conflict registered for ${localKey} (${type}). Local Size = ${localSize} bytes, Remote Size = ${remoteSize} bytes. Overwrite blocked.`)
+
+        const conflictData = {
+          key: localKey,
+          localTimestamp: localTime,
+          remoteTimestamp: remoteFile.mtime,
+          localSize,
+          remoteSize,
+          remoteRelPath: remoteFile.relPath,
+          conflictTime: Date.now(),
+        }
+        await storage.setItemRaw(`local:sync-metadata/conflicts/${localKey.replace('local:', '')}`, conflictData)
+        return true
+      }
+    }
+    catch (e) {
+      console.error(`[SyncEngine] Error during safety check for ${localKey}:`, e)
+      await logDebug(`checkSyncConflict error for ${localKey}: ${e}`)
+    }
+    return false
+  }
+
+  // Apply Resolution
+  async function resolveConflict(localKey: string, choice: 'local' | 'remote' | 'merge') {
+    if (!hasElectron() || !fsBackupPath.value)
+      return false
+
+    const relPath = getRelPathForKey(localKey)
+    const conflictMetadataKey = `local:sync-metadata/conflicts/${localKey.replace('local:', '')}`
+
+    try {
+      storageState.isImportingRemoteData = true
+
+      if (choice === 'local') {
+        console.log(`[SyncEngine] Resolving conflict for ${localKey} keeping LOCAL.`)
+        const localVal = await storage.getItemRaw(localKey)
+        if (localVal !== undefined && localVal !== null) {
+          const writeRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
+            dir: fsBackupPath.value,
+            relPath,
+            content: JSON.stringify(localVal, null, 2),
+          })
+          if (writeRes.success) {
+            const stats = await electron.ipcRenderer.invoke('byos-fs:list-files', { dir: fsBackupPath.value })
+            const matchingFile = stats.files?.find((f: any) => f.relPath === relPath)
+            if (matchingFile) {
+              await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, matchingFile.mtime)
+            }
+          }
+          else {
+            throw new Error(`Failed to write remote file: ${writeRes.error}`)
+          }
+        }
+      }
+      else if (choice === 'remote') {
+        console.log(`[SyncEngine] Resolving conflict for ${localKey} keeping REMOTE.`)
+        const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
+          dir: fsBackupPath.value,
+          relPath,
+        })
+        if (readRes.success && readRes.content) {
+          const remoteVal = JSON.parse(readRes.content)
+          await storage.setItemRaw(localKey, remoteVal)
+
+          const stats = await electron.ipcRenderer.invoke('byos-fs:list-files', { dir: fsBackupPath.value })
+          const matchingFile = stats.files?.find((f: any) => f.relPath === relPath)
+          if (matchingFile) {
+            await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, matchingFile.mtime)
+          }
+        }
+        else {
+          throw new Error(`Failed to read remote file: ${readRes.error}`)
+        }
+      }
+      else if (choice === 'merge') {
+        console.log(`[SyncEngine] Resolving conflict for ${localKey} by MERGING arrays.`)
+        const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
+          dir: fsBackupPath.value,
+          relPath,
+        })
+        if (readRes.success && readRes.content) {
+          const remoteData = JSON.parse(readRes.content)
+          const localData = await storage.getItemRaw(localKey)
+
+          let mergedData: any = null
+
+          if (localKey.startsWith('local:chat/sessions/')) {
+            const isLocalObj = localData && typeof localData === 'object' && !Array.isArray(localData)
+            const isRemoteObj = remoteData && typeof remoteData === 'object' && !Array.isArray(remoteData)
+
+            const localMsgs = isLocalObj ? (localData.messages || []) : (Array.isArray(localData) ? localData : [])
+            const remoteMsgs = isRemoteObj ? (remoteData.messages || []) : (Array.isArray(remoteData) ? remoteData : [])
+
+            const mergedMsgs = mergeArraysById(localMsgs, remoteMsgs)
+
+            if (isLocalObj) {
+              mergedData = {
+                ...localData,
+                ...remoteData,
+                messages: mergedMsgs,
+                updatedAt: Date.now(),
+              }
+            }
+            else {
+              mergedData = mergedMsgs
+            }
+          }
+          else {
+            if (Array.isArray(localData) && Array.isArray(remoteData)) {
+              mergedData = mergeArraysById(localData, remoteData)
+            }
+            else {
+              mergedData = localData || remoteData
+            }
+          }
+
+          // Save locally
+          await storage.setItemRaw(localKey, mergedData)
+
+          // Write remotely
+          const writeRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
+            dir: fsBackupPath.value,
+            relPath,
+            content: JSON.stringify(mergedData, null, 2),
+          })
+
+          if (writeRes.success) {
+            const stats = await electron.ipcRenderer.invoke('byos-fs:list-files', { dir: fsBackupPath.value })
+            const matchingFile = stats.files?.find((f: any) => f.relPath === relPath)
+            if (matchingFile) {
+              await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, matchingFile.mtime)
+            }
+          }
+          else {
+            throw new Error(`Failed to write remote file: ${writeRes.error}`)
+          }
+        }
+        else {
+          throw new Error(`Failed to read remote file: ${readRes.error}`)
+        }
+      }
+
+      // Cleanup conflict metadata
+      await storage.removeItem(conflictMetadataKey)
+      await loadConflicts()
+      toast.success(`Conflict resolved successfully using ${choice} strategy`)
+    }
+    catch (e) {
+      console.error(`[SyncEngine] Conflict resolution failed for ${localKey}:`, e)
+      toast.error(`Resolution failed: ${e}`)
+    }
+    finally {
+      storageState.isImportingRemoteData = false
+    }
   }
 
   // Run full two-way reconciliation (LWW)
@@ -312,6 +541,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           continue
 
         const localTime = localTimestamps.get(localKey)
+        await logDebug(`Reconciling key: ${localKey}, localTime=${localTime}, remoteMtime=${remoteFile.mtime}, remoteSize=${remoteFile.size}`)
 
         const isMergeableKey = [
           'local:memory/short-term/local',
@@ -372,7 +602,19 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
 
         if (localTime === undefined) {
           // Case A: Remote exists, but missing locally -> Download and import
-          console.log(`[SyncEngine] Key ${localKey} missing locally. Downloading from remote...`)
+          // Safety Check: if the local key actually has data, run the safety conflict check
+          // to prevent silently wiping out existing local data.
+          const localVal = await storage.getItemRaw(localKey)
+          if (localVal !== undefined && localVal !== null) {
+            await logDebug(`[Case A] Local key ${localKey} exists but localTime is undefined. Running safety check.`)
+            const isConflict = await checkSyncConflict(localKey, 0, remoteFile, 'remote-newer')
+            if (isConflict) {
+              await logDebug(`[WARNING] Safety conflict registered for ${localKey} (Case A - local data exists). Overwrite blocked.`)
+              continue
+            }
+          }
+
+          await logDebug(`[SyncEngine] Key ${localKey} missing locally (or safe). Downloading from remote...`)
           const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
             dir: fsBackupPath.value,
             relPath: remoteFile.relPath,
@@ -386,6 +628,12 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         }
         else if (remoteFile.mtime > localTime) {
           // Case B: Remote file is newer -> Download and overwrite local
+          const isConflict = await checkSyncConflict(localKey, localTime, remoteFile, 'remote-newer')
+          if (isConflict) {
+            console.log(`[SyncEngine] Conflict safety guard blocked auto-overwrite of local key ${localKey}`)
+            continue
+          }
+
           console.log(`[SyncEngine] Remote file for ${localKey} is newer. Overwriting local...`)
           const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
             dir: fsBackupPath.value,
@@ -399,6 +647,12 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         }
         else if (localTime > remoteFile.mtime) {
           // Case C: Local is newer -> Upload to remote
+          const isConflict = await checkSyncConflict(localKey, localTime, remoteFile, 'local-newer')
+          if (isConflict) {
+            console.log(`[SyncEngine] Conflict safety guard blocked auto-overwrite of remote file for key ${localKey}`)
+            continue
+          }
+
           console.log(`[SyncEngine] Local key ${localKey} is newer. Preparing upload...`)
           const localVal = await storage.getItemRaw(localKey)
           if (localVal) {
@@ -483,6 +737,14 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         const item = await storage.getItemRaw<{ key: string, action: 'upsert' | 'delete', timestamp: number }>(fullQueueKey)
         if (!item) {
           await storage.removeItem(fullQueueKey)
+          continue
+        }
+
+        // Safety Gate: Skip outbox upload if there is an active sync conflict registered for this key
+        const conflictKey = `local:sync-metadata/conflicts/${item.key.replace('local:', '')}`
+        const hasActiveConflict = await storage.getItemRaw(conflictKey)
+        if (hasActiveConflict) {
+          console.log(`[SyncEngine] Outbox processing skipped for ${item.key} due to active conflict.`)
           continue
         }
 
@@ -602,6 +864,8 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         throw new Error('Failed to fully process sync outbox.')
       }
 
+      await loadConflicts()
+
       lastSyncTime.value = Date.now()
       localStorage.setItem('settings/sync/last-time', String(lastSyncTime.value))
       toast.success('Cloud Sync completed successfully')
@@ -646,6 +910,9 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     }
   }, { immediate: true })
 
+  // Initialize conflicts on store load
+  void loadConflicts()
+
   return {
     syncEnabled,
     syncInterval,
@@ -655,8 +922,11 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     isSyncing,
     lastSyncTime,
     syncError,
+    conflicts,
 
     validatePath,
     triggerSync,
+    resolveConflict,
+    loadConflicts,
   }
 })

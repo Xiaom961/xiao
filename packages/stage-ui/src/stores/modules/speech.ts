@@ -240,8 +240,7 @@ export const useSpeechStore = defineStore('speech', () => {
     const isVirtual = providerId === 'virtual-audio-studio'
     const profile = isVirtual ? savedVoiceProfiles.value.find(p => p.id === activeSpeechVoiceId.value) : null
 
-    const enabled = profile?.ust.enabled ?? false
-    if (!enabled) {
+    if (!profile || !profile.ust.enabled) {
       return text
     }
 

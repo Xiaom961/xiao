@@ -895,7 +895,7 @@ app.whenReady().then(async () => {
         }
       })
 
-      ipcMain.handle('byos-fs:write-file', async (_event, data: { dir: string, relPath: string, content: string, encoding?: 'utf-8' | 'base64' }) => {
+      ipcMain.handle('byos-fs:write-file', async (_event, data: { dir: string, relPath: string, content: string, encoding?: 'utf-8' | 'base64', append?: boolean }) => {
         const fs = await import('node:fs/promises')
         const path = await import('node:path')
         const fullPath = path.join(data.dir, data.relPath)
@@ -904,7 +904,7 @@ app.whenReady().then(async () => {
           const buffer = data.encoding === 'base64'
             ? Buffer.from(data.content, 'base64')
             : data.content
-          await fs.writeFile(fullPath, buffer)
+          await fs.writeFile(fullPath, buffer, data.append ? { flag: 'a' } : undefined)
           return { success: true }
         }
         catch (error) {
