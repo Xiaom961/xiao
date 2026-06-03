@@ -280,7 +280,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   async function persistCards(nextCards: Map<string, AiriCard>) {
     cards.value = nextCards
     try {
-      await storage.setItemRaw('local:airi-cards', Array.from(nextCards.entries()))
+      const cleanEntries = JSON.parse(JSON.stringify(Array.from(nextCards.entries())))
+      await storage.setItemRaw('local:airi-cards', cleanEntries)
     }
     catch (e) {
       console.error('[AiriCard] Failed to persist cards to IndexedDB:', e)
