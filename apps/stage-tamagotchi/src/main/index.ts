@@ -755,6 +755,14 @@ app.whenReady().then(async () => {
         return screen.getAllDisplays().length
       })
 
+      ipcMain.handle('stage:capture-window', async () => {
+        if (deps.stageWindow && !deps.stageWindow.isDestroyed()) {
+          const image = await deps.stageWindow.webContents.capturePage()
+          return image.toPNG()
+        }
+        return null
+      })
+
       defineInvokeHandler(context, electronResetWindowPositions, handleResetWindowPositions)
 
       if (deps.stageWindow && !deps.stageWindow.isDestroyed()) {

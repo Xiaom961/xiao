@@ -260,6 +260,14 @@ export const CUSTOMIZER_CATALOG: CustomizerGroup[] = [
         type: 'menu',
         defaultOnStrip: false,
       },
+      {
+        id: 'actor-selfies',
+        label: 'Selfies',
+        description: 'Take and manage character selfies and card thumbnails.',
+        icon: 'i-solar:camera-bold-duotone',
+        type: 'menu',
+        defaultOnStrip: false,
+      },
     ],
   },
   {

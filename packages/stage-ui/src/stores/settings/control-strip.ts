@@ -31,6 +31,7 @@ const DEFAULT_BUTTONS: ControlStripButton[] = [
   { id: 'gemini-voice', enabled: false, label: 'Voice Switch', icon: 'i-solar:user-speak-linear' },
   { id: 'gemini-schedule', enabled: false, label: 'Respect Schedule', icon: 'i-solar:calendar-linear' },
   { id: 'gemini-grounding', enabled: false, label: 'Google Search Grounding', icon: 'i-solar:global-linear' },
+  { id: 'actor-selfies', enabled: false, label: 'Selfies', icon: 'i-solar:camera-bold-duotone' },
 ]
 
 export const useSettingsControlStrip = defineStore('settings-control-strip', () => {
@@ -63,6 +64,7 @@ export const useSettingsControlStrip = defineStore('settings-control-strip', () 
   const captionOpen = useLocalStorageManualReset<boolean>('settings/caption-open', false)
   const backgroundTint = useLocalStorageManualReset<string>('settings/control-strip/background-tint', '#171717')
   const collapsed = useLocalStorageManualReset<boolean>('settings/control-strip/collapsed', false)
+  const selfieIncludeBg = useLocalStorageManualReset<boolean>('settings/control-strip/selfie-include-bg', true)
 
   // NOTICE: buttons uses useLocalStorage directly (not the ManualReset wrapper) because
   // useLocalStorageManualReset has a shallow watcher that doesn't reliably propagate
@@ -74,7 +76,7 @@ export const useSettingsControlStrip = defineStore('settings-control-strip', () 
   // If so, wipe it and start fresh with DEFAULT_BUTTONS rather than silently
   // producing a partial/broken state from old code shapes.
   const storedVersion = localStorage.getItem('settings/control-strip/buttons-version')
-  if (storedVersion !== BUTTONS_CATALOG_VERSION) {
+  if (storedVersion !== 'v4' && storedVersion !== 'v5') {
     buttons.value = [...DEFAULT_BUTTONS]
     localStorage.setItem('settings/control-strip/buttons-version', BUTTONS_CATALOG_VERSION)
   }
@@ -155,6 +157,7 @@ export const useSettingsControlStrip = defineStore('settings-control-strip', () 
     resetButtons()
     backgroundTint.reset()
     collapsed.reset()
+    selfieIncludeBg.reset()
   }
 
   return {
@@ -168,6 +171,7 @@ export const useSettingsControlStrip = defineStore('settings-control-strip', () 
     buttons,
     backgroundTint,
     collapsed,
+    selfieIncludeBg,
     toggleOrientation,
     cycleStageMode,
     cycleInteractionMode: cycleStageMode,

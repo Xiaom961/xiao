@@ -310,7 +310,7 @@ export const useMemoryLifetimeStore = defineStore('memory-lifetime', () => {
 
   const artifacts = ref<Map<string, LifetimeMemoryArtifact>>(new Map())
 
-  const { data: lifetimeSyncSignal, post: broadcastLifetimeSync } = useBroadcastChannel<{ characterId: string }>({ name: 'airi:lifetime-memory-sync' })
+  const { data: lifetimeSyncSignal, post: broadcastLifetimeSync } = useBroadcastChannel<{ characterId: string }, { characterId: string }>({ name: 'airi:lifetime-memory-sync' })
 
   watch(lifetimeSyncSignal, (val) => {
     if (val?.characterId) {

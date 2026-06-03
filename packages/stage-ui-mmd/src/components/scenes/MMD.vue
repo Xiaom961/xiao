@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight } from 'three'
 
 import { useMmd } from '@proj-airi/stage-ui-mmd/stores/mmd'
@@ -95,6 +96,7 @@ watch([cameraDistance, eyeHeight, lookAtTarget], ([distance, height, target]) =>
 })
 
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
+const tresCanvasRef = shallowRef<TresContext>()
 
 function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) {
   const light = dirLightRef.value
@@ -146,7 +148,8 @@ watch([dirLightRef], ([dirLight]) => {
   }
 })
 
-function onTresReady() {
+function onTresReady(context: TresContext) {
+  tresCanvasRef.value = context
   componentState.value = 'mounted'
 }
 
@@ -228,6 +231,23 @@ function handlePointerUp(event: PointerEvent) {
 
   isDragging.value = false
 }
+
+defineExpose({
+  canvasElement: () => {
+    return tresCanvasRef.value?.renderer.instance.domElement
+  },
+  captureFrame: async () => {
+    if (!tresCanvasRef.value)
+      return null
+
+    const { renderer, scene } = tresCanvasRef.value
+    renderer.instance.render(scene.value, camera.value as any)
+
+    return new Promise<Blob | null>((resolve) => {
+      renderer.instance.domElement.toBlob(resolve)
+    })
+  },
+})
 </script>
 
 <template>

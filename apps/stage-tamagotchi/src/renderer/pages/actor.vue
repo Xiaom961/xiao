@@ -11,9 +11,9 @@ import { useSettingsControlStrip } from '@proj-airi/stage-ui/stores/settings/con
 import { useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings/controls-island'
 import { usePositioningStore } from '@proj-airi/stage-ui/stores/settings/positioning'
 import { Button } from '@proj-airi/ui'
-import { refDebounced, useBroadcastChannel } from '@vueuse/core'
+import { refDebounced, useBroadcastChannel, useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 
 import { electron, electronStartDraggingWindow } from '../../shared/eventa'
 import { useWindowStore } from '../stores/window'
@@ -79,6 +79,33 @@ function handleOffsetChange(val: { x: number, y: number }) {
     y: val.y,
   })
 }
+
+// Selfie Viewfinder Overlay state
+const selfieViewfinderActive = ref(false)
+const selfieCountdown = ref<number | null>(null)
+const { data: viewfinderSignal } = useBroadcastChannel<{ active: boolean, countdown: number | null }, { active: boolean, countdown: number | null }>({ name: 'airi:stage-selfie-viewfinder' })
+
+watch(viewfinderSignal, (val) => {
+  const raw = toRaw(val)
+  if (raw) {
+    selfieViewfinderActive.value = raw.active || raw.countdown !== null
+    selfieCountdown.value = raw.countdown
+  }
+})
+
+const { width: windowWidth, height: windowHeight } = useWindowSize()
+
+const cropSize = computed(() => {
+  return Math.min(windowWidth.value * 0.95, windowHeight.value * 0.95)
+})
+
+const cropLeft = computed(() => {
+  return (windowWidth.value - cropSize.value) / 2
+})
+
+const cropTop = computed(() => {
+  return Math.min(windowHeight.value * 0.15, windowHeight.value - cropSize.value)
+})
 
 // WhisperDock stub tools
 const tools = ref<any[]>([])
@@ -264,6 +291,35 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
           :tools="tools"
           @spawn-standalone="handleSpawnStandalone"
         />
+      </div>
+
+      <!-- Selfie Viewfinder Overlay -->
+      <div v-if="selfieViewfinderActive" class="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+        <!-- Semi-transparent overlay mask -->
+        <div class="absolute inset-0 bg-neutral-950/40 backdrop-blur-[1px]" />
+        <!-- Glowing Crop Box -->
+        <div
+          class="absolute border-2 border-sky-400 border-dashed bg-transparent shadow-[0_0_0_9999px_rgba(10,10,10,0.5)] transition-all duration-300"
+          :style="{
+            width: `${cropSize}px`,
+            height: `${cropSize}px`,
+            top: `${cropTop}px`,
+            left: `${cropLeft}px`,
+          }"
+        >
+          <!-- Corner crop marks -->
+          <div class="absolute h-4 w-4 border-l-4 border-t-4 border-sky-400 -left-1 -top-1" />
+          <div class="absolute h-4 w-4 border-r-4 border-t-4 border-sky-400 -right-1 -top-1" />
+          <div class="absolute h-4 w-4 border-b-4 border-l-4 border-sky-400 -bottom-1 -left-1" />
+          <div class="absolute h-4 w-4 border-b-4 border-r-4 border-sky-400 -bottom-1 -right-1" />
+
+          <!-- Countdown text in the center -->
+          <div v-if="selfieCountdown !== null" class="absolute inset-0 flex items-center justify-center">
+            <span class="animate-pulse text-6xl text-white font-bold drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+              {{ selfieCountdown }}
+            </span>
+          </div>
+        </div>
       </div>
 
       <!-- Proximity Border Highlight -->
