@@ -859,7 +859,6 @@ function getShortLabel(btnId: string): string {
       'bg-neutral-100/30 dark:bg-neutral-900/40',
       'backdrop-blur-xl border border-white/20 dark:border-neutral-800/60',
       'shadow-2xl shadow-black/10 rounded-full',
-      'transition-all duration-300 ease-out',
       isDragging ? 'scale-102 border-primary-500/30 shadow-primary-500/5' : '',
       orientation === 'vertical' ? 'flex flex-col items-center py-2 px-1 gap-2 w-12' : 'flex flex-row items-center px-2 py-1 gap-2 h-12',
     ]"
@@ -874,7 +873,7 @@ function getShortLabel(btnId: string): string {
         'bg-white/10 hover:bg-white/25 dark:bg-white/5 dark:hover:bg-white/15',
         'border border-white/10 dark:border-white/5',
         'text-neutral-700 dark:text-neutral-300',
-        'transition-all duration-200 active:scale-90',
+        'transition-all duration-200',
         isDragging ? 'cursor-grabbing' : 'cursor-grab',
       ]"
       title="Drag to Reposition | Double Click to Collapse/Expand | Click to Toggle Layout"
@@ -904,7 +903,7 @@ function getShortLabel(btnId: string): string {
           'relative flex items-center justify-center overflow-hidden',
           'w-9 h-9 rounded-full border border-white/15 dark:border-white/5',
           'bg-white/15 hover:bg-white/25 dark:bg-white/5 dark:hover:bg-white/15 text-neutral-800 dark:text-neutral-200',
-          'transition-all duration-200 hover:scale-105 active:scale-90 cursor-pointer control-strip-btn',
+          'transition-all duration-200 hover:scale-105 cursor-pointer control-strip-btn',
         ]"
         :title="getButtonTitle(btn.id, btn.label)"
         @mouseenter="hoveredButtonId = btn.id"
