@@ -220,6 +220,8 @@ export interface AiriCard extends Card {
   extensions: {
     airi: AiriExtension
   } & Card['extensions']
+  updatedAt?: number
+  createdAt?: number
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
@@ -395,6 +397,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const updatedCard = {
       ...existingCard,
       ...updates,
+      updatedAt: Date.now(),
     }
 
     const nextCards = new Map(cards.value)
@@ -841,6 +844,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           ...ccv3Card.data.extensions,
           airi: stripEmbeddedBackgroundData(resolveAiriExtension(ccv3Card)),
         },
+        updatedAt: (ccv3Card as any).updatedAt || (ccv3Card.data as any).updatedAt,
+        createdAt: (ccv3Card as any).createdAt || (ccv3Card.data as any).createdAt,
       }
     }
 
