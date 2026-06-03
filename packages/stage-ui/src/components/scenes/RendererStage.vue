@@ -50,6 +50,7 @@ const {
   stageModelRenderer,
   stageViewControlsEnabled,
   live2dDisableFocus,
+  live2dFollowSpeed,
   stageModelSelectedUrl,
   stageModelSelectedFile,
   stageModelSelected,
@@ -121,6 +122,7 @@ defineExpose({
       :y-offset="yOffset"
       :scale="scale"
       :disable-focus-at="live2dDisableFocus"
+      :follow-speed="live2dFollowSpeed"
       :theme-colors-hue="themeColorsHue"
       :theme-colors-hue-dynamic="themeColorsHueDynamic"
       :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"

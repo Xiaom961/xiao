@@ -77,6 +77,7 @@ export const useSettings = defineStore('settings', () => {
 
     // Live2D settings
     live2dDisableFocus: toRef(live2d, 'live2dDisableFocus'),
+    live2dFollowSpeed: toRef(live2d, 'live2dFollowSpeed'),
     live2dIdleAnimationEnabled: toRef(live2d, 'live2dIdleAnimationEnabled'),
     live2dAutoBlinkEnabled: toRef(live2d, 'live2dAutoBlinkEnabled'),
     live2dForceAutoBlinkEnabled: toRef(live2d, 'live2dForceAutoBlinkEnabled'),

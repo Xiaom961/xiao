@@ -226,6 +226,39 @@ export function useMotionUpdatePluginIdleFocus(
   }
 }
 
+export function useMotionUpdatePluginMouseFocus(
+  focusAt: Ref<{ x: number, y: number }>,
+  disableFocusAt: Ref<boolean>,
+  followSpeed: Ref<number>,
+  model: Ref<any>,
+): MotionManagerPlugin {
+  let currentX = 0
+  let currentY = 0
+  let initialized = false
+
+  return (_ctx) => {
+    if (disableFocusAt.value || !model.value)
+      return
+
+    const targetX = focusAt.value?.x ?? 0
+    const targetY = focusAt.value?.y ?? 0
+
+    if (!initialized) {
+      currentX = targetX
+      currentY = targetY
+      initialized = true
+    }
+
+    // Smoothly interpolate towards target
+    const speed = followSpeed.value
+    currentX = currentX + (targetX - currentX) * speed
+    currentY = currentY + (targetY - currentY) * speed
+
+    // Call focus on the model with instant = true to bypass internal easing
+    model.value.focus(currentX, currentY, true)
+  }
+}
+
 export function useMotionUpdatePluginAutoEyeBlink(): MotionManagerPlugin {
   const blinkState = {
     phase: 'idle' as 'idle' | 'closing' | 'opening',

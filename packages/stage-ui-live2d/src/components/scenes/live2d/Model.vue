@@ -25,6 +25,7 @@ import {
   useMotionUpdatePluginBeatSync,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
+  useMotionUpdatePluginMouseFocus,
 } from '../../../composables/live2d'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useLive2d } from '../../../stores/live2d'
@@ -44,6 +45,7 @@ const props = withDefaults(defineProps<{
   paused?: boolean
   focusAt?: { x: number, y: number }
   disableFocusAt?: boolean
+  followSpeed?: number
   xOffset?: number | string
   yOffset?: number | string
   scale?: number
@@ -60,6 +62,7 @@ const props = withDefaults(defineProps<{
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
   disableFocusAt: false,
+  followSpeed: 0.5,
   scale: 1,
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
@@ -792,8 +795,13 @@ async function loadModel() {
     })
 
     const disableFocusAtRef = toRef(() => props.disableFocusAt)
+    const followSpeedRef = toRef(() => props.followSpeed)
+    const focusAtRef = toRef(() => props.focusAt)
+    const modelRef = ref(model)
+
     motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
+    motionManagerUpdate.register(useMotionUpdatePluginMouseFocus(focusAtRef, disableFocusAtRef, followSpeedRef, modelRef), 'post')
     motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(disableFocusAtRef), 'post')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(), 'post')
 
@@ -1481,15 +1489,6 @@ watch(live2dIdleAnimationEnabled, (enabled) => {
     }
   }
 })
-
-watch(() => props.focusAt, (value) => {
-  if (!model.value)
-    return
-  if (props.disableFocusAt)
-    return
-
-  model.value.focus(value.x, value.y)
-}, { deep: true })
 
 onMounted(() => {
   const removeListener = listenBeatSyncBeatSignal(() => beatSync.scheduleBeat())

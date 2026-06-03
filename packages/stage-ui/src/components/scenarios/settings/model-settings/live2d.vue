@@ -30,12 +30,20 @@ const lhackStore = useLHackStore()
 const settings = useSettings()
 const {
   live2dDisableFocus,
+  live2dFollowSpeed,
   live2dIdleAnimationEnabled,
   live2dAutoBlinkEnabled,
   live2dForceAutoBlinkEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
 } = storeToRefs(settings)
+
+const mouseTrackingEnabled = computed({
+  get: () => !live2dDisableFocus.value,
+  set: (val) => {
+    live2dDisableFocus.value = !val
+  },
+})
 
 const live2d = useLive2d()
 const {
@@ -695,7 +703,27 @@ onUnmounted(() => {
       <!-- Mouse Tracking -->
       <div :class="['flex', 'items-center', 'justify-between']">
         <span :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-400']">Mouse Tracking</span>
-        <Checkbox v-model="live2dDisableFocus" />
+        <Checkbox v-model="mouseTrackingEnabled" />
+      </div>
+
+      <!-- Follow Speed -->
+      <div v-if="mouseTrackingEnabled" :class="['space-y-2']">
+        <FieldRange
+          v-model="live2dFollowSpeed"
+          :min="0.01"
+          :max="1"
+          :step="0.01"
+          label="Follow Speed"
+        >
+          <template #label>
+            <div :class="['flex', 'items-center', 'justify-between', 'w-full']">
+              <div>Follow Speed</div>
+              <div class="text-xs font-bold font-mono">
+                {{ live2dFollowSpeed.toFixed(2) }}
+              </div>
+            </div>
+          </template>
+        </FieldRange>
       </div>
 
       <!-- FPS -->

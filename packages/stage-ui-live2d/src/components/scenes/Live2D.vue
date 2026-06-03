@@ -20,6 +20,7 @@ const props = withDefaults(defineProps<{
   mouthOpenSize?: number
   focusAt?: { x: number, y: number }
   disableFocusAt?: boolean
+  followSpeed?: number
   scale?: number
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
@@ -36,6 +37,8 @@ const props = withDefaults(defineProps<{
 }>(), {
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
+  disableFocusAt: false,
+  followSpeed: 0.5,
   mouthOpenSize: 0,
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
@@ -198,6 +201,7 @@ defineExpose({
         :y-offset="props.yOffset !== undefined ? props.yOffset : positionInPercentageString.y"
         :scale="props.scale !== undefined ? props.scale : storeScale"
         :disable-focus-at="disableFocusAt"
+        :follow-speed="props.followSpeed !== undefined ? props.followSpeed : 0.5"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
         :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"

@@ -16,6 +16,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { electron, electronStartDraggingWindow } from '../../shared/eventa'
+import { useWindowStore } from '../stores/window'
 
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
@@ -27,6 +28,9 @@ const controlStripStore = useSettingsControlStrip()
 const { stageEnabled } = storeToRefs(controlStripStore)
 
 const positioningStore = usePositioningStore()
+
+const windowStore = useWindowStore()
+const { live2dLookAtX, live2dLookAtY } = storeToRefs(windowStore)
 
 const controlsIslandStore = useSettingsControlsIsland()
 const { fadeOnHoverEnabled } = storeToRefs(controlsIslandStore)
@@ -169,7 +173,7 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
       <div class="absolute inset-0 z-10">
         <RendererStage
           :paused="!stageEnabled"
-          :focus-at="{ x: 0, y: 0 }"
+          :focus-at="{ x: live2dLookAtX, y: live2dLookAtY }"
           :x-offset="xOffset"
           :y-offset="yOffset"
           :scale="scale"

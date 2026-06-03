@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 
 export const useSettingsLive2d = defineStore('settings-live2d', () => {
   const live2dDisableFocus = useLocalStorageManualReset<boolean>('settings/live2d/disable-focus', false)
+  const live2dFollowSpeed = useLocalStorageManualReset<number>('settings/live2d/follow-speed', 0.5)
   const live2dIdleAnimationEnabled = useLocalStorageManualReset<boolean>('settings/live2d/idle-animation-enabled', true)
   const live2dAutoBlinkEnabled = useLocalStorageManualReset<boolean>('settings/live2d/auto-blink-enabled', true)
   const live2dForceAutoBlinkEnabled = useLocalStorageManualReset<boolean>('settings/live2d/force-auto-blink-enabled', false)
@@ -11,6 +12,7 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
 
   function resetState() {
     live2dDisableFocus.reset()
+    live2dFollowSpeed.reset()
     live2dIdleAnimationEnabled.reset()
     live2dAutoBlinkEnabled.reset()
     live2dForceAutoBlinkEnabled.reset()
@@ -20,6 +22,7 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
 
   return {
     live2dDisableFocus,
+    live2dFollowSpeed,
     live2dIdleAnimationEnabled,
     live2dAutoBlinkEnabled,
     live2dForceAutoBlinkEnabled,
