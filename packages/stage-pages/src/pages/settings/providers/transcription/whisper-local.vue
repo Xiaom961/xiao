@@ -60,6 +60,22 @@ function handleResetSettings() {
   // (and defaulted by the provider); this page only manages the language hint.
   providers.value[providerId] = { language: DEFAULT_LANGUAGE }
 }
+
+const isEnabled = computed(() => {
+  return providersStore.providerRuntimeState[providerId]?.isConfigured && !!providersStore.addedProviders[providerId]
+})
+
+async function toggleProvider() {
+  if (isEnabled.value) {
+    providersStore.unmarkProviderAdded(providerId)
+    if (providersStore.providerRuntimeState[providerId]) {
+      providersStore.providerRuntimeState[providerId].isConfigured = false
+    }
+  }
+  else {
+    await providersStore.validateProvider(providerId, { force: true })
+  }
+}
 </script>
 
 <template>
@@ -96,6 +112,25 @@ function handleResetSettings() {
           />
         </div>
       </ProviderBasicSettings>
+
+      <!-- Activation Status -->
+      <div class="mt-6 flex items-center justify-between border border-neutral-200 rounded-lg bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">
+        <div class="space-y-1">
+          <h4 class="text-sm text-neutral-900 font-semibold dark:text-neutral-100">
+            {{ isEnabled ? 'Provider Active' : 'Activate Provider' }}
+          </h4>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            {{ isEnabled ? 'This provider is active and available in Modules.' : 'Enable this provider to select it for character cards.' }}
+          </p>
+        </div>
+        <button
+          class="rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200"
+          :class="isEnabled ? 'bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:bg-red-500/20 dark:text-red-400 dark:hover:bg-red-500/30' : 'bg-primary-500 text-white hover:bg-primary-600'"
+          @click="toggleProvider"
+        >
+          {{ isEnabled ? 'Deactivate' : 'Activate' }}
+        </button>
+      </div>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>

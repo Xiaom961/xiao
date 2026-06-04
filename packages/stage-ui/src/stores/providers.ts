@@ -3057,7 +3057,7 @@ export const useProvidersStore = defineStore('providers', () => {
         // surface in the "persisted" provider lists (e.g. the consciousness page,
         // which only lists added chat providers) without a manual add step. These
         // have no API key to enter, so there is nothing for the user to configure.
-        if (validationResult.valid && ['browser-web-speech-api', 'player2', 'web-rwkv'].includes(providerId)) {
+        if (validationResult.valid && ['browser-web-speech-api', 'player2', 'web-rwkv', 'whisper-local'].includes(providerId)) {
           markProviderAdded(providerId)
         }
       }
