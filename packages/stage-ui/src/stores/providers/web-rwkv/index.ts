@@ -1,0 +1,133 @@
+import type { ChatProvider } from '@xsai-ext/providers/utils'
+
+import type { WebRwkvGenerateRequest } from '../../../libs/inference/contract'
+import type { ChatMessage } from './format'
+
+import { getWebRwkvAdapter } from '../../../libs/inference/adapters/web-rwkv'
+import { DEFAULT_WEB_RWKV_MODEL } from '../../../libs/inference/constants'
+import { buildRwkvPrompt, createThinkPrefixStripper, openAIChatChunk, openAIChatCompletion, SSE_DONE } from './format'
+
+export interface WebRwkvProviderConfig {
+  /** Model `.safetensors` URL. Defaults to {@link DEFAULT_WEB_RWKV_MODEL}. */
+  model?: string
+  /** Tokenizer vocab URL. Omit to use the worker's bundled RWKV World vocab. */
+  vocab?: string
+  /** Enable RWKV-7 G1 reasoning prefill & prefix stripping. Defaults to true. */
+  enableG1Prefill?: boolean
+}
+
+// NucleusSampler penalty defaults matching the upstream web-rwkv-wasm usage
+// (presence, count, decay). Sampling temperature / top_p come from the request.
+const DEFAULT_PRESENCE_PENALTY = 0.4
+const DEFAULT_COUNT_PENALTY = 0.4
+const DEFAULT_PENALTY_DECAY = 0.996
+const DEFAULT_MAX_TOKENS = 512
+
+interface OpenAIChatBody {
+  messages?: ChatMessage[]
+  model?: string
+  stream?: boolean
+  temperature?: number
+  top_p?: number
+  max_tokens?: number
+  presence_penalty?: number
+}
+
+/**
+ * Local web-rwkv (WebGPU RWKV) chat provider.
+ *
+ * Use when:
+ * - Registering an in-browser RWKV LLM as an OpenAI-compatible `chat` provider so
+ *   the existing chat/consciousness flows (`streamText`/`generateText`) drive it
+ *   unchanged.
+ *
+ * Expects:
+ * - A WebGPU-capable renderer (web-rwkv has no WASM fallback).
+ *
+ * Returns:
+ * - A {@link ChatProvider} whose `chat()` yields an OpenAI-compatible endpoint;
+ *   its `fetch` intercepts `/chat/completions`, builds an RWKV "World" prompt from
+ *   the messages, and streams the in-browser model's output as SSE (or a single
+ *   JSON body when `stream` is false) — see {@link getWebRwkvAdapter}.
+ */
+export function createWebRwkvChatProvider(config: WebRwkvProviderConfig = {}): ChatProvider {
+  const defaultModelUrl = config.model || DEFAULT_WEB_RWKV_MODEL
+  const vocabUrl = config.vocab || undefined
+  const enableG1Prefill = config.enableG1Prefill !== false
+
+  return {
+    chat: (model: string) => ({
+      baseURL: 'http://web-rwkv/v1/',
+      model: model || defaultModelUrl,
+      headers: {},
+      fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = (init?.body && typeof init.body === 'string' ? JSON.parse(init.body) : {}) as OpenAIChatBody
+        const modelUrl = body.model || model || defaultModelUrl
+        const prompt = buildRwkvPrompt(body.messages ?? [], { enableG1Prefill })
+
+        const adapter = await getWebRwkvAdapter()
+        // Load-on-demand and reload when the selected model/vocab differs from
+        // what's loaded (the adapter is a singleton shared across requests).
+        if (adapter.state !== 'ready' || adapter.manifest?.model !== modelUrl || adapter.manifest?.vocab !== (vocabUrl ?? '')) {
+          await adapter.loadModel(modelUrl, vocabUrl, { signal: init?.signal ?? undefined })
+        }
+
+        const request: WebRwkvGenerateRequest = {
+          prompt,
+          maxTokens: body.max_tokens ?? DEFAULT_MAX_TOKENS,
+          temperature: body.temperature ?? 1.0,
+          topP: body.top_p ?? 0.5,
+          presencePenalty: body.presence_penalty ?? DEFAULT_PRESENCE_PENALTY,
+          countPenalty: DEFAULT_COUNT_PENALTY,
+          penaltyDecay: DEFAULT_PENALTY_DECAY,
+        }
+
+        const id = `chatcmpl-${Date.now()}`
+        const created = Math.floor(Date.now() / 1000)
+        const encoder = new TextEncoder()
+
+        if (body.stream) {
+          // Drops the leftover `>` the model emits to close the fake-think prefill
+          // (see buildRwkvPrompt / createThinkPrefixStripper). Stateful — one per stream.
+          const stripThinkPrefix = enableG1Prefill ? createThinkPrefixStripper() : (text: string) => text
+          const stream = new ReadableStream<Uint8Array>({
+            async start(controller) {
+              try {
+                controller.enqueue(encoder.encode(openAIChatChunk(id, created, modelUrl, { role: 'assistant' }, null)))
+                await adapter.generate(request, {
+                  signal: init?.signal ?? undefined,
+                  onToken: (text) => {
+                    const content = stripThinkPrefix(text)
+                    if (content)
+                      controller.enqueue(encoder.encode(openAIChatChunk(id, created, modelUrl, { content }, null)))
+                  },
+                })
+                controller.enqueue(encoder.encode(openAIChatChunk(id, created, modelUrl, {}, 'stop')))
+                controller.enqueue(encoder.encode(SSE_DONE))
+                controller.close()
+              }
+              catch (error) {
+                controller.error(error)
+              }
+            },
+          })
+
+          return new Response(stream, {
+            status: 200,
+            headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+          })
+        }
+
+        const text = await adapter.generate(request, { signal: init?.signal ?? undefined })
+        // Drop the fake-think prefill's leftover `>` (see buildRwkvPrompt). Token
+        // usage isn't tracked on the JS side (the worker owns tokenization), so
+        // usage counts are reported as 0.
+        const content = enableG1Prefill ? createThinkPrefixStripper()(text) : text
+        return new Response(openAIChatCompletion(id, created, modelUrl, content, 0, 0), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      },
+    }),
+  }
+}

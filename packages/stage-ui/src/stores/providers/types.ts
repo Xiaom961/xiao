@@ -28,6 +28,7 @@ export interface ProviderMetadata {
   description: string
   localizedDescription?: string
   configured?: boolean
+  requiresCredentials?: boolean
   isAvailableBy?: () => Promise<boolean> | boolean
   icon?: string
   iconColor?: string

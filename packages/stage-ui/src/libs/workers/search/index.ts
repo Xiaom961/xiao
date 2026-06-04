@@ -1,8 +1,8 @@
 import searchWorkerUrl from './search.worker?worker&url'
 
 import { updateInferenceStatus } from '../../../composables/use-inference-status'
-import { getGPUCoordinator, getLoadQueue } from '../../inference/coordinator'
-import { LOAD_PRIORITY } from '../../inference/load-queue'
+import { getGPUCoordinator, getGpuExecutor } from '../../inference/coordinator'
+import { GPU_PRIORITY } from '../../inference/gpu-executor'
 
 let worker: Worker | null = null
 let nextId = 1
@@ -68,7 +68,7 @@ async function loadEmbeddingModel(): Promise<void> {
   isModelLoading = true
   updateInferenceStatus('bge-small-en', { state: 'downloading', device: 'webgpu' })
 
-  modelLoadPromise = getLoadQueue().enqueue('bge-small-en', LOAD_PRIORITY.ASR - 2, async () => {
+  modelLoadPromise = getGpuExecutor().run('bge-small-en', GPU_PRIORITY.BG_REMOVAL_LOAD + 1, async () => {
     try {
       await callWorker('load-model')
 

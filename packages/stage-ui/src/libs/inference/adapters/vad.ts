@@ -13,8 +13,8 @@ import type { ProgressPayload } from '../protocol'
 import { Mutex } from 'async-mutex'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
-import { getGPUCoordinator, getLoadQueue } from '../coordinator'
-import { LOAD_PRIORITY } from '../load-queue'
+import { getGPUCoordinator, getGpuExecutor } from '../coordinator'
+import { GPU_PRIORITY } from '../gpu-executor'
 import { createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
 
 // ---------------------------------------------------------------------------
@@ -173,7 +173,7 @@ export function createVADAdapter(): VADAdapter {
       state = 'loading'
       updateInferenceStatus('silero-vad', { state: 'downloading', device: 'wasm' })
 
-      return getLoadQueue().enqueue('silero-vad', LOAD_PRIORITY.ASR - 1, async () => {
+      return getGpuExecutor().run('silero-vad', GPU_PRIORITY.STT_LOAD + 1, async () => {
         throwIfAborted(options?.signal)
         const w = ensureWorker()
         const requestId = createRequestId()

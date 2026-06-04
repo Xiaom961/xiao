@@ -34,6 +34,43 @@ const whisperAdapter = createWhisperAdapter(whisperWorkerUrl)
 const loadedModels = new Set<string>()
 const loadingPromises = new Map<string, Promise<void>>()
 
+async function decodeToWhisperAudio(audio: Blob | ArrayBuffer | string): Promise<Float32Array> {
+  let blob: Blob
+  if (audio instanceof Blob) {
+    blob = audio
+  }
+  else if (audio instanceof ArrayBuffer) {
+    blob = new Blob([audio])
+  }
+  else {
+    // base64 string
+    const binaryString = atob(audio)
+    const bytes = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+    blob = new Blob([bytes])
+  }
+
+  const audioContext = new AudioContext({ sampleRate: 16000 })
+  try {
+    const arrayBuffer = await blob.arrayBuffer()
+    const decoded = await audioContext.decodeAudioData(arrayBuffer)
+    if (decoded.numberOfChannels === 1)
+      return decoded.getChannelData(0)
+
+    const left = decoded.getChannelData(0)
+    const right = decoded.getChannelData(1)
+    const mono = new Float32Array(left.length)
+    for (let i = 0; i < left.length; i++)
+      mono[i] = (left[i] + right[i]) / 2
+    return mono
+  }
+  finally {
+    await audioContext.close()
+  }
+}
+
 const definition: ProviderDefinition<LocalTranscriptionConfig> = {
   id: 'app-local-audio-transcription',
   name: 'App (Local)',
@@ -81,27 +118,19 @@ const definition: ProviderDefinition<LocalTranscriptionConfig> = {
       }
 
       try {
-        let audioData: string | ArrayBuffer | Float32Array | undefined
-
-        if (audio instanceof Blob) {
-          audioData = await audio.arrayBuffer()
+        let audioFloat32: Float32Array
+        if (audio instanceof Float32Array) {
+          audioFloat32 = audio
         }
-        else if (audio instanceof ArrayBuffer) {
-          audioData = audio
-        }
-        else if (audio instanceof Float32Array) {
-          audioData = audio
-        }
-        else if (typeof audio === 'string') {
-          audioData = audio
+        else if (audio instanceof Blob || audio instanceof ArrayBuffer || typeof audio === 'string') {
+          audioFloat32 = await decodeToWhisperAudio(audio)
         }
         else {
           throw new TypeError(`Unsupported audio format: ${audio?.constructor?.name || typeof audio}`)
         }
 
         const text = await whisperAdapter.transcribe({
-          audio: (audioData instanceof ArrayBuffer || typeof audioData === 'string') ? audioData : undefined,
-          audioFloat32: audioData instanceof Float32Array ? audioData : undefined,
+          audioFloat32,
           language: 'en',
         })
 
@@ -165,11 +194,14 @@ const definition: ProviderDefinition<LocalTranscriptionConfig> = {
 
       const loadPromise = (async () => {
         try {
-          await whisperAdapter.load(effectiveModelId, (progress) => {
-            if (hooks?.onProgress) {
-              hooks.onProgress({ progress: progress.percent / 100 })
-            }
-          })
+          await whisperAdapter.load(
+            (progress) => {
+              if (hooks?.onProgress) {
+                hooks.onProgress({ progress: progress.percent / 100 })
+              }
+            },
+            { model: effectiveModelId },
+          )
           loadedModels.add(effectiveModelId)
           loadingPromises.delete(effectiveModelId)
           console.info(`[App Local Transcription] Model ${effectiveModelId} loaded successfully.`)

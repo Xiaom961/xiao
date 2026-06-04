@@ -1,11 +1,9 @@
-// Cache utilities
 export {
   clearModelCache,
   formatBytes,
   getModelCacheSize,
   isModelCached,
 } from './cache-utils'
-// Constants
 export {
   MAX_RESTARTS,
   MODEL_IDS,
@@ -13,13 +11,18 @@ export {
   RESTART_DELAY_MS,
   TIMEOUTS,
 } from './constants'
-// Coordinator singleton
 export {
   getGPUCoordinator,
-  getLoadQueue,
+  getGpuExecutor,
   MODEL_VRAM_ESTIMATES,
 } from './coordinator'
-// Resource management
+export {
+  createGpuExecutor,
+  GPU_PRIORITY,
+} from './gpu-executor'
+export type {
+  GpuExecutor,
+} from './gpu-executor'
 export {
   createGPUResourceCoordinator,
 } from './gpu-resource-coordinator'
@@ -30,13 +33,14 @@ export type {
   MemoryPressureLevel,
 } from './gpu-resource-coordinator'
 export {
-  createLoadQueue,
-  LOAD_PRIORITY,
-} from './load-queue'
-
+  createGpuWorkerHost,
+} from './gpu-worker-host'
 export type {
-  LoadQueue,
-} from './load-queue'
+  GpuWork,
+  GpuWorkerHost,
+  GpuWorkerHostOptions,
+  WorkerHostPhase,
+} from './gpu-worker-host'
 export {
   classifyError,
   createRequestId,
@@ -44,23 +48,6 @@ export {
 export type {
   ErrorPayload,
   InferenceErrorCode,
-  InferenceResultResponse,
-  LoadModelRequest,
-  ModelReadyResponse,
   ProgressPayload,
   ProgressPhase,
-  ProgressResponse,
-  RunInferenceRequest,
-  UnloadModelRequest,
-  WorkerInboundMessage,
-  WorkerOutboundMessage,
 } from './protocol'
-export {
-  createInferenceWorkerManager,
-} from './worker-manager'
-
-export type {
-  InferenceWorkerManager,
-  WorkerManagerOptions,
-  WorkerManagerState,
-} from './worker-manager'

@@ -33,6 +33,7 @@ catalog:
   '@capacitor/core': ^8.1.0
   '@capacitor/ios': ^8.1.0
   '@capacitor/local-notifications': ^8.0.1
+  '@cryscan/web-rwkv-wasm': ^0.10.20
   '@electric-sql/pglite': ^0.3.15
   '@electron-toolkit/preload': ^3.0.2
   '@electron/notarize': ^3.1.1
@@ -44,7 +45,7 @@ catalog:
   '@intlify/core': ^11.2.8
   '@modelcontextprotocol/sdk': ^1.27.1
   '@moeru/eslint-config': 0.1.0-beta.15
-  '@moeru/eventa': ^1.0.0-beta.1
+  '@moeru/eventa': ^1.0.0-beta.8
   '@moeru/std': 0.1.0-beta.17
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@orama/orama': ^3.1.18

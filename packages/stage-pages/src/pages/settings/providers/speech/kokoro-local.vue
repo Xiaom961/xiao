@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { WebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
+import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
 import {
   SpeechPlayground,
   SpeechProviderSettings,
@@ -28,8 +30,10 @@ const providerConfig = computed(() => {
   return providersStore.getProviderConfig(providerId)
 })
 
-// Check if WebGPU is supported
-const hasWebGPU = ref(false)
+// Cached WebGPU capabilities, used to pick the default model and gate which
+// WebGPU quantizations are offered. Populated by the providers store during
+// initialization; read synchronously here (re-read on mount).
+const webgpuCapabilities = ref<WebGPUCapabilities | null>(getCachedWebGPUCapabilities())
 
 // Track voices loading state
 const voicesLoading = ref(false)
@@ -51,7 +55,7 @@ const model = computed({
     if (currentValue)
       return currentValue
 
-    return getDefaultKokoroModel(hasWebGPU.value)
+    return getDefaultKokoroModel(webgpuCapabilities.value)
   },
   set(val: string) {
     const config = providersStore.getProviderConfig(providerId)
@@ -99,7 +103,9 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 onMounted(async () => {
   // Check WebGPU support
-  hasWebGPU.value = typeof navigator !== 'undefined' && !!navigator.gpu
+  // NOTICE: Uses synchronous check for initial render. The cached result from
+  // detectWebGPU() is populated by the providers store during initialization.
+  webgpuCapabilities.value = getCachedWebGPUCapabilities()
 
   try {
     voicesLoading.value = true
@@ -108,6 +114,10 @@ onMounted(async () => {
     await providersStore.fetchModelsForProvider(providerId)
 
     const config = providersStore.getProviderConfig(providerId)
+    // Persist the default model if none is saved yet so validation passes on first visit
+    if (!config.model) {
+      config.model = getDefaultKokoroModel(webgpuCapabilities.value)
+    }
     const metadata = providersStore.getProviderMetadata(providerId)
     const validationResult = await metadata.validators.validateProviderConfig(config)
     if (validationResult.valid) {

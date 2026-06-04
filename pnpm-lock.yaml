@@ -6,18 +6,9 @@ settings:
 
 catalogs:
   default:
-    '@capacitor/cli':
-      specifier: ^8.1.0
-      version: 8.1.0
-    '@capacitor/core':
-      specifier: ^8.1.0
-      version: 8.1.0
-    '@capacitor/ios':
-      specifier: ^8.1.0
-      version: 8.1.0
-    '@capacitor/local-notifications':
-      specifier: ^8.0.1
-      version: 8.0.1
+    '@cryscan/web-rwkv-wasm':
+      specifier: ^0.10.20
+      version: 0.10.20
     '@electric-sql/pglite':
       specifier: ^0.3.15
       version: 0.3.15
@@ -52,8 +43,8 @@ catalogs:
       specifier: 0.1.0-beta.15
       version: 0.1.0-beta.15
     '@moeru/eventa':
-      specifier: ^1.0.0-beta.1
-      version: 1.0.0-beta.1
+      specifier: ^1.0.0-beta.8
+      version: 1.0.0-beta.10
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -147,9 +138,6 @@ catalogs:
     builder-util-runtime:
       specifier: ^9.5.1
       version: 9.5.1
-    capacitor-native-settings:
-      specifier: ^8.0.0
-      version: 8.0.0
     crossws:
       specifier: ^0.4.4
       version: 0.4.4
@@ -243,9 +231,6 @@ catalogs:
     valibot:
       specifier: 1.2.0
       version: 1.2.0
-    vite-plugin-mkcert:
-      specifier: ^1.17.10
-      version: 1.17.10
     vue:
       specifier: ^3.5.25
       version: 3.5.29
@@ -594,7 +579,7 @@ importers:
         version: 4.11.3
       injeca:
         specifier: 'catalog:'
-        version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+        version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
       pg:
         specifier: ^8.13.3
         version: 8.19.0
@@ -615,364 +600,6 @@ importers:
         specifier: ^0.31.9
         version: 0.31.9
 
-  apps/stage-pocket:
-    dependencies:
-      '@capacitor/core':
-        specifier: 'catalog:'
-        version: 8.1.0
-      '@capacitor/ios':
-        specifier: 'catalog:'
-        version: 8.1.0(@capacitor/core@8.1.0)
-      '@capacitor/local-notifications':
-        specifier: 'catalog:'
-        version: 8.0.1(@capacitor/core@8.1.0)
-      '@date-fns/utc':
-        specifier: ^2.1.1
-        version: 2.1.1
-      '@formkit/auto-animate':
-        specifier: ^0.9.0
-        version: 0.9.0(vue@3.5.29(typescript@5.9.3))
-      '@huggingface/transformers':
-        specifier: ^3.8.1
-        version: 3.8.1
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      '@proj-airi/audio':
-        specifier: workspace:^
-        version: link:../../packages/audio
-      '@proj-airi/ccc':
-        specifier: workspace:^
-        version: link:../../packages/ccc
-      '@proj-airi/drizzle-duckdb-wasm':
-        specifier: 'catalog:'
-        version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))
-      '@proj-airi/font-cjkfonts-allseto':
-        specifier: workspace:^
-        version: link:../../packages/font-cjkfonts-allseto
-      '@proj-airi/font-xiaolai':
-        specifier: workspace:^
-        version: link:../../packages/font-xiaolai
-      '@proj-airi/i18n':
-        specifier: workspace:^
-        version: link:../../packages/i18n
-      '@proj-airi/pipelines-audio':
-        specifier: workspace:^
-        version: link:../../packages/pipelines-audio
-      '@proj-airi/server-sdk':
-        specifier: workspace:^
-        version: link:../../packages/server-sdk
-      '@proj-airi/stage-layouts':
-        specifier: workspace:^
-        version: link:../../packages/stage-layouts
-      '@proj-airi/stage-shared':
-        specifier: workspace:^
-        version: link:../../packages/stage-shared
-      '@proj-airi/stage-ui':
-        specifier: workspace:^
-        version: link:../../packages/stage-ui
-      '@proj-airi/stage-ui-three':
-        specifier: workspace:^
-        version: link:../../packages/stage-ui-three
-      '@proj-airi/stream-kit':
-        specifier: workspace:^
-        version: link:../../packages/stream-kit
-      '@proj-airi/ui':
-        specifier: workspace:^
-        version: link:../../packages/ui
-      '@proj-airi/ui-transitions':
-        specifier: workspace:^
-        version: link:../../packages/ui-transitions
-      '@tresjs/cientos':
-        specifier: ^5.4.0
-        version: 5.4.0(@tresjs/core@5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3)))(@types/three@0.183.1)(react@19.2.3)(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
-      '@tresjs/core':
-        specifier: ^5.5.0
-        version: 5.5.0(three@0.183.1)(vue@3.5.29(typescript@5.9.3))
-      '@valibot/to-json-schema':
-        specifier: 1.0.0-rc.0
-        version: 1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3))
-      '@vueuse/core':
-        specifier: 'catalog:'
-        version: 14.2.1(vue@3.5.29(typescript@5.9.3))
-      '@vueuse/shared':
-        specifier: 'catalog:'
-        version: 14.2.1(vue@3.5.29(typescript@5.9.3))
-      '@xsai-ext/providers':
-        specifier: 'catalog:'
-        version: 0.4.3
-      '@xsai-transformers/embed':
-        specifier: ^0.0.11
-        version: 0.0.11(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
-      '@xsai/generate-speech':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.13
-      '@xsai/generate-text':
-        specifier: 'catalog:'
-        version: 0.4.3
-      '@xsai/model':
-        specifier: 'catalog:'
-        version: 0.4.3
-      '@xsai/shared':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.13
-      '@xsai/shared-chat':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.13
-      '@xsai/stream-text':
-        specifier: 'catalog:'
-        version: 0.4.3
-      '@xsai/stream-transcription':
-        specifier: 0.4.0-beta.8
-        version: 0.4.0-beta.8
-      '@xsai/utils-chat':
-        specifier: 'catalog:'
-        version: 0.4.0-beta.13
-      animejs:
-        specifier: ^4.3.6
-        version: 4.3.6
-      capacitor-native-settings:
-        specifier: 'catalog:'
-        version: 8.0.0(@capacitor/core@8.1.0)
-      colorjs.io:
-        specifier: ^0.6.1
-        version: 0.6.1
-      culori:
-        specifier: ^4.0.2
-        version: 4.0.2
-      date-fns:
-        specifier: ^4.1.0
-        version: 4.1.0
-      dompurify:
-        specifier: ^3.3.1
-        version: 3.3.1
-      driver.js:
-        specifier: ^1.4.0
-        version: 1.4.0
-      drizzle-orm:
-        specifier: ^0.45.1
-        version: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
-      gpuu:
-        specifier: ^1.0.6
-        version: 1.0.6
-      html2canvas:
-        specifier: ^1.4.1
-        version: 1.4.1
-      jszip:
-        specifier: ^3.10.1
-        version: 3.10.1
-      localforage:
-        specifier: ^1.10.0
-        version: 1.10.0
-      nanoid:
-        specifier: 'catalog:'
-        version: 5.1.6
-      node-vibrant:
-        specifier: ^4.0.4
-        version: 4.0.4(encoding@0.1.13)
-      nprogress:
-        specifier: ^0.2.0
-        version: 0.2.0
-      onnxruntime-web:
-        specifier: npm:onnxruntime-web@^1.24.2
-        version: 1.24.2
-      pinia:
-        specifier: 'catalog:'
-        version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
-      rehype-stringify:
-        specifier: 'catalog:'
-        version: 10.0.1
-      reka-ui:
-        specifier: ^2.8.2
-        version: 2.8.2(vue@3.5.29(typescript@5.9.3))
-      remark-parse:
-        specifier: 'catalog:'
-        version: 11.0.0
-      remark-rehype:
-        specifier: 'catalog:'
-        version: 11.1.2
-      shiki:
-        specifier: ^3.23.0
-        version: 3.23.0
-      splitpanes:
-        specifier: 'catalog:'
-        version: 4.0.4(vue@3.5.29(typescript@5.9.3))
-      three:
-        specifier: ^0.183.1
-        version: 0.183.1
-      unified:
-        specifier: 'catalog:'
-        version: 11.0.5
-      unspeech:
-        specifier: catalog:xsai
-        version: 0.1.11
-      uuid:
-        specifier: ^13.0.0
-        version: 13.0.0
-      valibot:
-        specifier: 'catalog:'
-        version: 1.2.0(typescript@5.9.3)
-      vaul-vue:
-        specifier: ^0.4.1
-        version: 0.4.1(reka-ui@2.8.2(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
-      vue:
-        specifier: 'catalog:'
-        version: 3.5.29(typescript@5.9.3)
-      vue-demi:
-        specifier: ^0.14.10
-        version: 0.14.10(vue@3.5.29(typescript@5.9.3))
-      vue-i18n:
-        specifier: 'catalog:'
-        version: 11.2.8(vue@3.5.29(typescript@5.9.3))
-      vue-router:
-        specifier: 'catalog:'
-        version: 4.6.4(vue@3.5.29(typescript@5.9.3))
-      vue-sonner:
-        specifier: 'catalog:'
-        version: 2.0.9(vue@3.5.29(typescript@5.9.3))
-      workbox-window:
-        specifier: ^7.4.0
-        version: 7.4.0
-      xsschema:
-        specifier: 'catalog:'
-        version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
-      yauzl:
-        specifier: ^3.2.0
-        version: 3.2.0
-      zod:
-        specifier: 'catalog:'
-        version: 4.3.6
-    devDependencies:
-      '@capacitor/cli':
-        specifier: 'catalog:'
-        version: 8.1.0
-      '@iconify-json/carbon':
-        specifier: ^1.2.18
-        version: 1.2.18
-      '@iconify-json/eos-icons':
-        specifier: ^1.2.4
-        version: 1.2.4
-      '@iconify-json/lucide':
-        specifier: ^1.2.94
-        version: 1.2.94
-      '@iconify-json/mingcute':
-        specifier: ^1.2.7
-        version: 1.2.7
-      '@iconify-json/ph':
-        specifier: ^1.2.2
-        version: 1.2.2
-      '@iconify-json/simple-icons':
-        specifier: ^1.2.71
-        version: 1.2.71
-      '@iconify-json/solar':
-        specifier: ^1.2.5
-        version: 1.2.5
-      '@iconify-json/svg-spinners':
-        specifier: ^1.2.4
-        version: 1.2.4
-      '@iconify-json/vscode-icons':
-        specifier: ^1.2.44
-        version: 1.2.44
-      '@intlify/unplugin-vue-i18n':
-        specifier: ^11.0.7
-        version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
-      '@proj-airi/cap-vite':
-        specifier: workspace:*
-        version: link:../../packages/cap-vite
-      '@proj-airi/iconify-meteocons':
-        specifier: 'catalog:'
-        version: 0.1.4
-      '@proj-airi/lobe-icons':
-        specifier: ^1.0.18
-        version: 1.0.18
-      '@proj-airi/unplugin-fetch':
-        specifier: 'catalog:'
-        version: 0.2.2(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
-      '@proj-airi/unplugin-live2d-sdk':
-        specifier: ^0.1.6
-        version: 0.1.6(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
-      '@proj-airi/vite-plugin-warpdrive':
-        specifier: workspace:*
-        version: link:../../packages/vite-plugin-warpdrive
-      '@shikijs/markdown-it':
-        specifier: ^3.23.0
-        version: 3.23.0
-      '@types/audioworklet':
-        specifier: 'catalog:'
-        version: 0.0.96
-      '@types/culori':
-        specifier: ^4.0.1
-        version: 4.0.1
-      '@types/nprogress':
-        specifier: ^0.2.3
-        version: 0.2.3
-      '@types/splitpanes':
-        specifier: 'catalog:'
-        version: 2.2.6
-      '@types/three':
-        specifier: ^0.183.1
-        version: 0.183.1
-      '@types/yauzl':
-        specifier: ^2.10.3
-        version: 2.10.3
-      '@unocss/reset':
-        specifier: ^66.6.2
-        version: 66.6.2
-      '@vitejs/plugin-vue':
-        specifier: ^6.0.4
-        version: 6.0.4(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
-      '@vue-macros/volar':
-        specifier: ^3.1.2
-        version: 3.1.2(typescript@5.9.3)(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
-      '@vueuse/motion':
-        specifier: ^3.0.3
-        version: 3.0.3(magicast@0.5.2)(vue@3.5.29(typescript@5.9.3))
-      csstype:
-        specifier: ^3.2.3
-        version: 3.2.3
-      hfup:
-        specifier: ^1.0.0
-        version: 1.0.0
-      less:
-        specifier: ^4.5.1
-        version: 4.5.1
-      unplugin-info:
-        specifier: ^1.2.4
-        version: 1.2.4(esbuild@0.27.2)(rollup@4.59.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
-      unplugin-vue-router:
-        specifier: ^0.19.2
-        version: 0.19.2(@vue/compiler-sfc@3.5.29)(vue-router@4.6.4(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
-      unplugin-yaml:
-        specifier: ^4.0.0
-        version: 4.0.0(@nuxt/kit@3.20.2(magicast@0.5.2))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
-      vite:
-        specifier: ~6.2.5
-        version: 6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
-      vite-bundle-visualizer:
-        specifier: ^1.2.1
-        version: 1.2.1(rolldown@1.0.0-rc.3)(rollup@4.59.0)
-      vite-plugin-mkcert:
-        specifier: 'catalog:'
-        version: 1.17.10(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
-      vite-plugin-pwa:
-        specifier: ^1.2.0
-        version: 1.2.0(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0)
-      vite-plugin-vue-devtools:
-        specifier: ^8.0.6
-        version: 8.0.6(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
-      vite-plugin-vue-layouts:
-        specifier: ^0.11.0
-        version: 0.11.0(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-router@4.6.4(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
-      vue-macros:
-        specifier: ^3.1.2
-        version: 3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(typescript@5.9.3)(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
-      vue-tsc:
-        specifier: ^3.1.8
-        version: 3.2.5(typescript@5.9.3)
-
   apps/stage-tamagotchi:
     dependencies:
       '@guiiai/logg':
@@ -980,7 +607,7 @@ importers:
         version: 1.2.11
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1136,7 +763,7 @@ importers:
         version: 1.44.0
       injeca:
         specifier: 'catalog:'
-        version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6)
+        version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -1461,7 +1088,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(hono@4.11.3)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2050,7 +1677,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -2078,7 +1705,7 @@ importers:
         version: 3.0.2(electron@39.7.0)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@39.7.0)
+        version: 1.0.0-beta.10(electron@39.7.0)(hono@4.12.2)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2096,7 +1723,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2192,7 +1819,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2204,7 +1831,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -2213,7 +1840,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
@@ -2286,7 +1913,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2386,7 +2013,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2516,7 +2143,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@valibot/to-json-schema':
         specifier: 1.0.0-rc.0
         version: 1.0.0-rc.0(valibot@1.2.0(typescript@5.9.3))
@@ -2563,6 +2190,9 @@ importers:
 
   packages/stage-ui:
     dependencies:
+      '@cryscan/web-rwkv-wasm':
+        specifier: 'catalog:'
+        version: 0.10.20
       '@date-fns/utc':
         specifier: ^2.1.1
         version: 2.1.1
@@ -2574,7 +2204,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(hono@4.11.3)
       '@orama/orama':
         specifier: 'catalog:'
         version: 3.1.18
@@ -3127,7 +2757,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@pixiv/three-vrm':
         specifier: ^3.5.1
         version: 3.5.1(three@0.183.1)
@@ -3409,7 +3039,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -4761,19 +4391,6 @@ packages:
     engines: {node: '>=22.0.0'}
     hasBin: true
 
-  '@capacitor/core@8.1.0':
-    resolution: {integrity: sha512-UfMBMWc1v7J+14AhH03QmeNwV3HZx3qnOWhpwnHfzALEwAwlV/itQOQqcasMQYhOHWL0tiymc5ByaLTn7KKQxw==}
-
-  '@capacitor/ios@8.1.0':
-    resolution: {integrity: sha512-wPaQ8ayL0UY+SxydZbrmfzPs8TryZVEB6hrL/XBnXxQtb6rpEmIy/3GIltPwM+/T4m/IuaSDZOToWK65ruC00g==}
-    peerDependencies:
-      '@capacitor/core': ^8.1.0
-
-  '@capacitor/local-notifications@8.0.1':
-    resolution: {integrity: sha512-BWYg3wTCFQ9lsbE6tyHmJaE2IbxUuKYq4SeMIHQ9ZqVclrlTO6326sPT0sxM61YfR6K3G3fJGvyJqn89LzDk8A==}
-    peerDependencies:
-      '@capacitor/core': '>=8.0.0'
-
   '@cfworker/json-schema@4.1.1':
     resolution: {integrity: sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og==}
 
@@ -4824,6 +4441,9 @@ packages:
 
   '@cryptography/aes@0.1.1':
     resolution: {integrity: sha512-PcYz4FDGblO6tM2kSC+VzhhK62vml6k6/YAkiWtyPvrgJVfnDRoHGDtKn5UiaRRUrvUTTocBpvc2rRgTCqxjsg==}
+
+  '@cryscan/web-rwkv-wasm@0.10.20':
+    resolution: {integrity: sha512-mpM+d4EE66tlhghZ+oO8edaZvpznPBbbEBOYOEbzXQhhNNeFiAVSHtz3LeKDORhcUA+vrSfLWddClLwRnPCSEw==}
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -6418,16 +6038,19 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-beta.1':
-    resolution: {integrity: sha512-4VPs+FlTdIMtlNdBvERvF+e9pnSbz+PN7dgztADtaETCQsSDk9ptHJuzajRBhOlr364k4TotroZa9rrIoVelRQ==}
+  '@moeru/eventa@1.0.0-beta.10':
+    resolution: {integrity: sha512-ybGbJbod6o89ZW6RThruugs5GCCA+PgxQV5pPa9a9VNS65AOB7KdBdztUmcUpvT8fBS9RAt5WwoBrafxWpIUSQ==}
     peerDependencies:
-      electron: '>=30'
-      h3: 2.0.0-beta.1
+      electron: '>=39'
+      h3: '>=2.0.1-rc.22'
+      hono: '>=4.0.0'
       web-worker: ^1.5.0
     peerDependenciesMeta:
       electron:
         optional: true
       h3:
+        optional: true
+      hono:
         optional: true
       web-worker:
         optional: true
@@ -10654,11 +10277,6 @@ packages:
     resolution: {integrity: sha512-ej1sPFR5+0YWtaVp6S1N1FVz69TQCqmrkGeRvQxZeAB1nAIcjNTHVwrZtYtWFFBmQsF40/uDLehsW5KuYC99mg==}
     engines: {node: ^18.12.0 || >= 20.9.0}
 
-  capacitor-native-settings@8.0.0:
-    resolution: {integrity: sha512-a88bZ63dirKsTbylJIo0PBwlOEMOOQmBJyorAr14URo4TA3WqNdQaFfKMF/p1QQ+A0VbtBOi3snLtm/jEK1qzg==}
-    peerDependencies:
-      '@capacitor/core': '>=8.0.0'
-
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
 
@@ -14103,6 +13721,11 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
+  nanoid@5.1.11:
+    resolution: {integrity: sha512-v+KEsUv2ps74PaSKv0gHTxTCgMXOIfBEbaqa6w6ISIGC7ZsvHN4N9oJ8d4cmf0n5oTzQz2SLmThbQWhjd/8eKg==}
+    engines: {node: ^18 || >=20}
+    hasBin: true
+
   nanoid@5.1.6:
     resolution: {integrity: sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==}
     engines: {node: ^18 || >=20}
@@ -16795,12 +16418,6 @@ packages:
       '@nuxt/kit':
         optional: true
 
-  vite-plugin-mkcert@1.17.10:
-    resolution: {integrity: sha512-703hecAoGZYgNrkY76OIbo0M9j0tfGIIM6n7c0sYvhaczQMPwD0nFi+bS44d8kwdbCtV7885FYBWnTzhsaC7QQ==}
-    engines: {node: '>=v16.7.0'}
-    peerDependencies:
-      vite: ~6.2.5
-
   vite-plugin-pwa@1.2.0:
     resolution: {integrity: sha512-a2xld+SJshT9Lgcv8Ji4+srFJL4k/1bVbd1x06JIkvecpQkwkvCncD1+gSzcdm3s+owWLpMJerG3aN5jupJEVw==}
     engines: {node: '>=16.0.0'}
@@ -18798,18 +18415,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@capacitor/core@8.1.0':
-    dependencies:
-      tslib: 2.8.1
-
-  '@capacitor/ios@8.1.0(@capacitor/core@8.1.0)':
-    dependencies:
-      '@capacitor/core': 8.1.0
-
-  '@capacitor/local-notifications@8.0.1(@capacitor/core@8.1.0)':
-    dependencies:
-      '@capacitor/core': 8.1.0
-
   '@cfworker/json-schema@4.1.1': {}
 
   '@chevrotain/cst-dts-gen@10.5.0':
@@ -18895,6 +18500,8 @@ snapshots:
       w3c-keyname: 2.2.8
 
   '@cryptography/aes@0.1.1': {}
+
+  '@cryscan/web-rwkv-wasm@0.10.20': {}
 
   '@csstools/color-helpers@5.1.0': {}
 
@@ -20445,20 +20052,30 @@ snapshots:
       electron: 40.8.0
       h3: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
 
-  '@moeru/eventa@1.0.0-beta.1(electron@39.7.0)':
+  '@moeru/eventa@1.0.0-beta.10(electron@39.7.0)(hono@4.12.2)':
     dependencies:
-      nanoid: 5.1.6
-      picomatch: 4.0.3
+      nanoid: 5.1.11
+      picomatch: 4.0.4
     optionalDependencies:
       electron: 39.7.0
+      hono: 4.12.2
 
-  '@moeru/eventa@1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+  '@moeru/eventa@1.0.0-beta.10(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))(hono@4.12.2)':
     dependencies:
-      nanoid: 5.1.6
-      picomatch: 4.0.3
+      nanoid: 5.1.11
+      picomatch: 4.0.4
     optionalDependencies:
       electron: 40.8.0
       h3: 2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
+      hono: 4.12.2
+
+  '@moeru/eventa@1.0.0-beta.10(electron@40.8.0)(hono@4.11.3)':
+    dependencies:
+      nanoid: 5.1.11
+      picomatch: 4.0.4
+    optionalDependencies:
+      electron: 40.8.0
+      hono: 4.11.3
 
   '@moeru/std@0.1.0-beta.1': {}
 
@@ -22416,10 +22033,10 @@ snapshots:
       '@rollup/pluginutils': 5.3.0(rollup@4.59.0)
       commondir: 1.0.1
       estree-walker: 2.0.2
-      fdir: 6.5.0(picomatch@4.0.3)
+      fdir: 6.5.0(picomatch@4.0.4)
       is-reference: 1.2.1
       magic-string: 0.30.21
-      picomatch: 4.0.3
+      picomatch: 4.0.4
     optionalDependencies:
       rollup: 4.59.0
 
@@ -22779,7 +22396,7 @@ snapshots:
       eslint-visitor-keys: 4.2.1
       espree: 10.4.0
       estraverse: 5.3.0
-      picomatch: 4.0.3
+      picomatch: 4.0.4
 
   '@surma/rollup-plugin-off-main-thread@2.2.3':
     dependencies:
@@ -25249,10 +24866,6 @@ snapshots:
       node-addon-api: 7.1.1
       prebuild-install: 7.1.3
 
-  capacitor-native-settings@8.0.0(@capacitor/core@8.1.0):
-    dependencies:
-      '@capacitor/core': 8.1.0
-
   ccount@2.0.1: {}
 
   chai@6.2.2: {}
@@ -26858,6 +26471,10 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.3
 
+  fdir@6.5.0(picomatch@4.0.4):
+    optionalDependencies:
+      picomatch: 4.0.4
+
   feaxios@0.0.23:
     dependencies:
       is-retry-allowed: 3.0.0
@@ -27839,6 +27456,13 @@ snapshots:
   ini@4.1.1: {}
 
   ini@4.1.3: {}
+
+  injeca@0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11):
+    dependencies:
+      error-stack-parser: 2.1.4
+      nanoid: 5.1.11
+    optionalDependencies:
+      '@guiiai/logg': 1.2.11
 
   injeca@0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.6):
     dependencies:
@@ -29250,6 +28874,8 @@ snapshots:
       picocolors: 1.1.1
 
   nanoid@3.3.11: {}
+
+  nanoid@5.1.11: {}
 
   nanoid@5.1.6: {}
 
@@ -31813,7 +31439,7 @@ snapshots:
 
   ts-declaration-location@1.0.7(typescript@5.9.3):
     dependencies:
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       typescript: 5.9.3
 
   ts-interface-checker@0.1.13: {}
@@ -32036,7 +31662,7 @@ snapshots:
       magic-string: 0.30.21
       mlly: 1.8.0
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       pkg-types: 2.3.0
       scule: 1.3.0
       strip-literal: 3.1.0
@@ -32207,7 +31833,7 @@ snapshots:
   unplugin-utils@0.2.5:
     dependencies:
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.4
 
   unplugin-utils@0.3.1:
     dependencies:
@@ -32529,15 +32155,6 @@ snapshots:
       unplugin-utils: 0.3.1
       vite: 6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
       vite-dev-rpc: 1.1.0(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
-    transitivePeerDependencies:
-      - supports-color
-
-  vite-plugin-mkcert@1.17.10(vite@6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)):
-    dependencies:
-      axios: feaxios@0.0.23
-      debug: 4.4.3
-      picocolors: 1.1.1
-      vite: 6.2.7(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
 

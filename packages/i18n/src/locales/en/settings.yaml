@@ -988,8 +988,13 @@ pages:
               description: Smaller models load faster but may have slightly lower quality.
         models:
           fp32-webgpu:
-            description: Full precision model using WebGPU - Recommended for supported
-              devices
+            description: Full precision model using WebGPU
+          fp16-webgpu:
+            description: Half precision model using WebGPU
+          q8-webgpu:
+            description: 8-bit quantized model using WebGPU
+          q4-webgpu:
+            description: 4-bit quantized model using WebGPU
           fp32:
             description: Full precision model
           fp16:
@@ -1152,6 +1157,51 @@ pages:
       browser-web-speech-api:
         description: Browser-native dictation (OS-dependent)
         title: Web Speech API
+      whisper-local:
+        description: Local STT using Whisper (runs in your browser, no API key)
+        title: Whisper (Local)
+      web-rwkv:
+        description: Local RWKV-7 LLM in your browser via WebGPU (no API key)
+        title: RWKV (Local, WebGPU)
+        alert:
+          title: WebGPU-only, in-browser LLM
+          content: >-
+            RWKV runs entirely in your browser via WebGPU — no API key, no
+            server. The model downloads on first use and is cached; bf16/f32
+            weights are converted to f16 automatically while loading. Requires a
+            WebGPU-capable browser or Electron (there is no CPU/WASM fallback).
+        fields:
+          model:
+            label: Model URL
+            description: >-
+              A .safetensors URL with RWKV-native tensor names — either
+              web-rwkv-converted or raw HuggingFace (layout is auto-detected).
+              bf16/f32 are cast to f16 on load. PyTorch .pth is not supported;
+              convert it to safetensors first (convert_safetensors.py).
+          vocab:
+            label: Vocab URL (optional)
+            description: >-
+              Override the bundled RWKV World tokenizer vocab. If you are using a fine-tune optimized for another language or custom token mapping, supplying its vocab JSON URL here ensures proper text encoding and generation behavior.
+            placeholder: (bundled rwkv_vocab_v20230424.json)
+          enableG1Prefill:
+            label: Enable G1 Reasoning Prefill & Stripping
+            description: >-
+              Prefills assistant turns with <think></think to keep G1 reasoning models in their trained mode and strips the leading close tag on output. Disable this if using non-G1 (e.g. RWKV-6/5) models.
+        defaultsSection:
+          title: Default Generation Parameters (Read-Only)
+          description: >-
+            These are the fallback parameters used by web-rwkv.
+          field:
+            temperature: 'Temperature (Default: 1.0)'
+            top_p: 'Top P (Default: 0.5)'
+            max_tokens: 'Max Tokens (Default: 512)'
+            presence_penalty: 'Presence Penalty (Default: 0.4)'
+            count_penalty: 'Count Penalty (Default: 0.4)'
+            penalty_decay: 'Penalty Decay (Default: 0.996)'
+          annotation: >-
+            To customize these settings for a character, go to the character's Generation tab:
+            • Modify Temperature, Top P, and Max Tokens using the input fields.
+            • Modify penalties (Presence/Count/Decay) by entering them in the Advanced JSON textarea (e.g., {"presence_penalty": 0.5}).
       transcriptions:
         playground:
           title: Transcription Playground

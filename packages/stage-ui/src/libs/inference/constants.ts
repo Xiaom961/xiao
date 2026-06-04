@@ -21,27 +21,100 @@ export const MODEL_NAMES = {
   KOKORO: 'kokoro-82m',
   WHISPER: 'whisper-large-v3-turbo',
   BG_REMOVAL: 'modnet',
+  WEB_RWKV: 'web-rwkv',
 } as const
+
+/**
+ * Whisper models the local transcription provider offers. The `id` is the
+ * Hugging Face repo passed straight to the worker's load request, so no id↔repo
+ * mapping is needed. Larger = more accurate but slower / bigger download.
+ */
+export const WHISPER_MODELS = [
+  { id: 'onnx-community/whisper-large-v3-turbo', name: 'Whisper Large V3 Turbo', description: 'Most accurate. ~800 MB download on first use.' },
+  { id: 'onnx-community/whisper-small', name: 'Whisper Small', description: 'Faster and lighter (~480 MB), good accuracy. Multilingual.' },
+] as const
+
+/** Default Whisper model id (matches {@link MODEL_IDS}.WHISPER). */
+export const DEFAULT_WHISPER_MODEL: typeof WHISPER_MODELS[number]['id'] = 'onnx-community/whisper-large-v3-turbo'
+
+/**
+ * Local web-rwkv (WebGPU RWKV) chat models. `id` is the model's `.safetensors`
+ * URL in web-rwkv layout (RWKV-native tensor names). bf16/f32 weights are cast
+ * to f16 at load (web-rwkv's loader only reads f16). Hosted on Hugging Face,
+ * which supports HTTP Range so large models can stream tensor-by-tensor.
+ */
+export const WEB_RWKV_MODELS = [
+  {
+    id: 'https://huggingface.co/DanielClough/rwkv7-g1-safetensors/resolve/main/rwkv7-g1d-0.1b-20260129-ctx8192.safetensors',
+    name: 'RWKV-7 G1 0.1B (ctx8192)',
+    description: 'Tiny RWKV-7 "World" chat model (~190 MB). Downloads on first use; bf16→f16 at load.',
+  },
+] as const
+
+/** Default web-rwkv model URL. */
+export const DEFAULT_WEB_RWKV_MODEL: string = WEB_RWKV_MODELS[0].id
 
 // ---------------------------------------------------------------------------
 // Timeouts (ms)
 // ---------------------------------------------------------------------------
 
 export const TIMEOUTS = {
-  /** Kokoro model load timeout */
+  /** Kokoro model load timeout (absolute; download/compile may be slow) */
   KOKORO_LOAD: 120_000,
-  /** Kokoro audio generation timeout */
-  KOKORO_GENERATE: 120_000,
+  /**
+   * Time-to-first-segment budget for Kokoro generation, armed at stream start.
+   * Covers warmup + synthesizing the first sentence (slow on the fp32/CPU path),
+   * so a working-but-slow first segment is not mistaken for a wedged worker.
+   * See {@link createIdleTimeout}.
+   */
+  KOKORO_GENERATE_FIRST_CHUNK: 30_000,
+  /**
+   * Inter-segment inactivity budget for Kokoro generation, used after the first
+   * segment proves the worker alive. A mid-stream wedge is caught within this
+   * gap and the worker is restarted.
+   *
+   * Tighter than the first-chunk budget: once the model is warm, per-sentence
+   * segments arrive in well under a second on WebGPU (and a few seconds on the
+   * slow WASM/CPU path), so a 5s silence reliably means a wedged worker rather
+   * than slow-but-progressing synthesis. Raise it if very long sentences on slow
+   * CPU/WASM hardware trip false-positive restarts.
+   */
+  KOKORO_GENERATE_IDLE: 5_000,
 
-  /** Whisper model load timeout (larger model, allow more time) */
+  /** Whisper model load timeout (absolute; larger model, allow more time) */
   WHISPER_LOAD: 180_000,
-  /** Whisper transcription timeout */
-  WHISPER_TRANSCRIBE: 120_000,
+  /**
+   * Time-to-first-output budget for Whisper transcription, armed at stream
+   * start. Covers encoding the audio + the first decoded token, so a slow
+   * initial encode is not mistaken for a wedged worker.
+   */
+  WHISPER_TRANSCRIBE_FIRST_CHUNK: 30_000,
+  /**
+   * Inter-token inactivity budget for Whisper transcription, used after the
+   * first progress item. Whisper streams tokens frequently, so a mid-stream
+   * wedge is caught quickly.
+   */
+  WHISPER_TRANSCRIBE_IDLE: 10_000,
 
-  /** Background removal model load timeout */
+  /** Background removal model load timeout (absolute) */
   BG_REMOVAL_LOAD: 120_000,
-  /** Background removal per-image processing timeout */
+  /** Background removal per-image processing timeout (absolute; unary op) */
   BG_REMOVAL_PROCESS: 60_000,
+
+  /** web-rwkv model load timeout (absolute; download + bf16→f16 + shader compile) */
+  WEB_RWKV_LOAD: 300_000,
+  /**
+   * Time-to-first-token budget for web-rwkv generation, armed at stream start.
+   * Covers prompt ingestion (a long chat history processed token-by-token) before
+   * the first output token, so a working-but-slow prefill is not mistaken for a wedge.
+   */
+  WEB_RWKV_GENERATE_FIRST_CHUNK: 60_000,
+  /**
+   * Inter-token inactivity budget for web-rwkv generation, used after the first
+   * token proves the worker alive. RWKV streams tokens steadily, so a mid-stream
+   * wedge is caught within this gap.
+   */
+  WEB_RWKV_GENERATE_IDLE: 15_000,
 } as const
 
 // ---------------------------------------------------------------------------
