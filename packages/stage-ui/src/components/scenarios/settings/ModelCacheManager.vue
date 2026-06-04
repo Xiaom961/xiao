@@ -2,7 +2,7 @@
 import { Button } from '@proj-airi/ui'
 import { onMounted, ref } from 'vue'
 
-import { clearModelCache, formatBytes, getModelCacheSize, isModelCached } from '../../../libs/inference'
+import { clearModelCache, DEFAULT_WEB_RWKV_MODEL, formatBytes, getModelCacheSize, isModelCached } from '../../../libs/inference'
 
 const cacheSize = ref(0)
 const loading = ref(true)
@@ -10,6 +10,7 @@ const clearing = ref(false)
 
 // Known model IDs to check cache status
 const knownModels = [
+  { id: DEFAULT_WEB_RWKV_MODEL, name: 'RWKV LLM' },
   { id: 'onnx-community/Kokoro-82M-v1.0-ONNX', name: 'Kokoro TTS' },
   { id: 'onnx-community/whisper-large-v3-turbo', name: 'Whisper ASR' },
   { id: 'Xenova/modnet', name: 'Background Removal' },

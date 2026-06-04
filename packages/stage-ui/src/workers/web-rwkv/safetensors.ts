@@ -263,8 +263,18 @@ export function orientAdapterMatrix(
  * - The tensor map (excluding `__metadata__`) and the data-block start offset.
  */
 export function readSafetensorsHeader(head: Uint8Array): SafetensorsHeader {
+  if (head.byteLength < 8)
+    throw new Error(`web-rwkv: safetensors file is too short (${head.byteLength} bytes) to read header length`)
+
   const view = new DataView(head.buffer, head.byteOffset, head.byteLength)
   const headerLen = Number(view.getBigUint64(0, true))
+
+  const MAX_HEADER_LEN = 100_000_000
+  if (headerLen < 2 || headerLen > MAX_HEADER_LEN) {
+    const preview = new TextDecoder('utf-8').decode(head.subarray(0, 16)).replace(/[^\x20-\x7E]/g, '.')
+    throw new Error(`web-rwkv: invalid safetensors header length (${headerLen} bytes). The file may be corrupt or not a valid safetensors format. (Preview of first 16 bytes: "${preview}")`)
+  }
+
   if (8 + headerLen > head.byteLength)
     throw new Error(`web-rwkv: safetensors header (${headerLen} bytes) exceeds the provided buffer`)
 

@@ -5,11 +5,13 @@ export {
   isModelCached,
 } from './cache-utils'
 export {
+  DEFAULT_WEB_RWKV_MODEL,
   MAX_RESTARTS,
   MODEL_IDS,
   MODEL_NAMES,
   RESTART_DELAY_MS,
   TIMEOUTS,
+  WEB_RWKV_MODELS,
 } from './constants'
 export {
   getGPUCoordinator,

@@ -113,7 +113,7 @@ async function fetchRange(url: string, start: number, end: number, signal?: Abor
     if (signal?.aborted)
       throw new DOMException('Aborted', 'AbortError')
     try {
-      const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` }, signal })
+      const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` }, cache: 'no-cache', signal })
       if (res.status !== 206 && res.status !== 200) {
         // 5xx (CDN hiccup) and 429 (rate limit) may clear on retry; others are fatal.
         if ((res.status >= 500 || res.status === 429) && attempt < RANGE_FETCH_MAX_RETRIES) {
@@ -186,7 +186,7 @@ async function buildReader(
 ): Promise<BuiltReader> {
   // Probe with a tiny range: 206 → server supports Range (stream per tensor);
   // 200 → server ignored Range and sent the whole file (use it directly).
-  const probe = await fetch(url, { headers: { Range: 'bytes=0-7' }, signal })
+  const probe = await fetch(url, { headers: { Range: 'bytes=0-7' }, cache: 'no-cache', signal })
   if (!probe.ok && probe.status !== 206)
     throw new Error(`web-rwkv: failed to fetch model ${url} -> HTTP ${probe.status}`)
 
@@ -200,7 +200,16 @@ async function buildReader(
     // redirect, so every range goes straight to the CDN.
     const dataUrl = probe.url || url
     const head8 = new Uint8Array(await probe.arrayBuffer())
+    if (head8.byteLength < 8)
+      throw new Error(`web-rwkv: model fetch returned too few bytes (${head8.byteLength}) to read header length`)
     const headerLen = Number(new DataView(head8.buffer, head8.byteOffset, head8.byteLength).getBigUint64(0, true))
+
+    const MAX_HEADER_LEN = 100_000_000
+    if (headerLen < 2 || headerLen > MAX_HEADER_LEN) {
+      const preview = new TextDecoder('utf-8').decode(head8.subarray(0, 8)).replace(/[^\x20-\x7E]/g, '.')
+      throw new Error(`web-rwkv: invalid safetensors header length (${headerLen} bytes). The file may be corrupt or not a valid safetensors format. (Preview of first 8 bytes: "${preview}")`)
+    }
+
     const headBytes = await fetchRange(dataUrl, 0, 8 + headerLen - 1, signal)
     const { tensors, dataStart } = readSafetensorsHeader(headBytes)
     const names = Object.keys(tensors)

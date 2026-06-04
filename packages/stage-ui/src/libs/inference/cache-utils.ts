@@ -1,20 +1,91 @@
-/**
- * Model cache utilities.
- *
- * `@huggingface/transformers` and `kokoro-js` cache downloaded model
- * files via the browser Cache API automatically. This module provides
- * query and management functions for that cache, intended for settings
- * UI ("Cached 512 MB", "Clear model cache" button).
- */
+import { cacheKeyForModel } from '../../workers/web-rwkv/cache'
 
 // The cache name used by transformers.js / ONNX runtime
 const TRANSFORMERS_CACHE_NAME = 'transformers-cache'
+const OPFS_DIR_NAME = 'web-rwkv'
+
+async function getOpfsCacheSize(): Promise<number> {
+  if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory)
+    return 0
+  try {
+    const root = await navigator.storage.getDirectory()
+    let dir: FileSystemDirectoryHandle
+    try {
+      dir = await root.getDirectoryHandle(OPFS_DIR_NAME, { create: false })
+    }
+    catch {
+      return 0
+    }
+    let totalSize = 0
+    for await (const entry of dir.values()) {
+      if (entry.kind === 'file') {
+        const file = await (entry as FileSystemFileHandle).getFile()
+        totalSize += file.size
+      }
+    }
+    return totalSize
+  }
+  catch (error) {
+    console.warn('[cache-utils] failed to get OPFS cache size', error)
+    return 0
+  }
+}
+
+async function clearOpfsCache(): Promise<void> {
+  if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory)
+    return
+  try {
+    const root = await navigator.storage.getDirectory()
+    try {
+      await root.removeEntry(OPFS_DIR_NAME, { recursive: true })
+    }
+    catch {
+      // Ignored if directory doesn't exist
+    }
+  }
+  catch (error) {
+    console.warn('[cache-utils] failed to clear OPFS cache', error)
+  }
+}
+
+async function isOpfsModelCached(modelUrl: string): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory)
+    return false
+  try {
+    const root = await navigator.storage.getDirectory()
+    let dir: FileSystemDirectoryHandle
+    try {
+      dir = await root.getDirectoryHandle(OPFS_DIR_NAME, { create: false })
+    }
+    catch {
+      return false
+    }
+    const key = await cacheKeyForModel(modelUrl)
+    const fileName = `${key}.f16cache`
+    try {
+      await dir.getFileHandle(fileName, { create: false })
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+  catch {
+    return false
+  }
+}
 
 /**
  * Get the total size of cached model files in bytes.
  * Returns 0 if the Cache API is unavailable or the cache is empty.
  */
 export async function getModelCacheSize(): Promise<number> {
+  const transformersSize = await getTransformersCacheSize()
+  const opfsSize = await getOpfsCacheSize()
+  return transformersSize + opfsSize
+}
+
+async function getTransformersCacheSize(): Promise<number> {
   if (typeof caches === 'undefined')
     return 0
 
@@ -50,6 +121,11 @@ export async function getModelCacheSize(): Promise<number> {
  * Clear all cached model files.
  */
 export async function clearModelCache(): Promise<void> {
+  await clearTransformersCache()
+  await clearOpfsCache()
+}
+
+async function clearTransformersCache(): Promise<void> {
   if (typeof caches === 'undefined')
     return
 
@@ -66,6 +142,13 @@ export async function clearModelCache(): Promise<void> {
  * Matches by looking for cache entries whose URL contains the model ID.
  */
 export async function isModelCached(modelId: string): Promise<boolean> {
+  if (modelId.startsWith('http')) {
+    return isOpfsModelCached(modelId)
+  }
+  return isTransformersModelCached(modelId)
+}
+
+async function isTransformersModelCached(modelId: string): Promise<boolean> {
   if (typeof caches === 'undefined')
     return false
 
