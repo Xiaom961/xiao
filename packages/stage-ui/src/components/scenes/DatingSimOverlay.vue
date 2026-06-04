@@ -32,21 +32,20 @@ function handleChoiceClick(choice: any) {
     datingSimStore.setVariable('ActionPoints', datingSimStore.getVariable('ActionPoints') - choice.cost)
   }
 
-  const toolInstruction = `\n(System Note: You MUST use the 'update_dating_sim_variables' tool to react to this and update Intimacy/Tension/Mood!)`
   if (choice.action === 'llm_topic') {
     datingSimStore.setVariable('Intimacy', Math.min(100, datingSimStore.getVariable('Intimacy') + 2))
-    postChatInput({ sendingMessage: `[Dating Sim Choice] I want to talk about: ${choice.text}${toolInstruction}`, options: { skipAssistant: false, metadata: { source: 'dating-sim' } } })
+    postChatInput({ sendingMessage: choice.text, options: { skipAssistant: false, metadata: { source: 'dating-sim' } } })
     datingSimStore.evaluateParameters(`I want to talk about: ${choice.text}`)
   }
   else if (choice.action === 'llm_item') {
     datingSimStore.setVariable('Intimacy', Math.min(100, datingSimStore.getVariable('Intimacy') + 5))
-    postChatInput({ sendingMessage: `[Dating Sim Choice] *I give you a gift:* ${choice.text}${toolInstruction}`, options: { skipAssistant: false, metadata: { source: 'dating-sim' } } })
+    postChatInput({ sendingMessage: `*I give you a gift:* ${choice.text}`, options: { skipAssistant: false, metadata: { source: 'dating-sim' } } })
     datingSimStore.evaluateParameters(`*I give you a gift:* ${choice.text}`)
   }
   else {
     datingSimStore.setVariable('Intimacy', Math.min(100, datingSimStore.getVariable('Intimacy') + 1))
-    postChatInput({ sendingMessage: `[Dating Sim Choice] I choose: ${choice.text}${toolInstruction}`, options: { skipAssistant: false, metadata: { source: 'dating-sim' } } })
-    datingSimStore.evaluateParameters(`I choose: ${choice.text}`)
+    postChatInput({ sendingMessage: choice.text, options: { skipAssistant: false, metadata: { source: 'dating-sim' } } })
+    datingSimStore.evaluateParameters(choice.text)
   }
 
   datingSimStore.setVariable('Timer', 0)
@@ -58,9 +57,8 @@ const customPrompt = ref('')
 function submitCustomPrompt() {
   if (!customPrompt.value.trim())
     return
-  const toolInstruction = `\n(System Note: You MUST use the 'update_dating_sim_variables' tool to react to this and update Intimacy/Tension/Mood!)`
   datingSimStore.setVariable('Intimacy', Math.min(100, datingSimStore.getVariable('Intimacy') + 1))
-  postChatInput({ sendingMessage: `[Dating Sim Choice] ${customPrompt.value}${toolInstruction}`, options: { skipAssistant: false, metadata: { source: 'dating-sim' } } })
+  postChatInput({ sendingMessage: customPrompt.value, options: { skipAssistant: false, metadata: { source: 'dating-sim' } } })
   datingSimStore.evaluateParameters(customPrompt.value)
   customPrompt.value = ''
   datingSimStore.setVariable('Timer', 0)

@@ -1,5 +1,6 @@
 import type { Tool } from '@xsai/shared-chat'
 
+import { useDatingSimStore } from '@proj-airi/stage-ui/stores/dating-sim'
 import { tryGetMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useStickersStore } from '@proj-airi/stage-ui/stores/stickers'
@@ -13,6 +14,7 @@ import { widgetsTools } from './widgets'
 export async function builtinTools(): Promise<Tool[]> {
   const artistry = useArtistryStore()
   const stickers = useStickersStore()
+  const datingSim = useDatingSimStore()
 
   const mcpBridge = tryGetMcpToolBridge()
   let hasMcpServers = false
@@ -37,8 +39,13 @@ export async function builtinTools(): Promise<Tool[]> {
 
   // Artistry suite
   if (artistry.configured) {
-    console.log('[builtinTools] 🎨 Artistry configured, enabling widgets and image journal.')
-    toolPromises.push(widgetsTools())
+    if (datingSim.enabled) {
+      console.log('[builtinTools] 🎨 Artistry configured, but Dating Sim is enabled. Disabling widgets (stage_widgets) to prevent context pollution, keeping image journal.')
+    }
+    else {
+      console.log('[builtinTools] 🎨 Artistry configured, enabling widgets.')
+      toolPromises.push(widgetsTools())
+    }
     toolPromises.push(imageJournalTools())
   }
 
