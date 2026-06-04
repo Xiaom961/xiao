@@ -117,14 +117,25 @@ async function fetchRange(url: string, start: number, end: number, signal?: Abor
       if (hfToken) {
         headers.Authorization = `Bearer ${hfToken}`
       }
-      const res = await fetch(url, { headers, cache: 'no-cache', signal })
+      console.info(`[web-rwkv:fetch] range ${start}-${end} url=${url.slice(0, 120)}… auth=${!!hfToken} attempt=${attempt}`)
+      const res = await fetch(url, { headers, cache: 'no-store', signal })
+      const contentType = res.headers.get('content-type') || '(none)'
+      console.info(`[web-rwkv:fetch] -> status=${res.status} content-type=${contentType} responseUrl=${res.url.slice(0, 120)}`)
       if (res.status !== 206 && res.status !== 200) {
         // 5xx (CDN hiccup) and 429 (rate limit) may clear on retry; others are fatal.
         if ((res.status >= 500 || res.status === 429) && attempt < RANGE_FETCH_MAX_RETRIES) {
+          console.warn(`[web-rwkv:fetch] retryable status ${res.status}, backing off…`)
           await delayBeforeRetry(attempt, signal)
           continue
         }
         throw new Error(`web-rwkv: ${url} range request -> HTTP ${res.status}`)
+      }
+      // Guard: if the server returned HTML instead of binary, the response is an
+      // error page (rate limit, auth failure, etc.) — not the model data.
+      if (contentType.includes('text/html')) {
+        const body = await res.text()
+        console.error(`[web-rwkv:fetch] got HTML instead of binary! First 200 chars:`, body.slice(0, 200))
+        throw new Error(`web-rwkv: server returned HTML instead of model data (HTTP ${res.status}). You may be rate-limited or need a valid Hugging Face token. Response: ${body.slice(0, 120)}`)
       }
       return new Uint8Array(await res.arrayBuffer())
     }
@@ -191,13 +202,28 @@ async function buildReader(
 ): Promise<BuiltReader> {
   // Probe with a tiny range: 206 → server supports Range (stream per tensor);
   // 200 → server ignored Range and sent the whole file (use it directly).
+  // IMPORTANT: `cache: 'no-store'` completely bypasses the browser HTTP cache.
+  // `no-cache` (the previous value) still *uses* cached responses after
+  // revalidation — so a stale HTML error page from a prior rate-limit could be
+  // served even after the user adds a valid HF token. `no-store` forces a fresh
+  // network round-trip every time. Our OPFS cache is the real caching layer.
   const headers: Record<string, string> = { Range: 'bytes=0-7' }
   if (hfToken) {
     headers.Authorization = `Bearer ${hfToken}`
   }
-  const probe = await fetch(url, { headers, cache: 'no-cache', signal })
+  console.info(`[web-rwkv:probe] fetching url=${url} auth=${!!hfToken}`)
+  const probe = await fetch(url, { headers, cache: 'no-store', signal })
+  const probeContentType = probe.headers.get('content-type') || '(none)'
+  console.info(`[web-rwkv:probe] -> status=${probe.status} content-type=${probeContentType} responseUrl=${probe.url}`)
   if (!probe.ok && probe.status !== 206)
     throw new Error(`web-rwkv: failed to fetch model ${url} -> HTTP ${probe.status}`)
+
+  // Guard: if the probe returned HTML, the server sent an error/block page.
+  if (probeContentType.includes('text/html')) {
+    const body = await probe.text()
+    console.error(`[web-rwkv:probe] server returned HTML instead of binary! First 300 chars:`, body.slice(0, 300))
+    throw new Error(`web-rwkv: server returned an HTML error page instead of model data (HTTP ${probe.status}). You may be rate-limited or need a valid Hugging Face token. Check Settings → System → Connection.`)
+  }
 
   if (probe.status === 206) {
     // Resolve the signed CDN URL once. HF `resolve/main` URLs 302 to a freshly
@@ -208,10 +234,12 @@ async function buildReader(
     // as `TypeError: Failed to fetch`. `probe.url` is the final URL after the
     // redirect, so every range goes straight to the CDN.
     const dataUrl = probe.url || url
+    console.info(`[web-rwkv:probe] resolved CDN url=${dataUrl.slice(0, 120)}`)
     const head8 = new Uint8Array(await probe.arrayBuffer())
     if (head8.byteLength < 8)
       throw new Error(`web-rwkv: model fetch returned too few bytes (${head8.byteLength}) to read header length`)
     const headerLen = Number(new DataView(head8.buffer, head8.byteOffset, head8.byteLength).getBigUint64(0, true))
+    console.info(`[web-rwkv:probe] headerLen=${headerLen} head8=[${Array.from(head8, b => b.toString(16).padStart(2, '0')).join(' ')}]`)
 
     const MAX_HEADER_LEN = 100_000_000
     if (headerLen < 2 || headerLen > MAX_HEADER_LEN) {
