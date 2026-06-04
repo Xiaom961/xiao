@@ -127,8 +127,9 @@ export function createWebRwkvAdapter(): WebRwkvAdapter {
       return host.runOnGpu(MODEL_NAMES.WEB_RWKV, GPU_PRIORITY.LLM_LOAD, options?.signal, async ({ crashSignal }) => {
         throwIfAborted(options?.signal)
 
+        const hfToken = typeof localStorage !== 'undefined' ? localStorage.getItem('settings/connection/hf-token') || undefined : undefined
         const stream = rpc.load(
-          { device: 'webgpu', model, vocab },
+          { device: 'webgpu', model, vocab, hfToken },
           { signal: AbortSignal.any([signalWithTimeout(options?.signal, LOAD_TIMEOUT), crashSignal]) },
         )
 

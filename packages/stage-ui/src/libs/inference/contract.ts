@@ -47,6 +47,8 @@ export interface LoadModelRequest {
    * Whisper worker to select a model size; ignored by single-model workers.
    */
   model?: string
+  /** Optional Hugging Face Token for authenticating downloads. */
+  hfToken?: string
 }
 
 /** Terminal payload of a successful load stream. */
@@ -262,6 +264,8 @@ export interface WebRwkvLoadRequest {
   model: string
   /** Tokenizer vocab URL (RWKV World vocab JSON). Omit to use the bundled default. */
   vocab?: string
+  /** Optional Hugging Face Token for authenticating downloads. */
+  hfToken?: string
 }
 
 /** Sampling + length parameters for one web-rwkv generation. */

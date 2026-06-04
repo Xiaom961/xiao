@@ -1218,8 +1218,8 @@ pages:
           title: Local File System / Samba Configuration
     title: Providers
   connection:
-    description: Configure WebSocket server connection
-    title: Connection
+    description: Configure server connection and external download tokens (e.g. Hugging Face)
+    title: Connection & Downloads
     websocket-url:
       label: WebSocket URL
       description: The URL of the WebSocket server.
@@ -1229,6 +1229,10 @@ pages:
       description: The authentication token for the WebSocket server. Check your
         Gateway logs on first run for the auto-generated key.
       placeholder: Enter your App Key here
+    hf-token:
+      label: Hugging Face Token (Optional)
+      description: Your Hugging Face user access token. Used to download models and prevent rate limit/throttling errors.
+      placeholder: hf_...
     websocket-secure-enabled:
       label: Secure AIRI Gateway Connection (WSS)
       description: Start the AIRI Gateway over WSS (WebSocket Secure). When disabled,

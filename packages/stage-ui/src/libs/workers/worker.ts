@@ -21,6 +21,7 @@ import type { InferenceDevice, LoadModelRequest, LoadStreamItem, WhisperTranscri
 import {
   AutoProcessor,
   AutoTokenizer,
+  env,
   full,
   TextStreamer,
   WhisperForConditionalGeneration,
@@ -188,7 +189,19 @@ async function base64ToFeatures(base64Audio: string): Promise<Float32Array> {
 }
 
 defineStreamInvokeHandler(context, whisperLoadEvent, toStreamHandler<LoadModelRequest, LoadStreamItem>(async ({ payload, emit }) => {
-  const { device } = payload
+  const { device, hfToken } = payload
+
+  if (hfToken) {
+    (env as any).fetch = (url: RequestInfo | URL, fetchOptions?: RequestInit) => {
+      return fetch(url, {
+        ...fetchOptions,
+        headers: {
+          ...fetchOptions?.headers,
+          Authorization: `Bearer ${hfToken}`,
+        },
+      })
+    }
+  }
   const modelId = payload.model ?? MODEL_ID
 
   emit({ kind: 'progress', payload: { phase: 'download', percent: -1, message: 'Loading model...' } })

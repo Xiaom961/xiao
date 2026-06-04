@@ -214,8 +214,9 @@ export function createKokoroAdapter(): KokoroAdapter {
       return host.runOnGpu(modelStatusId, GPU_PRIORITY.TTS_LOAD, options?.signal, async ({ crashSignal }) => {
         throwIfAborted(options?.signal)
 
+        const hfToken = typeof localStorage !== 'undefined' ? localStorage.getItem('settings/connection/hf-token') || undefined : undefined
         const stream = rpc.load(
-          { device: effectiveDevice as any, dtype: quantization },
+          { device: effectiveDevice as any, dtype: quantization, hfToken },
           { signal: AbortSignal.any([signalWithTimeout(options?.signal, LOAD_MODEL_TIMEOUT), crashSignal]) },
         )
 

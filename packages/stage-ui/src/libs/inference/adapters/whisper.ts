@@ -161,8 +161,9 @@ export function createWhisperAdapter(workerUrl?: string | URL): WhisperAdapter {
         throwIfAborted(options?.signal)
         const rpc = host.ensure()
 
+        const hfToken = typeof localStorage !== 'undefined' ? localStorage.getItem('settings/connection/hf-token') || undefined : undefined
         const stream = rpc.load(
-          { device: requestedDevice, model: options?.model },
+          { device: requestedDevice, model: options?.model, hfToken },
           { signal: AbortSignal.any([signalWithTimeout(options?.signal, LOAD_TIMEOUT), crashSignal]) },
         )
 

@@ -8,6 +8,7 @@
 
 import type { InferenceDevice, KokoroGenerateChunk, KokoroGenerateRequest, LoadModelRequest, LoadStreamItem } from '../../libs/inference/contract'
 
+import { env } from '@huggingface/transformers'
 import { defineInvokeHandler, defineStreamInvokeHandler, toStreamHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/webworkers/worker'
 import { errorMessageFrom } from '@moeru/std'
@@ -44,8 +45,20 @@ const DEVICE_FALLBACK: Record<string, string[]> = {
 
 defineStreamInvokeHandler(context, kokoroLoadEvent, toStreamHandler<LoadModelRequest, LoadStreamItem>(async ({ payload, emit, options }) => {
   const signal = options?.abortController?.signal
-  const { device, dtype } = payload
+  const { device, dtype, hfToken } = payload
   const quantization = dtype ?? 'fp32'
+
+  if (hfToken) {
+    (env as any).fetch = (url: RequestInfo | URL, fetchOptions?: RequestInit) => {
+      return fetch(url, {
+        ...fetchOptions,
+        headers: {
+          ...fetchOptions?.headers,
+          Authorization: `Bearer ${hfToken}`,
+        },
+      })
+    }
+  }
 
   if (ttsModel && currentQuantization === quantization && currentDevice === device) {
     emit({ kind: 'ready', info: { device: device as InferenceDevice, metadata: { voices: ttsModel.voices } } })

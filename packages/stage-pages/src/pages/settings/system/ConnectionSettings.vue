@@ -8,6 +8,7 @@ const { t } = useI18n()
 const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
 const websocketUrl = useLocalStorageManualReset('settings/connection/websocket-url', defaultWebSocketUrl)
 const authToken = useLocalStorageManualReset('settings/connection/auth-token', '')
+const hfToken = useLocalStorageManualReset('settings/connection/hf-token', '')
 </script>
 
 <template>
@@ -24,6 +25,13 @@ const authToken = useLocalStorageManualReset('settings/connection/auth-token', '
       :label="t('settings.pages.connection.auth-token.label')"
       :description="t('settings.pages.connection.auth-token.description')"
       :placeholder="t('settings.pages.connection.auth-token.placeholder')"
+      type="password"
+    />
+    <FieldInput
+      v-model="hfToken"
+      :label="t('settings.pages.connection.hf-token.label')"
+      :description="t('settings.pages.connection.hf-token.description')"
+      :placeholder="t('settings.pages.connection.hf-token.placeholder')"
       type="password"
     />
     <slot name="platform-specific" />

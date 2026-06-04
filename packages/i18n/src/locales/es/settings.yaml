@@ -926,8 +926,8 @@ pages:
           personalizados y filtros de diálogo
     title: Proveedores
   connection:
-    description: Configure WebSocket server connection
-    title: Connection
+    description: Configure la conexión del servidor y los tokens de descarga externos (por ejemplo, Hugging Face)
+    title: Conexión y Descargas
     websocket-url:
       description: 'Full address of the WebSocket server (e.g., ws://localhost:6121/ws)'
       label: WebSocket Server Address
@@ -937,6 +937,10 @@ pages:
       description: The authentication token for the WebSocket server. Check your
         Gateway logs on first run for the auto-generated key.
       placeholder: Enter your App Key here
+    hf-token:
+      label: Token de Hugging Face (Opcional)
+      description: Su token de acceso de usuario de Hugging Face. Se utiliza para descargar modelos y evitar errores de límite de velocidad/bloqueos.
+      placeholder: hf_...
     websocket-secure-enabled:
       label: Habilitar WebSocket Seguro (WSS)
       description: >-

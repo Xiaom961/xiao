@@ -108,12 +108,16 @@ function delayBeforeRetry(attempt: number, signal?: AbortSignal): Promise<void> 
  * errors (`TypeError: Failed to fetch`) and 5xx/429 responses are retried; an
  * explicit abort or any other non-2xx status is fatal.
  */
-async function fetchRange(url: string, start: number, end: number, signal?: AbortSignal): Promise<Uint8Array> {
+async function fetchRange(url: string, start: number, end: number, signal?: AbortSignal, hfToken?: string): Promise<Uint8Array> {
   for (let attempt = 0; ; attempt++) {
     if (signal?.aborted)
       throw new DOMException('Aborted', 'AbortError')
     try {
-      const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` }, cache: 'no-cache', signal })
+      const headers: Record<string, string> = { Range: `bytes=${start}-${end}` }
+      if (hfToken) {
+        headers.Authorization = `Bearer ${hfToken}`
+      }
+      const res = await fetch(url, { headers, cache: 'no-cache', signal })
       if (res.status !== 206 && res.status !== 200) {
         // 5xx (CDN hiccup) and 429 (rate limit) may clear on retry; others are fatal.
         if ((res.status >= 500 || res.status === 429) && attempt < RANGE_FETCH_MAX_RETRIES) {
@@ -183,10 +187,15 @@ async function buildReader(
   onProgress: (done: number, total: number) => void,
   signal?: AbortSignal,
   cacheWriter?: ModelCacheWriter,
+  hfToken?: string,
 ): Promise<BuiltReader> {
   // Probe with a tiny range: 206 → server supports Range (stream per tensor);
   // 200 → server ignored Range and sent the whole file (use it directly).
-  const probe = await fetch(url, { headers: { Range: 'bytes=0-7' }, cache: 'no-cache', signal })
+  const headers: Record<string, string> = { Range: 'bytes=0-7' }
+  if (hfToken) {
+    headers.Authorization = `Bearer ${hfToken}`
+  }
+  const probe = await fetch(url, { headers, cache: 'no-cache', signal })
   if (!probe.ok && probe.status !== 206)
     throw new Error(`web-rwkv: failed to fetch model ${url} -> HTTP ${probe.status}`)
 
@@ -210,7 +219,7 @@ async function buildReader(
       throw new Error(`web-rwkv: invalid safetensors header length (${headerLen} bytes). The file may be corrupt or not a valid safetensors format. (Preview of first 8 bytes: "${preview}")`)
     }
 
-    const headBytes = await fetchRange(dataUrl, 0, 8 + headerLen - 1, signal)
+    const headBytes = await fetchRange(dataUrl, 0, 8 + headerLen - 1, signal, hfToken)
     const { tensors, dataStart } = readSafetensorsHeader(headBytes)
     const names = Object.keys(tensors)
     // Embedding width, used to detect raw-HF adapter matrices that need transposing.
@@ -256,7 +265,7 @@ async function buildReader(
         const chunkStart = chunk[0].start
         const chunkEnd = chunk[chunk.length - 1].end
         const bytes = chunkEnd > chunkStart
-          ? await fetchRange(dataUrl, dataStart + chunkStart, dataStart + chunkEnd - 1, signal)
+          ? await fetchRange(dataUrl, dataStart + chunkStart, dataStart + chunkEnd - 1, signal, hfToken)
           : new Uint8Array(0)
         for (const entry of chunk) {
           const info = tensors[entry.name]
@@ -351,7 +360,7 @@ defineStreamInvokeHandler(context, webRwkvLoadEvent, toStreamHandler<WebRwkvLoad
         if (done === 1 || done === total || done % 25 === 0)
           console.info(`[web-rwkv:worker] weights ${done}/${total} (${Math.round((done / total) * 100)}%)`)
         emit({ kind: 'progress', payload: { phase: 'download', percent: Math.round((done / total) * 100), message: `Preparing weights ${done}/${total}` } })
-      }, signal, cacheWriter)
+      }, signal, cacheWriter, payload.hfToken)
       if (signal?.aborted) {
         await cacheWriter.abort()
         return
