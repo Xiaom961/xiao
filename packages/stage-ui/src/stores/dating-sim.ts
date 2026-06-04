@@ -1,6 +1,10 @@
+import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+
+import { useAiriCardStore } from './modules/airi-card'
 
 export type GamePhase = 'idle' | 'conversation' | 'map' | 'action'
 export type MoodState = 'low' | 'normal' | 'high' | 'max'
@@ -53,11 +57,52 @@ export const useDatingSimStore = defineStore('dating-sim', () => {
     showChoiceWeights: useLocalStorage<boolean>('airi:dating-sim:show-choice-weights', false),
     maxScore: useLocalStorage<number>('airi:dating-sim:max-score', 15),
     maxTurns: useLocalStorage<number>('airi:dating-sim:max-turns', 8),
+    sceneryRoute: useLocalStorage<'background' | 'widget' | 'inherit'>('airi:dating-sim:scenery-route', 'inherit'),
   })
 
   const choices = ref<Choice[]>([])
   const currentSubtitle = ref<string>('')
   const activeStoryline = ref<any | null>(null)
+
+  const resolvedSceneryRoute = computed(() => {
+    const route = settings.value.sceneryRoute
+    if (route === 'inherit') {
+      const cardStore = useAiriCardStore()
+      const cardRoute = cardStore.activeCard?.extensions?.airi?.artistry?.spawnMode || 'bg_widget'
+      return cardRoute === 'bg' ? 'background' : cardRoute
+    }
+    return route
+  })
+
+  let addWidget: any = null
+  if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+    const win = window as any
+    const { context } = createContext(win.electron.ipcRenderer as any)
+    const widgetsAdd = defineInvokeEventa<string | undefined, any>('eventa:invoke:electron:windows:widgets:add')
+    addWidget = defineInvoke(context, widgetsAdd)
+  }
+
+  async function spawnSceneryWidget(imageUrl: string, title: string) {
+    if (!addWidget)
+      return
+
+    try {
+      await addWidget({
+        componentName: 'artistry',
+        componentProps: {
+          status: 'done',
+          imageUrl,
+          title,
+          _skipIngestion: true,
+        },
+        size: 'm',
+        ttlMs: 0,
+      })
+    }
+    catch (widgetErr) {
+      console.warn('Failed to spawn Dating Sim scenery widget', widgetErr)
+    }
+  }
 
   // Delta Ticking Engine
   let lastTick = 0
@@ -490,6 +535,13 @@ Generate 4 options for what the User could say next and the subtitle.`
     choices.value = customChoices
     currentSubtitle.value = subtitle
 
+    if (activeStoryline.value) {
+      const route = resolvedSceneryRoute.value
+      if (route === 'widget' || route === 'bg_widget') {
+        spawnSceneryWidget(activeStoryline.value.coverImage, activeStoryline.value.title)
+      }
+    }
+
     if (bc)
       bc.postMessage({ type: 'test', choices: customChoices, subtitle })
   }
@@ -522,6 +574,8 @@ Generate 4 options for what the User could say next and the subtitle.`
     choices,
     currentSubtitle,
     activeStoryline,
+    resolvedSceneryRoute,
+    spawnSceneryWidget,
     setVariable,
     getVariable,
     evaluateCondition,

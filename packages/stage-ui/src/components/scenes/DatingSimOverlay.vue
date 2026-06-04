@@ -99,15 +99,14 @@ function handleStorySelect(story: any, customPromptVal: string) {
   <div v-if="datingSimStore.enabled" class="pointer-events-none absolute inset-0 z-50 flex flex-col justify-end overflow-hidden pb-8">
     <!-- Background cover image (Goal-Driven initial phase) -->
     <div
-      v-if="datingSimStore.settings.gameMode === 'goal_driven' && datingSimStore.activeStoryline"
+      v-if="datingSimStore.settings.gameMode === 'goal_driven' && datingSimStore.activeStoryline && (datingSimStore.resolvedSceneryRoute === 'background' || datingSimStore.resolvedSceneryRoute === 'bg_widget')"
       class="absolute inset-0 h-full w-full transition-opacity duration-1000 -z-10"
     >
       <img
         :src="datingSimStore.activeStoryline.coverImage"
-        class="h-full w-full object-cover opacity-25"
+        class="h-full w-full object-cover opacity-100"
         alt="Storyline Background"
       >
-      <div class="absolute inset-0 from-black via-black/20 to-black/80 bg-gradient-to-t" />
     </div>
 
     <!-- Top-Right Floating Stats -->
@@ -234,6 +233,7 @@ function handleStorySelect(story: any, customPromptVal: string) {
             <CaptionPanel
               :show-active-sentence-only="true"
               :transparent-bg="true"
+              text-size="text-3xl"
               :fallback-text="datingSimStore.currentSubtitle"
             />
           </div>

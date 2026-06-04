@@ -222,6 +222,36 @@ function clearTest() {
           </div>
         </div>
 
+        <div class="flex flex-col gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-medium">
+                Scenery Image Spawn Route
+              </h3>
+              <p class="text-sm text-neutral-500">
+                Choose how story scenario concept arts are delivered to the interface.
+              </p>
+            </div>
+            <select
+              v-model="datingSimStore.settings.sceneryRoute"
+              class="border border-neutral-300 rounded-lg bg-white px-3 py-1.5 text-sm dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+            >
+              <option value="background">
+                Stage Background (Clean Overlay)
+              </option>
+              <option value="widget">
+                Standalone Widget
+              </option>
+              <option value="bg_widget">
+                Background & Widget (Default)
+              </option>
+              <option value="inherit">
+                Respect Autonomous Artistry settings
+              </option>
+            </select>
+          </div>
+        </div>
+
         <div class="flex items-center justify-between border-t border-neutral-200 pt-4 dark:border-neutral-700">
           <div>
             <h3 class="font-medium">

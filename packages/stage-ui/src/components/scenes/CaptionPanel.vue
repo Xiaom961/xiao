@@ -8,11 +8,13 @@ const props = withDefaults(defineProps<{
   fadeOnCursor?: boolean
   transparentBg?: boolean
   fallbackText?: string
+  textSize?: string
 }>(), {
   showActiveSentenceOnly: false,
   fadeOnCursor: false,
   transparentBg: false,
   fallbackText: '',
+  textSize: 'text-[1.25rem]',
 })
 
 const settingsStore = useSettings()
@@ -110,7 +112,7 @@ const containerStyle = computed(() => ({
         (!settingsStore.showCaptions || shouldFadeOnCursor) ? 'op-0' : 'op-100',
         'relative select-none rounded-xl px-3 py-2',
         'pointer-events-none',
-        'backdrop-blur-sm',
+        transparentBg ? '' : 'backdrop-blur-sm',
         'transition-all duration-300 ease-in-out my-2',
       ]"
       :style="containerStyle"
@@ -124,7 +126,7 @@ const containerStyle = computed(() => ({
         </div>
         <div
           v-if="displaySegments.length > 0 || fallbackText"
-          class="rounded-md px-2 py-1 text-[1.25rem] font-semibold leading-relaxed text-shadow-lg"
+          :class="[textSize, 'rounded-md px-2 py-1 font-semibold leading-relaxed text-shadow-lg']"
           style="white-space: pre-wrap;"
         >
           <template v-if="displaySegments.length > 0">
