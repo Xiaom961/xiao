@@ -26,13 +26,17 @@ graph TD
 
 To keep the system highly flexible and avoid conflict between dynamic LLM evaluation and pre-baked choice metrics, the engine supports two distinct segmented modes:
 
-### 1. Mode A: Open-Ended / Relational Mode (Dynamic real-time updates)
-*   **Goal**: Pure conversational sandbox without win/loss conditions.
-*   **Behavior**: The Director/IC dynamically evaluates the dialogue post-turn and updates the permanent `Intimacy` and `Tension` variables in real time. Choices do not carry pre-baked score values.
-*   **Live2D Sync**: The model's expressions, gaze, and posture adjust on every turn to reflect the fluctuating vibe.
+### 1. Mode A: Open-Ended / Relational Mode (Dynamic sandbox)
+*   **Goal**: Cozy sandbox without win/loss conditions.
+*   **UI Trigger**: Enforced when using inline chatbox suggestions or when settings.gameMode is set to "open_ended".
+*   **Behavior**: The Director/IC dynamically evaluates dialogue post-turn and updates the permanent `Intimacy` and `Tension` variables in real time. Choices do not carry pre-baked score values.
+*   **Live2D Sync**: The model's expressions, gaze, and posture adjust on every turn to reflect the fluctuating vibe. No turn limits or session caps exist.
 
-### 2. Mode B: Goal-Driven / Game Mode (Deterministic Choice-Driven progression)
+### 2. Mode B: Goal-Driven / Game Mode (Deterministic Interactive Story)
 *   **Goal**: Interactive gamified date with clear Win/Loss goals.
+*   **UI Trigger**: Activated in the full-screen Dating Sim overlay when settings.gameMode is set to "goal_driven".
+*   **Setup**: Requires starting/selecting a **New Session** centered around a preset storyline or custom prompt.
+*   **Turn Capping**: The active chat session message count serves as the turn counter (e.g. if the story is set to 8 turns, once `session.messages.length === 8`, the final end turn is hit).
 *   **Behavior**: Suggestions are generated with explicit `positiveScore`, `negativeScore`, and `apCost` values.
 *   **State Authority**: Real-time variables (`positiveScore`/`negativeScore`) are updated **deterministically** upon choice selection. The Director does NOT update intimacy variables mid-turn, preventing conflicting weights.
 *   **Session Resolution**: Upon session completion (when greenlit), the outcome translates to a permanent boost in `Intimacy` (on a Win) or `Tension` (on a Loss).

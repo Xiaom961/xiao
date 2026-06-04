@@ -25,6 +25,9 @@ export const useDatingSimStore = defineStore('dating-sim', () => {
     ActionPoints: 5, // For conversation topics
     TimeOfDay: 12, // 24h format
     Timer: 0, // Choice countdown
+    positiveScore: 0,
+    negativeScore: 0,
+    turnsElapsed: 0,
   })
 
   const mood = computed<MoodState>(() => {
@@ -46,6 +49,10 @@ export const useDatingSimStore = defineStore('dating-sim', () => {
     lightningRounds: false,
     inlineCaption: true,
     contextDepth: useLocalStorage('airi:producer:context-depth', 6),
+    gameMode: useLocalStorage<'open_ended' | 'goal_driven'>('airi:dating-sim:game-mode', 'open_ended'),
+    showChoiceWeights: useLocalStorage<boolean>('airi:dating-sim:show-choice-weights', false),
+    maxScore: useLocalStorage<number>('airi:dating-sim:max-score', 15),
+    maxTurns: useLocalStorage<number>('airi:dating-sim:max-turns', 8),
   })
 
   const choices = ref<Choice[]>([])
@@ -479,6 +486,14 @@ Generate 4 options for what the User could say next and the subtitle.`
       bc.postMessage({ type: 'test', choices: customChoices, subtitle })
   }
 
+  function clearTestSync() {
+    disable()
+    choices.value = []
+    currentSubtitle.value = ''
+    if (bc)
+      bc.postMessage({ type: 'clear' })
+  }
+
   if (typeof window !== 'undefined' && (window as any).electron) {
     const ipcRenderer = (window as any).electron.ipcRenderer
     if (typeof ipcRenderer.removeAllListeners === 'function') {
@@ -507,6 +522,7 @@ Generate 4 options for what the User could say next and the subtitle.`
     disable,
     triggerTestSync,
     triggerTestSyncCustom,
+    clearTestSync,
     toggleDatingSim,
     syncToggle,
     generateLiveChoices,
