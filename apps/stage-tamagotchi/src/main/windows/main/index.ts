@@ -131,6 +131,10 @@ export async function setupMainWindow(params: {
     setTimeout(() => restoreBounds(), 500)
   })
 
+  window.webContents.on('did-finish-load', () => {
+    restoreBounds()
+  })
+
   window.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -302,7 +306,7 @@ export async function setupMainWindow(params: {
       }
     }
     else if (isHorizontal) {
-      // Check top edge snap only
+      // Check top edge snap
       let minDiffTop = Infinity
       let targetTop = bounds.y
       for (const ty of snapTargetsY) {
@@ -313,8 +317,27 @@ export async function setupMainWindow(params: {
         }
       }
 
-      if (minDiffTop <= SNAP_THRESHOLD) {
+      // Check bottom edge snap
+      let minDiffBottom = Infinity
+      let targetBottom = bounds.y
+      const snapTargetsBottom = [
+        workArea.y + workArea.height,
+        displayBounds.y + displayBounds.height,
+      ]
+      for (const ty of snapTargetsBottom) {
+        const diff = Math.abs((bounds.y + bounds.height) - ty)
+        if (diff < minDiffBottom) {
+          minDiffBottom = diff
+          targetBottom = ty - bounds.height
+        }
+      }
+
+      if (minDiffTop <= SNAP_THRESHOLD && minDiffTop <= minDiffBottom) {
         newY = targetTop
+        snapped = true
+      }
+      else if (minDiffBottom <= SNAP_THRESHOLD) {
+        newY = targetBottom
         snapped = true
       }
     }

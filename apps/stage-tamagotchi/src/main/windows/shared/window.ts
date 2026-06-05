@@ -67,6 +67,7 @@ export function transparentWindowConfig(): BrowserWindowConstructorOptions {
   return {
     frame: false,
     titleBarStyle: isMacOS ? 'hidden' : undefined,
+    trafficLightPosition: isMacOS ? { x: -100, y: -100 } : undefined, // Moves native buttons off-screen
     transparent: true,
     hasShadow: false,
   }
