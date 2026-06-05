@@ -34,6 +34,16 @@ function toggleIdleAnimation(name: string) {
     selectedActingIdleAnimations.value = [...selectedActingIdleAnimations.value, name]
   }
 }
+
+const FALLBACK_MOOD_TAGS = [
+  { tag: 'happy', description: 'Happy / Joy / Laugh / Grin / Smile' },
+  { tag: 'sad', description: 'Sad / Cry / Sorrow / Pout / Sigh / Whimper' },
+  { tag: 'angry', description: 'Angry / Mad / Annoy / Frustrate / Glare' },
+  { tag: 'surprised', description: 'Surprise / Shock / Wonder / Gasp / Blink' },
+  { tag: 'thinking', description: 'Think / Ponder / Curious / Hmm / Question' },
+  { tag: 'blush', description: 'Blush / Shy / Embarrassed / Awkward' },
+  { tag: 'whisper', description: 'Relaxed / Whisper / Soft / Calm' },
+]
 </script>
 
 <template>
@@ -183,8 +193,21 @@ function toggleIdleAnimation(name: string) {
               </div>
             </div>
           </div>
-          <div v-else class="text-xs text-neutral-400">
-            The selected speech provider does not currently expose expression-tag helpers.
+          <div v-else class="flex flex-col gap-2">
+            <div class="mb-1 text-xs text-neutral-400">
+              The selected speech provider does not expose tag helpers. Here are the core visual Mood Tags you can use instead:
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="item in FALLBACK_MOOD_TAGS"
+                :key="item.tag"
+                class="border border-neutral-200 rounded-full px-3 py-1 text-xs text-neutral-600 transition-colors dark:border-neutral-700 hover:border-primary-400 dark:text-neutral-300 hover:text-primary-500"
+                :title="item.description"
+                @click="insertSpeechTag(item.tag, item.description)"
+              >
+                [{{ item.tag }}]
+              </button>
+            </div>
           </div>
         </div>
       </div>

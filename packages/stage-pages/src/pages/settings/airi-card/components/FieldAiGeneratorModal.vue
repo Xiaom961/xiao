@@ -155,6 +155,7 @@ const guidanceConfig: Record<string, FieldGuidance> = {
       { id: 'default', label: 'Square Brackets', prompt: 'Write TTS optimization guidelines using Square Brackets format (e.g., [thinks carefully] I\'m not sure...). Only use if square brackets are not reserved for TTS expressions.' },
       { id: 'asterisks', label: 'Asterisks', prompt: 'Write TTS optimization guidelines using Asterisks format (e.g., *sighs softly* That makes sense. or *gasp*).' },
       { id: 'parentheses', label: 'Parentheses', prompt: 'Write TTS optimization guidelines using Parentheses format (e.g., (smiling gently) Hello!).' },
+      { id: 'mood_tags', label: 'Mood Tags (Visual Glows)', prompt: 'Write guidelines instructing the character how to use bracket mood tags to trigger visual chat bubble glows. Cite the full set of mapped moods: happy (happy/joy/laugh/grin/chuckle/smile/beam/cheer), sad (sad/cry/sorrow/pout/sniff/sigh/whimper/mourn), angry (angry/mad/annoy/frustrate/growl/hiss/glare/stomp), surprised (surprise/shock/wonder/gasp/eep/awe/blink), thinking (think/ponder/curious/hmm/mmm/doubt/question), flustered (blush/shy/embarrassed/rose/bashful/stutter/awkward), relaxed (relax/whisper/sleepy/soft/calm/peace/yawn/purr). Instruct the character to place these tags at the start of sentences to shift the bubble\'s visual style.' },
     ],
   },
   artistryPromptPrefix: {
