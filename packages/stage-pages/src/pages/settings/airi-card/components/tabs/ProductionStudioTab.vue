@@ -64,7 +64,7 @@ const activeConcepts = computed(() => props.card.extensions?.airi?.active_concep
 const journalEntries = computed(() => backgroundStore.getCharacterJournalEntries(props.cardId))
 const directorNotes = computed(() => autonomousArtistryStore.directorNotes.slice(-5).reverse())
 
-function toggleConcept(conceptId: string) {
+async function toggleConcept(conceptId: string) {
   const concept = visualAssets.value[conceptId]
   let next = [...activeConcepts.value]
 
@@ -89,13 +89,13 @@ function toggleConcept(conceptId: string) {
     extension.airi = {}
   extension.airi.active_concepts = Array.from(new Set(next))
 
-  cardStore.updateCard(props.cardId, {
+  await cardStore.updateCard(props.cardId, {
     ...props.card,
     extensions: extension,
   })
 
   // Sync manifestation immediately (e.g. model swap)
-  void autonomousArtistryStore.applyCurrentStackManifestations()
+  await autonomousArtistryStore.applyCurrentStackManifestations()
 }
 </script>
 
