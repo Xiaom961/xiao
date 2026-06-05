@@ -737,8 +737,12 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           await updateDirectorDecision(noteId, { state: 'done' })
 
           // 5. Route based on spawnMode
-          const spawnMode = artistry.spawnMode || 'bg_widget'
-          artistLog(`Routing image with mode: ${spawnMode}`)
+          // If Dating Sim is active and has an explicit scenery override (not 'inherit'),
+          // use resolvedSceneryRoute from the DG store; otherwise fall back to the card's artistry.spawnMode.
+          const spawnMode = (datingSimStore.enabled && datingSimStore.settings.sceneryRoute !== 'inherit')
+            ? datingSimStore.resolvedSceneryRoute
+            : (artistry.spawnMode || 'bg_widget')
+          artistLog(`Routing image with mode: ${spawnMode} (dg override: ${datingSimStore.enabled && datingSimStore.settings.sceneryRoute !== 'inherit'})`)
 
           switch (spawnMode) {
             case 'bg': {

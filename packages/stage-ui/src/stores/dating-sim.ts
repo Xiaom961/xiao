@@ -2,7 +2,7 @@ import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useAiriCardStore } from './modules/airi-card'
 
@@ -313,11 +313,20 @@ Your output MUST be EXACTLY in this JSON format and nothing else:
         })
         .join('\n')
 
+      const isGoalDriven = settings.value.gameMode === 'goal_driven'
+      const story = activeStoryline.value
+
       const systemPrompt = `You are a dialogue writing assistant for a Dating Sim. 
 Your job is to suggest exactly 4 things the USER could say next, written in the user's natural, personal voice, please ensure you follow their style of capitalization and punctuation and the way they say things including action brackets and asterisks to imitate the user as closely as possible.
 You also MUST generate the subtitle for the scene (the character's dialogue spoken in this turn, or a narrative subtitle if they didn't speak).
 
 The conversation so far involves the user chatting with ${characterName}.
+${isGoalDriven && story
+  ? `Active Scenario Context:
+- Setting/Location: ${story.scene || ''}
+- Story premise: ${story.premise || ''}
+- Terms of Encounter: ${story.termsOfEncounter || ''}`
+  : ''}
 
 Rules:
 - Each suggestion must sound like something the user would naturally say, not a formal prompt
@@ -325,11 +334,23 @@ Rules:
 - Vary the emotional register: curious, playful, sincere, bold — don't make all 4 the same tone
 - No meta-commentary, no "(OOC)" notes, no quotation marks around the message text
 - Output exactly 4 options matching the requested voice style.
+${isGoalDriven
+  ? `- For each suggestion, assign its score impact based on how positive/productive or negative/risky it is in advancing the terms of encounter:
+  * "positive": How much this choice adds to the user's connection score (typically 0 or 1, or 2 for high-risk/high-reward positive moves).
+  * "negative": How much this choice adds to the user's friction score (typically 0 or 1, or 2 for risky/bad moves).`
+  : ''}
 
 Your output MUST be EXACTLY in this JSON format:
 {
   "subtitle": "Character's subtitle/dialogue text for this turn",
-  "topics": ["First choice option in user's style", "Second choice option in user's style", "Third choice option in user's style", "Fourth choice option in user's style"]
+  "topics": [
+    ${isGoalDriven
+      ? `{ "text": "First choice option in user's style", "positive": 1, "negative": 0 },
+    { "text": "Second choice option in user's style", "positive": 0, "negative": 1 },
+    { "text": "Third choice option in user's style", "positive": 0, "negative": 0 },
+    { "text": "Fourth choice option in user's style", "positive": 2, "negative": 0 }`
+      : `"First choice option in user's style", "Second choice option in user's style", "Third choice option in user's style", "Fourth choice option in user's style"`}
+  ]
 }`
 
       const userPrompt = `Here is the conversation history so far:
@@ -352,12 +373,17 @@ Generate 4 options for what the User could say next and the subtitle.`
         throw new Error('No JSON object found in response')
       const object = JSON.parse(match[0])
 
-      const liveChoices = object.topics.slice(0, 4).map((t: string, i: number) => ({
-        id: `t${i}`,
-        text: t,
-        icon: 'i-solar:chat-round-dots-bold-duotone',
-        action: 'llm_topic',
-      }))
+      const liveChoices = object.topics.slice(0, 4).map((t: any, i: number) => {
+        const hasWeights = typeof t === 'object' && t !== null
+        return {
+          id: `t${i}`,
+          text: hasWeights ? (t.text || '') : t,
+          icon: 'i-solar:chat-round-dots-bold-duotone',
+          action: 'llm_topic',
+          positiveScoreChange: hasWeights ? (t.positive ?? 0) : 0,
+          negativeScoreChange: hasWeights ? (t.negative ?? 0) : 0,
+        }
+      })
 
       triggerTestSyncCustom(liveChoices, object.subtitle || '')
     }
@@ -543,10 +569,54 @@ Generate 4 options for what the User could say next and the subtitle.`
     }
   }
 
-  // Cross-Window Sync for testing
+  // Cross-Window Sync for testing and runtime state propagation
   const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('dating-sim-sync') : null
+
+  // Watch state changes in main window to broadcast updates automatically
+  if (bc && typeof window !== 'undefined') {
+    watch(
+      [enabled, variables, settings, activeStoryline, customPremise, choices, currentSubtitle],
+      () => {
+        // Only broadcast if we are acting as the coordinator/main instance
+        // (to prevent recursive loops, the receiver updates values without re-broadcasting)
+        if (isBroadcasting.value) {
+          bc.postMessage({
+            type: 'sync',
+            payload: {
+              enabled: enabled.value,
+              variables: JSON.parse(JSON.stringify(variables.value)),
+              settings: JSON.parse(JSON.stringify(settings.value)),
+              activeStoryline: JSON.parse(JSON.stringify(activeStoryline.value)),
+              customPremise: customPremise.value,
+              choices: JSON.parse(JSON.stringify(choices.value)),
+              currentSubtitle: currentSubtitle.value,
+            },
+          })
+        }
+      },
+      { deep: true },
+    )
+  }
+
+  const isBroadcasting = ref(true)
+
   if (bc) {
     bc.onmessage = (event) => {
+      if (event.data.type === 'sync') {
+        isBroadcasting.value = false
+        const payload = event.data.payload
+        enabled.value = payload.enabled
+        Object.assign(variables.value, payload.variables)
+        Object.assign(settings.value, payload.settings)
+        activeStoryline.value = payload.activeStoryline
+        customPremise.value = payload.customPremise
+        choices.value = payload.choices
+        currentSubtitle.value = payload.currentSubtitle
+        // Re-enable broadcasting after DOM tick
+        setTimeout(() => {
+          isBroadcasting.value = true
+        }, 50)
+      }
       if (event.data.type === 'test') {
         enable()
         currentPhase.value = 'conversation'
@@ -577,8 +647,6 @@ Generate 4 options for what the User could say next and the subtitle.`
     if (isEnabled)
       enable()
     else disable()
-    if (bc)
-      bc.postMessage({ type: 'toggle', enabled: isEnabled })
   }
 
   function toggleDatingSim() {
