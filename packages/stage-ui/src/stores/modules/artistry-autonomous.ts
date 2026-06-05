@@ -475,14 +475,14 @@ The choices MUST be written in the user's natural, personal voice (matching thei
 For example, if the user does not use capitalization or punctuation, format the choices exactly in that style.
 ${isGoalDriven && story
   ? `
-GOAL-DRIVEN MODE: Score each choice based on how positive/productive or negative/risky it is in advancing the terms of encounter: "${story.termsOfEncounter || ''}".
+GOAL-DRIVEN MODE: Score each choice based on how positive/productive or negative/risky it is in advancing the terms of encounter: "${story.termsOfEncounter || ''}". Every choice MUST have at least 1 point on either positiveScoreChange or negativeScoreChange (or both). Do not make any choice positiveScoreChange: 0 and negativeScoreChange: 0.
 - "positiveScoreChange": How much this choice adds to the intimacy/connection score (typically 0 or 1, or 2 for high-risk/high-reward moves).
 - "negativeScoreChange": How much this choice adds to the friction/tension score (typically 0 or 1, or 2 for risky/bad moves).
-Both values must be integers. A neutral/safe choice gets 0/0. Avoid making all choices the same score.`
+Both values must be integers. Avoid making all choices the same score.`
   : ''}
 `
         if (isGoalDriven) {
-          datingSimSchemaAddon = `,\n  "subtitle": "Character's subtitle/dialogue text for this turn",\n  "choices": [\n    {\n      "id": "choice_1",\n      "text": "First choice option in user's style",\n      "action": "llm_topic",\n      "positiveScoreChange": 1,\n      "negativeScoreChange": 0\n    },\n    {\n      "id": "choice_2",\n      "text": "Second choice option in user's style",\n      "action": "llm_topic",\n      "positiveScoreChange": 0,\n      "negativeScoreChange": 1\n    },\n    {\n      "id": "choice_3",\n      "text": "Third choice option in user's style",\n      "action": "llm_topic",\n      "positiveScoreChange": 0,\n      "negativeScoreChange": 0\n    },\n    {\n      "id": "choice_4",\n      "text": "Fourth choice option in user's style",\n      "action": "llm_topic",\n      "positiveScoreChange": 2,\n      "negativeScoreChange": 0\n    }\n  ]`
+          datingSimSchemaAddon = `,\n  "subtitle": "Character's subtitle/dialogue text for this turn",\n  "choices": [\n    {\n      "id": "choice_1",\n      "text": "First choice option in user's style",\n      "action": "llm_topic",\n      "positiveScoreChange": 1,\n      "negativeScoreChange": 0\n    },\n    {\n      "id": "choice_2",\n      "text": "Second choice option in user's style",\n      "action": "llm_topic",\n      "positiveScoreChange": 0,\n      "negativeScoreChange": 1\n    },\n    {\n      "id": "choice_3",\n      "text": "Third choice option in user's style",\n      "action": "llm_topic",\n      "positiveScoreChange": 1,\n      "negativeScoreChange": 1\n    },\n    {\n      "id": "choice_4",\n      "text": "Fourth choice option in user's style",\n      "action": "llm_topic",\n      "positiveScoreChange": 2,\n      "negativeScoreChange": 0\n    }\n  ]`
         }
         else {
           // Producer Lite: open-ended, no score weights

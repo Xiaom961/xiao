@@ -70,8 +70,8 @@ const subtitleText = computed(() => {
       return lastAssistantMessage.value
     }
     const pos = datingSimStore.getVariable('positiveScore')
-    const maxScore = datingSimStore.settings.maxScore
-    if (pos >= maxScore) {
+    const neg = datingSimStore.getVariable('negativeScore')
+    if (pos > neg) {
       return datingSimStore.activeStoryline.positiveOutcome || 'Victory!'
     }
     else {

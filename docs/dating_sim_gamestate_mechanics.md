@@ -106,3 +106,12 @@ When the user clicks a choice in the overlay, the variables are adjusted determi
 We introduce a toggle in the settings ("Show Choice Weights"). When active:
 *   Choice buttons in the overlay render the scores inline: `[+2 Pos / -0 Neg] Choice Text...`
 *   Helps the user evaluate choices during testing and balancing.
+
+---
+
+## 🔮 Future Roadmap: Climax Deadlock Resolutions
+
+If the player runs out of turns and `positiveScore === negativeScore`, the system currently resolves this deadlock as a default `DEFEAT` (since Tension/Friction was too unresolved to constitute a clear success). For future enhancements, we should consider:
+
+1.  **Tie-Breaker Metric**: Evaluate secondary states to break the tie, e.g., checking the companion's active `Mood` (resolving as victory if Mood is Max/High, or defeat if Low).
+2.  **Neutral/Stalemate Climax**: Inject a third specialized system prompt `[DATING SIM CLIMAX RESOLUTION: NEUTRAL]` when scores are tied, prompting the assistant to write a rich, ambiguous "stalemate" resolution (e.g. agreeing to meet again but remaining guardedly distant).

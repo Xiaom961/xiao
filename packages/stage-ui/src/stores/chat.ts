@@ -843,8 +843,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             const neg = datingSim.getVariable('negativeScore')
             const maxScore = datingSim.settings.maxScore
             const maxTurns = datingSim.settings.maxTurns
-            const isWin = pos >= maxScore
-            const isLoss = neg >= maxScore || (turns + 1) >= maxTurns
+            const isWin = pos >= maxScore || ((turns + 1) >= maxTurns && pos > neg)
+            const isLoss = neg >= maxScore || ((turns + 1) >= maxTurns && neg >= pos)
 
             if (isWin || isLoss) {
               const climaxState = isWin ? 'VICTORY' : 'DEFEAT'
