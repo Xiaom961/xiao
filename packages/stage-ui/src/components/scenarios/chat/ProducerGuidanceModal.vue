@@ -9,12 +9,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
-  (e: 'submit', payload: { guidance: string, contextDepth: number }): void
+  (e: 'submit', payload: { guidance: string, contextDepth: number, count: number, shortReplies: boolean }): void
 }>()
 
 const guidance = ref('')
 const contextDepth = useLocalStorage('airi:producer:context-depth', 6)
 const autoSend = useLocalStorage('airi:producer:auto-send', true)
+const suggestionCount = useLocalStorage('airi:producer:suggestion-count', 4)
+const shortReplies = useLocalStorage('airi:producer:short-replies', true)
 
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
@@ -30,6 +32,8 @@ function handleGenerate() {
   emit('submit', {
     guidance: guidance.value.trim(),
     contextDepth: contextDepth.value,
+    count: suggestionCount.value,
+    shortReplies: shortReplies.value,
   })
   close()
 }
@@ -102,6 +106,42 @@ function handleGenerate() {
                 How many recent messages to include as context for the dialogue generation.
               </span>
             </div>
+
+            <!-- Suggestion Count Slider -->
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <label class="text-xs text-neutral-500 font-semibold tracking-wider uppercase dark:text-neutral-400">
+                  Suggestions Count
+                </label>
+                <span class="rounded bg-primary-500/10 px-2 py-0.5 text-xs text-primary-500 font-bold font-mono">
+                  {{ suggestionCount }} choices
+                </span>
+              </div>
+              <input
+                v-model.number="suggestionCount"
+                type="range"
+                min="2"
+                max="6"
+                step="1"
+                class="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-neutral-200 accent-primary-500 dark:bg-neutral-700"
+              >
+              <span class="text-[10px] text-neutral-400 dark:text-neutral-500">
+                Number of response choices to generate.
+              </span>
+            </div>
+
+            <!-- Generate short replies Checkbox -->
+            <label class="flex cursor-pointer select-none items-center gap-2.5 py-1">
+              <input
+                v-model="shortReplies"
+                type="checkbox"
+                class="h-4 w-4 border-neutral-300 rounded text-primary-500 accent-primary-500 focus:ring-primary-500"
+              >
+              <div class="flex flex-col">
+                <span class="text-xs text-neutral-700 font-semibold dark:text-neutral-300">Generate short replies</span>
+                <span class="text-[10px] text-neutral-400 dark:text-neutral-500">Keep generated options short (1-2 sentences)</span>
+              </div>
+            </label>
 
             <!-- Auto-Send Checkbox -->
             <label class="flex cursor-pointer select-none items-center gap-2.5 py-1">

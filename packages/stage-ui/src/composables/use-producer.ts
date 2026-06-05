@@ -77,6 +77,8 @@ export function useProducer() {
     messages: ChatHistoryItem[]
     guidance?: string
     contextDepth: number
+    count: number
+    shortReplies: boolean
   }) {
     loading.value = true
     error.value = null
@@ -108,22 +110,22 @@ export function useProducer() {
         .join('\n')
 
       const systemPrompt = `You are a dialogue writing assistant for an interactive roleplay. 
-Your job is to suggest 4 things the USER could say next, written in the user's natural, personal voice, please ensure you follow their style of capitalization and punctuation and the way they say things including action brackets and asterisks to imitate the user as closely as possible.
+Your job is to suggest ${options.count} things the USER could say next, written in the user's natural, personal voice, please ensure you follow their style of capitalization and punctuation and the way they say things including action brackets and asterisks to imitate the user as closely as possible.
 
 The conversation so far involves the user chatting with ${options.characterName}.
 ${options.guidance ? `The user wants suggestions that feel like: "${options.guidance}"` : ''}
 
 Rules:
 - Each suggestion must sound like something the user would naturally say, not a formal prompt
-- Keep each message under 2 sentences
-- Vary the emotional register: curious, playful, sincere, bold — don't make all 4 the same tone
+${options.shortReplies ? '- Keep each message under 2 sentences' : ''}
+- Vary the emotional register: curious, playful, sincere, bold — don't make all suggestions the same tone
 - No meta-commentary, no "(OOC)" notes, no quotation marks around the message text
-- Output exactly 4 options matching the requested voice style.`
+- Output exactly ${options.count} options matching the requested voice style.`
 
       const userPrompt = `Here is the conversation history so far:
 ${chatHistoryText}
 
-Generate 4 options for what the User could say next.`
+Generate ${options.count} options for what the User could say next.`
 
       const res = await llmStore.generateObject<{ options: Array<{ title: string, message: string }> }>(
         modelId,

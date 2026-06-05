@@ -200,9 +200,9 @@ const effectiveSystemPrompt = computed(() => buildSystemPrompt(activeCard.value)
 const isProducerModalOpen = ref(false)
 const producerSuggestion = ref<{ type: 'producer-suggestion', choices: Array<{ title: string, message: string }>, loading?: boolean, createdAt: number } | null>(null)
 const { generateSuggestions } = useProducer()
-const lastProducerConfig = ref<{ guidance: string, contextDepth: number } | null>(null)
+const lastProducerConfig = ref<{ guidance: string, contextDepth: number, count: number, shortReplies: boolean } | null>(null)
 
-async function handleProducerSubmit(payload: { guidance: string, contextDepth: number }) {
+async function handleProducerSubmit(payload: { guidance: string, contextDepth: number, count: number, shortReplies: boolean }) {
   lastProducerConfig.value = payload
   producerSuggestion.value = {
     type: 'producer-suggestion',
@@ -217,6 +217,8 @@ async function handleProducerSubmit(payload: { guidance: string, contextDepth: n
       messages: messages.value as unknown as ChatHistoryItem[],
       guidance: payload.guidance,
       contextDepth: payload.contextDepth,
+      count: payload.count,
+      shortReplies: payload.shortReplies,
     })
 
     producerSuggestion.value = {
