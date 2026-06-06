@@ -14,6 +14,31 @@ const cardStore = useAiriCardStore()
 const chatSessionStore = useChatSessionStore()
 const { post: postChatInput } = useBroadcastChannel({ name: 'airi-chat-input-bridge' })
 
+// Broadcast channels to track active caption streaming
+const { data: captionData } = useBroadcastChannel<any, any>({ name: 'airi-caption-overlay' })
+const { data: sessionUpdate } = useBroadcastChannel<any, any>({ name: 'airi-chat-stream' })
+const hasActiveCaption = ref(false)
+
+watch(sessionUpdate, (event) => {
+  if (event?.type === 'session-updated' && event.message?.role === 'user') {
+    hasActiveCaption.value = false
+  }
+})
+
+watch(captionData, (event) => {
+  if (!event)
+    return
+  if (event.type === 'caption-assistant') {
+    if (!event.segments || event.segments.length === 0) {
+      hasActiveCaption.value = false
+    }
+    else {
+      // Since CaptionPanel filters to active segments only, check if there is any active segment
+      hasActiveCaption.value = event.segments.some((s: any) => s.isActive)
+    }
+  }
+}, { immediate: true })
+
 const visibleChoices = computed(() => {
   return datingSimStore.choices.filter((c: any) => datingSimStore.evaluateCondition(c.condition))
 })
@@ -82,7 +107,7 @@ const subtitleText = computed(() => {
 })
 
 const containerBottomClass = computed(() => {
-  return (datingSimStore.settings.inlineCaption && (datingSimStore.currentSubtitle || isGameOver.value))
+  return (datingSimStore.settings.inlineCaption && (datingSimStore.currentSubtitle || isGameOver.value || hasActiveCaption.value))
     ? 'bottom-[280px]'
     : 'bottom-[40px]'
 })
@@ -116,12 +141,19 @@ function handleChoiceClick(choice: any) {
   datingSimStore.currentSubtitle = ''
 }
 
-function handleRestart() {
+async function handleRestart() {
   datingSimStore.activeStoryline = null
   datingSimStore.setVariable('positiveScore', 0)
   datingSimStore.setVariable('negativeScore', 0)
+  datingSimStore.setVariable('turnsElapsed', 0)
   datingSimStore.choices = []
   datingSimStore.currentSubtitle = ''
+
+  if (cardStore.activeCardId) {
+    await chatSessionStore.createSession(cardStore.activeCardId, { title: 'Dating Sim' })
+  }
+
+  showSelector.value = true
 }
 
 const customPrompt = ref('')
@@ -145,8 +177,8 @@ function submitCustomPrompt() {
 
 const showSelector = ref(false)
 
-watch(() => [datingSimStore.enabled, datingSimStore.settings.gameMode], ([enabled, mode]) => {
-  if (enabled && mode === 'goal_driven' && !datingSimStore.activeStoryline) {
+watch(() => [datingSimStore.enabled, datingSimStore.settings.gameMode, datingSimStore.activeStoryline], ([enabled, mode, storyline]) => {
+  if (enabled && mode === 'goal_driven' && !storyline) {
     showSelector.value = true
   }
   else {
@@ -323,7 +355,7 @@ function handleStorySelect(story: any, customPromptVal: string) {
         </template>
 
         <!-- Custom Prompt Input -->
-        <div class="group relative flex flex-shrink-0 items-center gap-4 border border-white/20 rounded-2xl bg-white/10 px-6 py-4 shadow-[0_8px_32px_rgba(0,0,0,0.15)] backdrop-blur-[12px] backdrop-saturate-[180%] transition-all duration-300 focus-within:border-white/40 dark:bg-black/30 focus-within:bg-white/20" :class="isGameOver ? 'opacity-50 pointer-events-none' : ''">
+        <div v-if="!isGameOver" class="group relative flex flex-shrink-0 items-center gap-4 border border-white/20 rounded-2xl bg-white/10 px-6 py-4 shadow-[0_8px_32px_rgba(0,0,0,0.15)] backdrop-blur-[12px] backdrop-saturate-[180%] transition-all duration-300 focus-within:border-white/40 dark:bg-black/30 focus-within:bg-white/20">
           <div class="i-solar:keyboard-bold-duotone text-3xl text-purple-300 drop-shadow-[0_0_8px_rgba(216,180,254,0.5)] transition-transform group-focus-within:scale-110" />
           <input
             v-model="customPrompt"
@@ -357,10 +389,10 @@ function handleStorySelect(story: any, customPromptVal: string) {
     </div>
 
     <!-- Bottom Dialogue -->
-    <div v-if="datingSimStore.settings.inlineCaption && (datingSimStore.currentSubtitle || isGameOver)" class="pointer-events-none mb-4 w-full flex justify-center px-12">
+    <div v-if="datingSimStore.settings.inlineCaption && (datingSimStore.currentSubtitle || isGameOver || hasActiveCaption)" class="pointer-events-none mb-4 w-full flex justify-center px-12">
       <div class="pointer-events-auto relative max-w-4xl w-full">
         <!-- Main Dialogue Box (Shorted to 130px, smaller padding and spacing) -->
-        <div class="group relative min-h-[130px] flex flex-col justify-center overflow-hidden border border-white/20 rounded-3xl bg-white/10 px-8 py-6 shadow-[0_16px_40px_rgba(0,0,0,0.3)] backdrop-blur-[16px] backdrop-saturate-[200%] transition-all dark:bg-black/40 hover:bg-white/15">
+        <div class="group relative max-h-[220px] min-h-[130px] flex flex-col justify-center overflow-hidden border border-white/20 rounded-3xl bg-white/10 px-8 py-6 shadow-[0_16px_40px_rgba(0,0,0,0.3)] backdrop-blur-[16px] backdrop-saturate-[200%] transition-all dark:bg-black/40 hover:bg-white/15">
           <!-- Subtle top gradient border effect -->
           <div class="absolute left-0 right-0 top-0 h-[1px] from-transparent via-white/40 to-transparent bg-gradient-to-r" />
 
@@ -371,7 +403,7 @@ function handleStorySelect(story: any, customPromptVal: string) {
           </div>
 
           <!-- Modular Real-Time Caption Panel inside original frame -->
-          <div class="mt-6 w-full flex justify-center">
+          <div class="mt-6 max-h-[140px] w-full flex justify-center overflow-hidden">
             <CaptionPanel
               :show-active-sentence-only="true"
               :transparent-bg="true"
