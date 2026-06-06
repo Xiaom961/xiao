@@ -2,11 +2,236 @@ import localforage from 'localforage'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useBroadcastChannel } from '@vueuse/core'
+import { AwsClient } from 'aws4fetch'
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { storage, storageState } from '../database/storage'
+
+export interface StorageClient {
+  validate: () => Promise<{ success: boolean, error?: string }>
+  listFiles: () => Promise<{ success: boolean, files?: Array<{ relPath: string, mtime: number, size: number }>, error?: string }>
+  readFile: (relPath: string, encoding?: 'utf-8' | 'base64') => Promise<{ success: boolean, content?: string, error?: string }>
+  writeFile: (relPath: string, content: string, encoding?: 'utf-8' | 'base64', append?: boolean) => Promise<{ success: boolean, mtime?: number, error?: string }>
+  deleteFile: (relPath: string) => Promise<{ success: boolean, error?: string }>
+}
+
+export class ElectronFSClient implements StorageClient {
+  private fsBackupPath: string
+  private electron: any
+
+  constructor(fsBackupPath: string) {
+    this.fsBackupPath = fsBackupPath
+    this.electron = (window as any).electron
+  }
+
+  private hasElectron(): boolean {
+    return Boolean(this.electron?.ipcRenderer)
+  }
+
+  async validate(): Promise<{ success: boolean, error?: string }> {
+    if (!this.hasElectron()) {
+      return { success: false, error: 'File system access is only available in the desktop application.' }
+    }
+    return await this.electron.ipcRenderer.invoke('byos-fs:validate-path', { path: this.fsBackupPath })
+  }
+
+  async listFiles(): Promise<{ success: boolean, files?: Array<{ relPath: string, mtime: number, size: number }>, error?: string }> {
+    if (!this.hasElectron()) {
+      return { success: false, error: 'File system access is only available in the desktop application.' }
+    }
+    return await this.electron.ipcRenderer.invoke('byos-fs:list-files', { dir: this.fsBackupPath })
+  }
+
+  async readFile(relPath: string, encoding?: 'utf-8' | 'base64'): Promise<{ success: boolean, content?: string, error?: string }> {
+    if (!this.hasElectron()) {
+      return { success: false, error: 'File system access is only available in the desktop application.' }
+    }
+    return await this.electron.ipcRenderer.invoke('byos-fs:read-file', { dir: this.fsBackupPath, relPath, encoding })
+  }
+
+  async writeFile(relPath: string, content: string, encoding?: 'utf-8' | 'base64', append?: boolean): Promise<{ success: boolean, mtime?: number, error?: string }> {
+    if (!this.hasElectron()) {
+      return { success: false, error: 'File system access is only available in the desktop application.' }
+    }
+    return await this.electron.ipcRenderer.invoke('byos-fs:write-file', { dir: this.fsBackupPath, relPath, content, encoding, append })
+  }
+
+  async deleteFile(relPath: string): Promise<{ success: boolean, error?: string }> {
+    if (!this.hasElectron()) {
+      return { success: false, error: 'File system access is only available in the desktop application.' }
+    }
+    return await this.electron.ipcRenderer.invoke('byos-fs:delete-file', { dir: this.fsBackupPath, relPath })
+  }
+}
+
+export class S3StorageClient implements StorageClient {
+  private endpoint: string
+  private bucket: string
+  private region: string
+  private client: AwsClient
+
+  constructor(endpoint: string, bucket: string, region: string, accessKeyId: string, secretAccessKey: string) {
+    this.endpoint = endpoint
+    this.bucket = bucket
+    this.region = region || 'us-east-1'
+    this.client = new AwsClient({
+      accessKeyId,
+      secretAccessKey,
+      region: this.region,
+    })
+  }
+
+  private getS3Url(relPath: string): string {
+    const cleanEndpoint = this.endpoint.replace(/\/+$/, '')
+    const cleanPath = relPath.startsWith('/') ? relPath : `/${relPath}`
+    if (cleanEndpoint.includes('amazonaws.com')) {
+      return `https://${this.bucket}.s3.${this.region}.amazonaws.com${cleanPath}`
+    }
+    return `${cleanEndpoint}/${this.bucket}${cleanPath}`
+  }
+
+  async validate(): Promise<{ success: boolean, error?: string }> {
+    try {
+      const url = this.getS3Url('.byos-write-test')
+      const putRes = await this.client.fetch(url, { method: 'PUT', body: 'test' })
+      if (!putRes.ok) {
+        return { success: false, error: `S3 PUT failed: ${putRes.status} ${putRes.statusText}` }
+      }
+      await this.client.fetch(url, { method: 'DELETE' })
+      return { success: true }
+    }
+    catch (err: any) {
+      return { success: false, error: err.message || String(err) }
+    }
+  }
+
+  async listFiles(): Promise<{ success: boolean, files?: Array<{ relPath: string, mtime: number, size: number }>, error?: string }> {
+    try {
+      let continuationToken: string | null = null
+      const files: Array<{ relPath: string, mtime: number, size: number }> = []
+      do {
+        let url = `${this.getS3Url('')}?list-type=2`
+        if (continuationToken) {
+          url += `&continuation-token=${encodeURIComponent(continuationToken)}`
+        }
+        const res = await this.client.fetch(url)
+        if (!res.ok) {
+          return { success: false, error: `ListObjectsV2 failed: ${res.status} ${res.statusText}` }
+        }
+        const xmlText = await res.text()
+        const xmlDoc = new DOMParser().parseFromString(xmlText, 'text/xml')
+        const contents = xmlDoc.getElementsByTagName('Contents')
+        for (let i = 0; i < contents.length; i++) {
+          const node = contents[i]
+          const key = node.getElementsByTagName('Key')[0]?.textContent || ''
+          const lastModified = node.getElementsByTagName('LastModified')[0]?.textContent || ''
+          const size = Number(node.getElementsByTagName('Size')[0]?.textContent || '0')
+          if (key) {
+            files.push({
+              relPath: key,
+              mtime: new Date(lastModified).getTime(),
+              size,
+            })
+          }
+        }
+        const isTruncated = xmlDoc.getElementsByTagName('IsTruncated')[0]?.textContent === 'true'
+        continuationToken = isTruncated ? (xmlDoc.getElementsByTagName('NextContinuationToken')[0]?.textContent || null) : null
+      } while (continuationToken)
+
+      return { success: true, files }
+    }
+    catch (err: any) {
+      return { success: false, error: err.message || String(err) }
+    }
+  }
+
+  async readFile(relPath: string, encoding?: 'utf-8' | 'base64'): Promise<{ success: boolean, content?: string, error?: string }> {
+    try {
+      const url = this.getS3Url(relPath)
+      const res = await this.client.fetch(url)
+      if (res.status === 404) {
+        return { success: false, error: 'ENOENT' }
+      }
+      if (!res.ok) {
+        return { success: false, error: `S3 GET failed: ${res.status} ${res.statusText}` }
+      }
+
+      if (encoding === 'base64') {
+        const blob = await res.blob()
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            const result = reader.result as string
+            const b64 = result.split(',')[1]
+            resolve(b64)
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+        return { success: true, content: base64 }
+      }
+      else {
+        const text = await res.text()
+        return { success: true, content: text }
+      }
+    }
+    catch (err: any) {
+      return { success: false, error: err.message || String(err) }
+    }
+  }
+
+  async writeFile(relPath: string, content: string, encoding?: 'utf-8' | 'base64', append?: boolean): Promise<{ success: boolean, mtime?: number, error?: string }> {
+    try {
+      const url = this.getS3Url(relPath)
+      let body: Blob | string = content
+      let contentType = 'application/json'
+
+      if (encoding === 'base64') {
+        const binRes = await fetch(`data:application/octet-stream;base64,${content}`)
+        body = await binRes.blob()
+        contentType = relPath.endsWith('.png') ? 'image/png' : 'application/octet-stream'
+      }
+
+      if (append) {
+        let existingContent = ''
+        const readRes = await this.readFile(relPath)
+        if (readRes.success && readRes.content) {
+          existingContent = readRes.content
+        }
+        body = existingContent + content
+      }
+
+      const res = await this.client.fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': contentType },
+        body,
+      })
+      if (!res.ok) {
+        return { success: false, error: `S3 PUT failed: ${res.status} ${res.statusText}` }
+      }
+      return { success: true, mtime: Date.now() }
+    }
+    catch (err: any) {
+      return { success: false, error: err.message || String(err) }
+    }
+  }
+
+  async deleteFile(relPath: string): Promise<{ success: boolean, error?: string }> {
+    try {
+      const url = this.getS3Url(relPath)
+      const res = await this.client.fetch(url, { method: 'DELETE' })
+      if (!res.ok && res.status !== 404) {
+        return { success: false, error: `S3 DELETE failed: ${res.status} ${res.statusText}` }
+      }
+      return { success: true }
+    }
+    catch (err: any) {
+      return { success: false, error: err.message || String(err) }
+    }
+  }
+}
 
 async function parallelLimit<T>(
   items: T[],
@@ -36,6 +261,13 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
   const activeProvider = useLocalStorageManualReset<string>('settings/sync/active-provider', 'local-fs')
   const fsBackupPath = useLocalStorageManualReset<string>('settings/sync/fs-path', '')
 
+  // S3 Configuration State
+  const s3Endpoint = useLocalStorageManualReset<string>('settings/sync/s3-endpoint', '')
+  const s3Bucket = useLocalStorageManualReset<string>('settings/sync/s3-bucket', '')
+  const s3Region = useLocalStorageManualReset<string>('settings/sync/s3-region', 'us-east-1')
+  const s3AccessKeyId = useLocalStorageManualReset<string>('settings/sync/s3-access-key-id', '')
+  const s3SecretAccessKey = useLocalStorageManualReset<string>('settings/sync/s3-secret-access-key', '')
+
   // Runtime State
   const isSyncing = ref(false)
   const lastSyncTime = ref<number>(Number(localStorage.getItem('settings/sync/last-time') || '0'))
@@ -55,6 +287,20 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     }
   }
 
+  // Helper to get active client
+  function getActiveClient(): StorageClient {
+    if (activeProvider.value === 's3') {
+      return new S3StorageClient(
+        s3Endpoint.value,
+        s3Bucket.value,
+        s3Region.value,
+        s3AccessKeyId.value,
+        s3SecretAccessKey.value,
+      )
+    }
+    return new ElectronFSClient(fsBackupPath.value)
+  }
+
   // Helper to call Electron IPC
   const electron = (window as any).electron
 
@@ -62,16 +308,27 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     return Boolean(electron?.ipcRenderer)
   }
 
+  async function validateConnection(provider?: string): Promise<{ success: boolean, error?: string }> {
+    const targetProvider = provider || activeProvider.value
+    let client: StorageClient
+    if (targetProvider === 's3') {
+      client = new S3StorageClient(
+        s3Endpoint.value,
+        s3Bucket.value,
+        s3Region.value,
+        s3AccessKeyId.value,
+        s3SecretAccessKey.value,
+      )
+    }
+    else {
+      client = new ElectronFSClient(fsBackupPath.value)
+    }
+    return await client.validate()
+  }
+
   async function validatePath(path: string): Promise<{ success: boolean, error?: string }> {
-    if (!hasElectron()) {
-      return { success: false, error: 'File system access is only available in the desktop application.' }
-    }
-    try {
-      return await electron.ipcRenderer.invoke('byos-fs:validate-path', { path })
-    }
-    catch (err) {
-      return { success: false, error: String(err) }
-    }
+    const client = new ElectronFSClient(path)
+    return await client.validate()
   }
 
   // Normalize keys returned by storage.getKeys to their canonical slash-separated form
@@ -114,6 +371,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     console.log('[SyncEngine] Reconciling backgrounds...')
     await logDebug('Starting reconcileBackgrounds()')
     try {
+      const client = getActiveClient()
       // 1. Get list of deleted background IDs from sync metadata
       const rawLocalKeys = await storage.getKeys('local')
       const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
@@ -127,7 +385,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       await logDebug(`deletedBgIds size: ${deletedBgIds.size}`)
 
       // 2. List all remote files to find backgrounds
-      const listRes = await electron.ipcRenderer.invoke('byos-fs:list-files', { dir: fsBackupPath.value })
+      const listRes = await client.listFiles()
       if (!listRes.success) {
         await logDebug(`Failed to list remote files: ${listRes.error}`)
         return
@@ -159,10 +417,10 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         const remoteInfo = remoteBgs.get(id)
         if (remoteInfo) {
           if (remoteInfo.json) {
-            await electron.ipcRenderer.invoke('byos-fs:delete-file', { dir: fsBackupPath.value, relPath: remoteInfo.json })
+            await client.deleteFile(remoteInfo.json)
           }
           if (remoteInfo.png) {
-            await electron.ipcRenderer.invoke('byos-fs:delete-file', { dir: fsBackupPath.value, relPath: remoteInfo.png })
+            await client.deleteFile(remoteInfo.png)
           }
         }
         await localforage.removeItem(id)
@@ -184,21 +442,12 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           await logDebug(`Uploading background to remote: ${id} (title: ${entry.title}, characterId: ${entry.characterId})`)
           const { blob, ...metadata } = entry
           const jsonRelPath = `assets/backgrounds/${id}.json`
-          await electron.ipcRenderer.invoke('byos-fs:write-file', {
-            dir: fsBackupPath.value,
-            relPath: jsonRelPath,
-            content: JSON.stringify(metadata, null, 2),
-          })
+          await client.writeFile(jsonRelPath, JSON.stringify(metadata, null, 2))
 
           if (blob instanceof Blob) {
             const base64 = await blobToBase64(blob)
             const pngRelPath = `assets/backgrounds/${id}.png`
-            await electron.ipcRenderer.invoke('byos-fs:write-file', {
-              dir: fsBackupPath.value,
-              relPath: pngRelPath,
-              content: base64,
-              encoding: 'base64',
-            })
+            await client.writeFile(pngRelPath, base64, 'base64')
           }
           else {
             await logDebug(`Warning: background ${id} has no valid Blob object locally.`)
@@ -218,21 +467,14 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
 
         if (!existsLocally && remoteInfo.json && remoteInfo.png) {
           await logDebug(`Downloading background from remote: ${id}`)
-          const readJson = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-            dir: fsBackupPath.value,
-            relPath: remoteInfo.json,
-          })
+          const readJson = await client.readFile(remoteInfo.json)
           if (!readJson.success || !readJson.content) {
             await logDebug(`Failed to read remote JSON for ${id}: ${readJson.error}`)
             continue
           }
           const metadata = JSON.parse(readJson.content)
 
-          const readPng = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-            dir: fsBackupPath.value,
-            relPath: remoteInfo.png,
-            encoding: 'base64',
-          })
+          const readPng = await client.readFile(remoteInfo.png, 'base64')
           if (!readPng.success || !readPng.content) {
             await logDebug(`Failed to read remote PNG for ${id}: ${readPng.error}`)
             continue
@@ -255,7 +497,6 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       }
 
       if (hasDownloads) {
-        // Trigger reload on other tabs and in the current store
         broadcastBgSync(Date.now())
         try {
           const { useBackgroundStore } = await import('./background')
@@ -277,6 +518,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
   async function reconcileModels(): Promise<void> {
     console.log('[SyncEngine] Reconciling models...')
     try {
+      const client = getActiveClient()
       // 1. Get list of deleted model IDs from sync metadata
       const rawLocalKeys = await storage.getKeys('local')
       const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
@@ -291,10 +533,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       // 2. Read remote manifest
       let manifest: { models: Record<string, { id: string, format: string, name: string, importedAt: number, previewImage?: string, hasTextures: boolean, hasPreview?: boolean }> } = { models: {} }
       try {
-        const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-          dir: fsBackupPath.value,
-          relPath: 'assets/models/manifest.json',
-        })
+        const readRes = await client.readFile('assets/models/manifest.json')
         if (readRes.success && readRes.content) {
           manifest = JSON.parse(readRes.content)
         }
@@ -313,12 +552,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           const base64 = parts[1]
           if (base64) {
             const previewRelPath = `assets/models/${id}-preview.png`
-            const uploadRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-              dir: fsBackupPath.value,
-              relPath: previewRelPath,
-              content: base64,
-              encoding: 'base64',
-            })
+            const uploadRes = await client.writeFile(previewRelPath, base64, 'base64')
             if (uploadRes.success) {
               remoteModel.hasPreview = true
             }
@@ -332,21 +566,12 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       for (const id of deletedModelIds) {
         if (manifest.models[id]) {
           console.log(`[SyncEngine] Deleting remote model assets for: ${id}`)
-          await electron.ipcRenderer.invoke('byos-fs:delete-file', {
-            dir: fsBackupPath.value,
-            relPath: `assets/models/${id}.bin`,
-          })
+          await client.deleteFile(`assets/models/${id}.bin`)
           if (manifest.models[id].hasTextures) {
-            await electron.ipcRenderer.invoke('byos-fs:delete-file', {
-              dir: fsBackupPath.value,
-              relPath: `assets/models/${id}-textures.json`,
-            })
+            await client.deleteFile(`assets/models/${id}-textures.json`)
           }
           if (manifest.models[id].hasPreview) {
-            await electron.ipcRenderer.invoke('byos-fs:delete-file', {
-              dir: fsBackupPath.value,
-              relPath: `assets/models/${id}-preview.png`,
-            })
+            await client.deleteFile(`assets/models/${id}-preview.png`)
           }
           delete manifest.models[id]
           manifestModified = true
@@ -368,7 +593,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       // 5. Upload local-only models (not in remote manifest and not in local deleted list)
       for (const [id, entry] of localModels.entries()) {
         if (!manifest.models[id]) {
-          // Check if we have sync history for it (which would mean it was deleted on remote)
+          // Check if we have sync history for it
           const hasSyncHistory = await storage.getItemRaw<number>(`local:sync-metadata/timestamps/${id}`)
           if (hasSyncHistory) {
             console.log(`[SyncEngine] Model ${id} (${entry.name}) has sync history but is missing from remote manifest. Deleting locally.`)
@@ -382,12 +607,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           if (entry.file instanceof Blob || entry.file instanceof File) {
             const base64 = await blobToBase64(entry.file)
             const binRelPath = `assets/models/${id}.bin`
-            const uploadRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-              dir: fsBackupPath.value,
-              relPath: binRelPath,
-              content: base64,
-              encoding: 'base64',
-            })
+            const uploadRes = await client.writeFile(binRelPath, base64, 'base64')
             if (!uploadRes.success) {
               console.error(`[SyncEngine] Failed to upload model binary for ${id}:`, uploadRes.error)
               continue
@@ -417,11 +637,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             }
             if (texturesData.length > 0) {
               const texturesRelPath = `assets/models/${id}-textures.json`
-              const texUploadRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-                dir: fsBackupPath.value,
-                relPath: texturesRelPath,
-                content: JSON.stringify(texturesData, null, 2),
-              })
+              const texUploadRes = await client.writeFile(texturesRelPath, JSON.stringify(texturesData, null, 2))
               if (texUploadRes.success) {
                 hasTextures = true
               }
@@ -439,12 +655,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             const base64 = parts[1]
             if (base64) {
               const previewRelPath = `assets/models/${id}-preview.png`
-              const previewUploadRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-                dir: fsBackupPath.value,
-                relPath: previewRelPath,
-                content: base64,
-                encoding: 'base64',
-              })
+              const previewUploadRes = await client.writeFile(previewRelPath, base64, 'base64')
               if (previewUploadRes.success) {
                 hasPreview = true
               }
@@ -477,11 +688,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           continue
         if (!localModels.has(id)) {
           console.log(`[SyncEngine] Downloading model from remote: ${id} (${remoteModel.name})`)
-          const readBinRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-            dir: fsBackupPath.value,
-            relPath: `assets/models/${id}.bin`,
-            encoding: 'base64',
-          })
+          const readBinRes = await client.readFile(`assets/models/${id}.bin`, 'base64')
           if (!readBinRes.success || !readBinRes.content) {
             console.error(`[SyncEngine] Failed to read remote model binary for ${id}:`, readBinRes.error)
             continue
@@ -497,11 +704,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           let previewImage: string | undefined
           if (remoteModel.hasPreview) {
             console.log(`[SyncEngine] Downloading model preview: ${id}`)
-            const readPreviewRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-              dir: fsBackupPath.value,
-              relPath: `assets/models/${id}-preview.png`,
-              encoding: 'base64',
-            })
+            const readPreviewRes = await client.readFile(`assets/models/${id}-preview.png`, 'base64')
             if (readPreviewRes.success && readPreviewRes.content) {
               previewImage = `data:image/png;base64,${readPreviewRes.content}`
             }
@@ -521,10 +724,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
 
           // Download textures if present
           if (remoteModel.hasTextures) {
-            const readTexRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-              dir: fsBackupPath.value,
-              relPath: `assets/models/${id}-textures.json`,
-            })
+            const readTexRes = await client.readFile(`assets/models/${id}-textures.json`)
             if (readTexRes.success && readTexRes.content) {
               const texturesData = JSON.parse(readTexRes.content)
               const textures: any[] = []
@@ -551,11 +751,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       // Write updated manifest to remote
       if (manifestModified) {
         console.log('[SyncEngine] Writing updated model manifest to remote.')
-        await electron.ipcRenderer.invoke('byos-fs:write-file', {
-          dir: fsBackupPath.value,
-          relPath: 'assets/models/manifest.json',
-          content: JSON.stringify(manifest, null, 2),
-        })
+        await client.writeFile('assets/models/manifest.json', JSON.stringify(manifest, null, 2))
       }
 
       if (hasDownloads) {
@@ -608,11 +804,9 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     return Array.from(mergedMap.values())
   }
 
-  // Merges two airi-cards Map-entry arrays. Each value is a raw JSON-stringified
-  // array of [id, card] tuples — no {value: ...} wrapper since it lives in IndexedDB natively.
+  // Merges two airi-cards Map-entry arrays.
   function mergeAiriCards(localVal: any, remoteVal: any): any {
     try {
-      // localVal and remoteVal are raw Map-entries arrays: [[id, card], ...]
       const localEntries = Array.isArray(localVal) ? localVal as [string, any][] : []
       const remoteEntries = Array.isArray(remoteVal) ? remoteVal as [string, any][] : []
 
@@ -645,30 +839,25 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     }
   }
 
-  // Reactive State for conflicts
   const conflicts = ref<any[]>([])
 
   async function logDebug(msg: string) {
     console.log(`[SyncEngine] ${msg}`)
-    if (hasElectron()) {
-      try {
-        const logLine = `[${new Date().toISOString()}] ${msg}\n`
-        await electron.ipcRenderer.invoke('byos-fs:write-file', {
-          dir: 'C:\\Users\\h4rdc\\Documents\\Github\\airi-rebase-scratch',
-          relPath: 'sync-engine-debug.log',
-          content: logLine,
-          encoding: 'utf-8',
-          append: true,
-        })
+    try {
+      const logLine = `[${new Date().toISOString()}] ${msg}\n`
+      const client = getActiveClient()
+      if (activeProvider.value === 'local-fs' && hasElectron()) {
+        await client.writeFile('sync-engine-debug.log', logLine, 'utf-8', true)
       }
-      catch (e) {
-        console.error('[SyncEngine] Debug log failed:', e)
-      }
+    }
+    catch (e) {
+      console.error('[SyncEngine] Debug log failed:', e)
     }
   }
 
   async function loadConflicts() {
     try {
+      const client = getActiveClient()
       const rawLocalKeys = await storage.getKeys('local')
       const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
       const list: any[] = []
@@ -677,15 +866,11 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         if (k.startsWith(PREFIX)) {
           const conflictData = await storage.getItemRaw<any>(k)
           if (conflictData) {
-            // Enrich chat session details for local & remote sides to aid user in conflict resolution UI
             if (conflictData.key.startsWith('local:chat/sessions/')) {
               try {
                 const localVal = await storage.getItemRaw<any>(conflictData.key)
                 let remoteVal: any = null
-                const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-                  dir: fsBackupPath.value,
-                  relPath: conflictData.remoteRelPath,
-                })
+                const readRes = await client.readFile(conflictData.remoteRelPath)
                 if (readRes.success && readRes.content) {
                   try {
                     remoteVal = JSON.parse(readRes.content)
@@ -742,15 +927,11 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       const remoteSize = remoteFile.size
       await logDebug(`checkSyncConflict stats for ${localKey}: localSize=${localSize}, remoteSize=${remoteSize}`)
 
-      // Safety Guard Contraction Rule:
-      // A conflict is registered if the newer file is significantly smaller than the older file:
       let isContraction = false
       if (type === 'remote-newer') {
-        // Remote is newer but remote is much smaller than local
         isContraction = remoteSize < localSize && localSize > 10240 && (remoteSize < 2048 || localSize > 5 * remoteSize)
       }
       else {
-        // Local is newer but local is much smaller than remote
         isContraction = localSize < remoteSize && remoteSize > 10240 && (localSize < 2048 || remoteSize > 5 * localSize)
       }
 
@@ -781,9 +962,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
 
   // Apply Resolution
   async function resolveConflict(localKey: string, choice: 'local' | 'remote' | 'merge') {
-    if (!hasElectron() || !fsBackupPath.value)
-      return false
-
+    const client = getActiveClient()
     const relPath = getRelPathForKey(localKey)
     const conflictMetadataKey = `local:sync-metadata/conflicts/${localKey.replace('local:', '')}`
 
@@ -794,13 +973,9 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         console.log(`[SyncEngine] Resolving conflict for ${localKey} keeping LOCAL.`)
         const localVal = await storage.getItemRaw(localKey)
         if (localVal !== undefined && localVal !== null) {
-          const writeRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-            dir: fsBackupPath.value,
-            relPath,
-            content: JSON.stringify(localVal, null, 2),
-          })
+          const writeRes = await client.writeFile(relPath, JSON.stringify(localVal, null, 2))
           if (writeRes.success) {
-            const stats = await electron.ipcRenderer.invoke('byos-fs:list-files', { dir: fsBackupPath.value })
+            const stats = await client.listFiles()
             const matchingFile = stats.files?.find((f: any) => f.relPath === relPath)
             if (matchingFile) {
               await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, matchingFile.mtime)
@@ -813,15 +988,12 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       }
       else if (choice === 'remote') {
         console.log(`[SyncEngine] Resolving conflict for ${localKey} keeping REMOTE.`)
-        const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-          dir: fsBackupPath.value,
-          relPath,
-        })
+        const readRes = await client.readFile(relPath)
         if (readRes.success && readRes.content) {
           const remoteVal = JSON.parse(readRes.content)
           await storage.setItemRaw(localKey, remoteVal)
 
-          const stats = await electron.ipcRenderer.invoke('byos-fs:list-files', { dir: fsBackupPath.value })
+          const stats = await client.listFiles()
           const matchingFile = stats.files?.find((f: any) => f.relPath === relPath)
           if (matchingFile) {
             await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, matchingFile.mtime)
@@ -833,10 +1005,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       }
       else if (choice === 'merge') {
         console.log(`[SyncEngine] Resolving conflict for ${localKey} by MERGING arrays.`)
-        const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-          dir: fsBackupPath.value,
-          relPath,
-        })
+        const readRes = await client.readFile(relPath)
         if (readRes.success && readRes.content) {
           const remoteData = JSON.parse(readRes.content)
           const localData = await storage.getItemRaw(localKey)
@@ -873,18 +1042,11 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             }
           }
 
-          // Save locally
           await storage.setItemRaw(localKey, mergedData)
 
-          // Write remotely
-          const writeRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-            dir: fsBackupPath.value,
-            relPath,
-            content: JSON.stringify(mergedData, null, 2),
-          })
-
+          const writeRes = await client.writeFile(relPath, JSON.stringify(mergedData, null, 2))
           if (writeRes.success) {
-            const stats = await electron.ipcRenderer.invoke('byos-fs:list-files', { dir: fsBackupPath.value })
+            const stats = await client.listFiles()
             const matchingFile = stats.files?.find((f: any) => f.relPath === relPath)
             if (matchingFile) {
               await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, matchingFile.mtime)
@@ -899,7 +1061,6 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         }
       }
 
-      // Cleanup conflict metadata
       await storage.removeItem(conflictMetadataKey)
       await loadConflicts()
       toast.success(`Conflict resolved successfully using ${choice} strategy`)
@@ -912,21 +1073,19 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       storageState.isImportingRemoteData = false
     }
   }
+
   // Run full two-way reconciliation (LWW)
   async function reconcile(): Promise<boolean> {
-    if (!hasElectron() || !fsBackupPath.value)
-      return false
-
-    const pathValidation = await validatePath(fsBackupPath.value)
+    const client = getActiveClient()
+    const pathValidation = await client.validate()
     if (!pathValidation.success) {
-      console.warn('[SyncEngine] Backup path is invalid/not mounted, skipping reconciliation:', pathValidation.error)
+      console.warn('[SyncEngine] Sync storage target is invalid or inaccessible, skipping reconciliation:', pathValidation.error)
       return false
     }
 
     console.log('[SyncEngine] Starting reconciliation...')
     try {
-      // 1. List all remote files in the backup directory
-      const listRes = await electron.ipcRenderer.invoke('byos-fs:list-files', { dir: fsBackupPath.value })
+      const listRes = await client.listFiles()
       if (!listRes.success) {
         throw new Error(listRes.error || 'Failed to list remote files')
       }
@@ -934,7 +1093,6 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
       const remoteFiles = (listRes.files || []) as Array<{ relPath: string, mtime: number, size: number }>
       const remoteFileMap = new Map(remoteFiles.map(f => [getKeyForRelPath(f.relPath), f]))
 
-      // 2. Scan all local metadata timestamps
       const rawLocalKeys = await storage.getKeys('local')
       const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
       const localTimestamps = new Map<string, number>()
@@ -949,10 +1107,8 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         }
       }
 
-      // Bypass sync outbox enqueuing during remote reconciliation writes
       storageState.isImportingRemoteData = true
 
-      // 3. Resolve conflict resolution per remote file
       const remoteEntries = Array.from(remoteFileMap.entries())
       await parallelLimit(remoteEntries, 15, async ([localKey, remoteFile]) => {
         if (!localKey)
@@ -971,10 +1127,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         if (isMergeableKey) {
           console.log(`[SyncEngine] Key ${localKey} is mergeable. Executing merge...`)
           let remoteVal: any = null
-          const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-            dir: fsBackupPath.value,
-            relPath: remoteFile.relPath,
-          })
+          const readRes = await client.readFile(remoteFile.relPath)
           if (readRes.success && readRes.content) {
             try {
               remoteVal = JSON.parse(readRes.content)
@@ -1000,28 +1153,17 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             mergedVal = mergeArraysById(localArr, remoteArr)
           }
 
-          // Overwrite local (isImportingRemoteData is already true)
           await storage.setItemRaw(localKey, mergedVal)
 
-          // Overwrite remote
-          const writeRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-            dir: fsBackupPath.value,
-            relPath: remoteFile.relPath,
-            content: JSON.stringify(mergedVal, null, 2),
-          })
-
+          const writeRes = await client.writeFile(remoteFile.relPath, JSON.stringify(mergedVal, null, 2))
           if (writeRes.success && writeRes.mtime) {
             await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, writeRes.mtime)
           }
-          // Remove from localTimestamps map so normal loop doesn't process it again
           localTimestamps.delete(localKey)
           return
         }
 
         if (localTime === undefined) {
-          // Case A: Remote exists, but missing locally -> Download and import
-          // Safety Check: if the local key actually has data, run the safety conflict check
-          // to prevent silently wiping out existing local data.
           const localVal = await storage.getItemRaw(localKey)
           if (localVal !== undefined && localVal !== null) {
             await logDebug(`[Case A] Local key ${localKey} exists but localTime is undefined. Running safety check.`)
@@ -1033,19 +1175,14 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           }
 
           await logDebug(`[SyncEngine] Key ${localKey} missing locally (or safe). Downloading from remote...`)
-          const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-            dir: fsBackupPath.value,
-            relPath: remoteFile.relPath,
-          })
+          const readRes = await client.readFile(remoteFile.relPath)
           if (readRes.success && readRes.content) {
             const data = JSON.parse(readRes.content)
             await storage.setItemRaw(localKey, data)
-            // Set local timestamp to match remote mtime
             await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, remoteFile.mtime)
           }
         }
         else if (remoteFile.mtime > localTime) {
-          // Case B: Remote file is newer -> Download and overwrite local
           const isConflict = await checkSyncConflict(localKey, localTime, remoteFile, 'remote-newer')
           if (isConflict) {
             console.log(`[SyncEngine] Conflict safety guard blocked auto-overwrite of local key ${localKey}`)
@@ -1053,10 +1190,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           }
 
           console.log(`[SyncEngine] Remote file for ${localKey} is newer. Overwriting local...`)
-          const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-            dir: fsBackupPath.value,
-            relPath: remoteFile.relPath,
-          })
+          const readRes = await client.readFile(remoteFile.relPath)
           if (readRes.success && readRes.content) {
             const data = JSON.parse(readRes.content)
             await storage.setItemRaw(localKey, data)
@@ -1064,7 +1198,6 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           }
         }
         else if (localTime > remoteFile.mtime) {
-          // Case C: Local is newer -> Upload to remote
           const isConflict = await checkSyncConflict(localKey, localTime, remoteFile, 'local-newer')
           if (isConflict) {
             console.log(`[SyncEngine] Conflict safety guard blocked auto-overwrite of remote file for key ${localKey}`)
@@ -1074,11 +1207,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           console.log(`[SyncEngine] Local key ${localKey} is newer. Preparing upload...`)
           const localVal = await storage.getItemRaw(localKey)
           if (localVal) {
-            const writeRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-              dir: fsBackupPath.value,
-              relPath: remoteFile.relPath,
-              content: JSON.stringify(localVal, null, 2),
-            })
+            const writeRes = await client.writeFile(remoteFile.relPath, JSON.stringify(localVal, null, 2))
             if (!writeRes.success) {
               console.error(`[SyncEngine] Failed to write remote file for ${localKey}:`, writeRes.error)
             }
@@ -1086,7 +1215,6 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         }
       })
 
-      // 4. Handle files that exist locally but not on remote
       const localKeysToUpload = localKeys.filter((fullKey) => {
         if (fullKey.startsWith('local:sync-metadata/') || fullKey === 'local:sync-metadata')
           return false
@@ -1097,19 +1225,11 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         const relPath = getRelPathForKey(fullKey)
         console.log(`[SyncEngine] Key ${fullKey} exists locally only. Uploading... Path: ${relPath}`)
 
-        // Try both getItem and getItemRaw to see which returns the data
         const localValRaw = await storage.getItemRaw(fullKey)
         const localVal = await storage.getItem(fullKey)
-        console.log(`[SyncEngine] Key ${fullKey} localValRaw type: ${typeof localValRaw}, localVal type: ${typeof localVal}`)
-
         const valToUse = localVal ?? localValRaw
         if (valToUse !== undefined && valToUse !== null) {
-          const writeRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-            dir: fsBackupPath.value,
-            relPath,
-            content: typeof valToUse === 'string' ? valToUse : JSON.stringify(valToUse, null, 2),
-          })
-          console.log(`[SyncEngine] Write response for ${fullKey}:`, writeRes)
+          const writeRes = await client.writeFile(relPath, typeof valToUse === 'string' ? valToUse : JSON.stringify(valToUse, null, 2))
           if (!writeRes.success) {
             console.error(`[SyncEngine] Failed to write remote file for ${fullKey}:`, writeRes.error)
             return
@@ -1117,9 +1237,6 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           if (writeRes.mtime) {
             await storage.setItemRaw(`local:sync-metadata/timestamps/${fullKey.replace('local:', '')}`, writeRes.mtime)
           }
-        }
-        else {
-          console.warn(`[SyncEngine] Key ${fullKey} has no local content (both getItem and getItemRaw returned null/undefined).`)
         }
       })
 
@@ -1138,8 +1255,11 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
 
   // Process the pending mutations in the outbox queue
   async function processOutbox(): Promise<boolean> {
-    if (!hasElectron() || !fsBackupPath.value)
+    const client = getActiveClient()
+    const pathValidation = await client.validate()
+    if (!pathValidation.success) {
       return false
+    }
 
     const rawOutboxKeys = await storage.getKeys('outbox')
     const outboxKeys = rawOutboxKeys.map(normalizeStorageKey).filter((k): k is string => k !== null).filter(k => k.startsWith('outbox:queue/'))
@@ -1157,7 +1277,6 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           return
         }
 
-        // Safety Gate: Skip outbox upload if there is an active sync conflict registered for this key
         const conflictKey = `local:sync-metadata/conflicts/${item.key.replace('local:', '')}`
         const hasActiveConflict = await storage.getItemRaw(conflictKey)
         if (hasActiveConflict) {
@@ -1178,10 +1297,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           if (isMergeableKey) {
             console.log(`[SyncEngine] Outbox key ${item.key} is mergeable. Merging with remote...`)
             let remoteVal: any = null
-            const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
-              dir: fsBackupPath.value,
-              relPath,
-            })
+            const readRes = await client.readFile(relPath)
             if (readRes.success && readRes.content) {
               try {
                 remoteVal = JSON.parse(readRes.content)
@@ -1204,15 +1320,9 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
               mergedVal = mergeArraysById(localArr, remoteArr)
             }
 
-            // Overwrite local
             await storage.setItemRaw(item.key, mergedVal)
 
-            // Overwrite remote
-            const writeRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-              dir: fsBackupPath.value,
-              relPath,
-              content: JSON.stringify(mergedVal, null, 2),
-            })
+            const writeRes = await client.writeFile(relPath, JSON.stringify(mergedVal, null, 2))
             if (!writeRes.success) {
               throw new Error(writeRes.error || 'Failed to write remote file')
             }
@@ -1223,11 +1333,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           else {
             const val = await storage.getItemRaw(item.key)
             if (val) {
-              const writeRes = await electron.ipcRenderer.invoke('byos-fs:write-file', {
-                dir: fsBackupPath.value,
-                relPath,
-                content: JSON.stringify(val, null, 2),
-              })
+              const writeRes = await client.writeFile(relPath, JSON.stringify(val, null, 2))
               if (!writeRes.success) {
                 throw new Error(writeRes.error || 'Failed to write remote file')
               }
@@ -1238,16 +1344,12 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           }
         }
         else if (item.action === 'delete') {
-          const delRes = await electron.ipcRenderer.invoke('byos-fs:delete-file', {
-            dir: fsBackupPath.value,
-            relPath,
-          })
+          const delRes = await client.deleteFile(relPath)
           if (!delRes.success) {
             throw new Error(delRes.error || 'Failed to delete remote file')
           }
         }
 
-        // Clean up outbox item
         await storage.removeItem(fullQueueKey)
       })
       storageState.isImportingRemoteData = false
@@ -1420,12 +1522,18 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     conflictStrategy,
     activeProvider,
     fsBackupPath,
+    s3Endpoint,
+    s3Bucket,
+    s3Region,
+    s3AccessKeyId,
+    s3SecretAccessKey,
     isSyncing,
     lastSyncTime,
     syncError,
     conflicts,
 
     validatePath,
+    validateConnection,
     triggerSync,
     resolveConflict,
     loadConflicts,

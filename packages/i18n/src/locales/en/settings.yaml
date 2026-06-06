@@ -1226,6 +1226,9 @@ pages:
       local-fs:
         settings:
           title: Local File System / Samba Configuration
+      s3:
+        settings:
+          title: S3-Compatible Cloud Storage Configuration
     title: Providers
   connection:
     description: Configure server connection and external download tokens (e.g.

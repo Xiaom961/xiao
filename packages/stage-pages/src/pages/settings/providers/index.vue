@@ -45,6 +45,22 @@ const allCloudProvidersMetadata = computed(() => {
       beginnerRecommended: true,
       iconImage: undefined,
     },
+    {
+      id: 's3',
+      category: 'cloud',
+      icon: 'i-solar:cloud-bold-duotone',
+      iconColor: 'text-blue-500',
+      name: 'S3-Compatible Cloud Storage',
+      localizedName: 'S3-Compatible Cloud Storage',
+      description: 'Synchronize data to Cloudflare R2, AWS S3, Backblaze B2, or MinIO.',
+      localizedDescription: 'Synchronize data to Cloudflare R2, AWS S3, Backblaze B2, or MinIO.',
+      configured: !!(syncEngineStore.s3Endpoint && syncEngineStore.s3Bucket && syncEngineStore.s3AccessKeyId && syncEngineStore.s3SecretAccessKey),
+      to: '/settings/providers/cloud/s3',
+      pricing: 'free',
+      deployment: 'cloud',
+      beginnerRecommended: false,
+      iconImage: undefined,
+    },
   ]
 })
 

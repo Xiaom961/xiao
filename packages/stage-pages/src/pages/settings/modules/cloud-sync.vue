@@ -38,12 +38,18 @@ const activeProviderLabel = computed(() => {
   if (activeProvider.value === 'local-fs') {
     return 'Local File System / Samba'
   }
+  if (activeProvider.value === 's3') {
+    return 'S3-Compatible Cloud Storage'
+  }
   return activeProvider.value || 'Not Configured'
 })
 
 function handleConfigureProvider() {
   if (activeProvider.value === 'local-fs') {
     router.push('/settings/providers/cloud/local-fs')
+  }
+  else if (activeProvider.value === 's3') {
+    router.push('/settings/providers/cloud/s3')
   }
   else {
     router.push('/settings/providers#cloud')
