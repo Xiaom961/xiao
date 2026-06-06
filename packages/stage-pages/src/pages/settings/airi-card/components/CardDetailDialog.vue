@@ -38,6 +38,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
+  (e: 'edit', cardId: string): void
 }>()
 
 const { t } = useI18n()
@@ -287,6 +288,13 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
 
               <!-- Action buttons -->
               <div flex="~ row" gap-2>
+                <!-- Edit button -->
+                <Button
+                  variant="secondary"
+                  icon="i-solar:pen-bold-duotone"
+                  label="Edit"
+                  @click="emit('edit', props.cardId)"
+                />
                 <!-- Activation button -->
                 <Button
                   variant="primary"

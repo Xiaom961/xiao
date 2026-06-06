@@ -484,13 +484,26 @@ const sortedFilteredCards = computed<CardItem[]>(() => {
   const sorted = [...filteredCards.value]
 
   if (sortOption.value === 'nameAsc')
-    return sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   else if (sortOption.value === 'nameDesc')
-    return sorted.sort((a, b) => (b.name || '').localeCompare(a.name || ''))
+    sorted.sort((a, b) => (b.name || '').localeCompare(a.name || ''))
   else if (sortOption.value === 'recent')
-    return sorted.sort((a, b) => (b.id || '').localeCompare(a.id || ''))
-  else
-    return sorted
+    sorted.sort((a, b) => (b.id || '').localeCompare(a.id || ''))
+
+  // Always bring the active card to the front
+  if (activeCardId.value) {
+    sorted.sort((a, b) => {
+      const aIsActive = a.id === activeCardId.value
+      const bIsActive = b.id === activeCardId.value
+      if (aIsActive && !bIsActive)
+        return -1
+      if (!aIsActive && bIsActive)
+        return 1
+      return 0
+    })
+  }
+
+  return sorted
 })
 
 // Delete confirmation
@@ -527,6 +540,7 @@ function handleEditCard(cardId: string) {
     console.error(`Card with id ${cardId} not found`)
     return
   }
+  isCardDialogOpen.value = false
   editingCardId.value = cardId
   isCardCreationDialogOpen.value = true
 }
@@ -1075,6 +1089,7 @@ function getDisplayModelId(id: string) {
     v-model="isCardDialogOpen"
     :card-id="selectedCardId"
     :initial-tab="initialTab"
+    @edit="handleEditCard"
   />
 
   <!-- Card creation/edit dialog -->
