@@ -21,6 +21,7 @@ import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useProactivityStore } from '@proj-airi/stage-ui/stores/proactivity'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSyncEngineStore } from '@proj-airi/stage-ui/stores/sync-engine'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
@@ -161,6 +162,14 @@ onMounted(async () => {
   }
 
   logStep('onMounted start')
+
+  // Safety net: if localStorage was wiped by an OOM crash or force-close, restore any
+  // missing keys from the IndexedDB backup before any store reads their values.
+  // This is non-destructive — it only writes keys that are currently absent.
+  // If sync was enabled and the /Volumes share is mounted, a background full reconcile
+  // will also run to pull back any IndexedDB-only data (airi-cards, chat sessions, etc.).
+  logStep('Restoring missing settings from IndexedDB backup')
+  await useSyncEngineStore().initializeFromLocalBackup()
 
   // NOTICE: Infrastructure vs Service ordering.
   // We initialize the Context Bridge FIRST to ensure cross-window communication is established

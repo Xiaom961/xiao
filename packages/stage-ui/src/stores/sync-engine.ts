@@ -1156,7 +1156,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
   }
 
   // Run full two-way reconciliation (LWW)
-  async function reconcile(): Promise<boolean> {
+  async function reconcile(opts?: { skipBinaryAssets?: boolean }): Promise<boolean> {
     const client = getActiveClient()
     const pathValidation = await client.validate()
     if (!pathValidation.success) {
@@ -1324,8 +1324,13 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
         }
       })
 
-      await reconcileBackgrounds()
-      await reconcileModels()
+      if (!opts?.skipBinaryAssets) {
+        await reconcileBackgrounds()
+        await reconcileModels()
+      }
+      else {
+        console.log('[SyncEngine] Skipping binary asset reconciliation (startup mode).')
+      }
 
       storageState.isImportingRemoteData = false
       return true
@@ -1530,6 +1535,106 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     await logDebug('restoreLocalStorageFromIndexedDb completed.')
   }
 
+  // Non-destructive startup restore: fills in localStorage keys that are ABSENT (null)
+  // from the IndexedDB backup. Does NOT overwrite existing keys, does NOT reload.
+  // Returns the list of keys that were written.
+  async function restoreLocalStorageFromIndexedDbSafe(): Promise<string[]> {
+    await logDebug('restoreLocalStorageFromIndexedDbSafe starting...')
+    const restored: string[] = []
+    try {
+      const rawLocalKeys = await storage.getKeys('local')
+      const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
+      for (const fullKey of localKeys) {
+        if (fullKey.startsWith('local:localstorage/')) {
+          const key = fullKey.substring('local:localstorage/'.length)
+          if (shouldExcludeLocalStorageKey(key))
+            continue
+          // Only restore if the key is currently absent from localStorage
+          if (localStorage.getItem(key) !== null)
+            continue
+          const valObj = await storage.getItemRaw<{ value: string }>(fullKey)
+          if (valObj && typeof valObj === 'object' && 'value' in valObj) {
+            const val = valObj.value
+            if (val !== null && val !== undefined) {
+              try {
+                localStorage.setItem(key, val)
+                restored.push(key)
+                await logDebug(`restoreLocalStorageFromIndexedDbSafe: restored missing key=${key}`)
+              }
+              catch (quotaErr) {
+                console.error(`[SyncEngine] Safe restore: quota exceeded for key ${key}:`, quotaErr)
+              }
+            }
+          }
+        }
+      }
+    }
+    catch (e) {
+      console.error('[SyncEngine] restoreLocalStorageFromIndexedDbSafe failed:', e)
+      await logDebug(`restoreLocalStorageFromIndexedDbSafe error: ${e}`)
+    }
+    await logDebug(`restoreLocalStorageFromIndexedDbSafe completed. Restored ${restored.length} keys.`)
+    return restored
+  }
+
+  // Called once at app boot. Fills in any missing localStorage keys from IndexedDB
+  // (safe, non-destructive), then if sync is enabled and the backup path is reachable,
+  // kicks off a background full reconcile to pull any IndexedDB keys that were also lost.
+  async function initializeFromLocalBackup(): Promise<void> {
+    await logDebug('initializeFromLocalBackup starting...')
+    try {
+      const restored = await restoreLocalStorageFromIndexedDbSafe()
+      if (restored.length > 0) {
+        console.log(`[SyncEngine] Boot restore: recovered ${restored.length} localStorage keys from IndexedDB:`, restored)
+        // Dispatch storage events so reactive refs (useLocalStorage / useLocalStorageManualReset)
+        // that are already initialized pick up the newly-written values.
+        for (const key of restored) {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key,
+            newValue: localStorage.getItem(key),
+            storageArea: localStorage,
+          }))
+        }
+      }
+
+      // Re-read syncEnabled directly from localStorage (the Pinia reactive ref may still
+      // reflect the stale default=false value until Vue flushes the watcher queue).
+      const syncEnabledRaw = localStorage.getItem('settings/sync/enabled')
+      const syncIsOn = syncEnabledRaw === 'true'
+
+      if (syncIsOn) {
+        await logDebug('initializeFromLocalBackup: sync is enabled, kicking off background reconcile from disk...')
+        // Run non-blocking so we don't block the rest of the App.vue startup pipeline.
+        void (async () => {
+          try {
+            // CRITICAL: dump current localStorage to IDB FIRST so every key gets a fresh
+            // timestamp (= now). This prevents the subsequent reconcile from treating
+            // a slightly-older remote file as "newer" and downloading it on top of the
+            // user's current provider/voice/settings configuration.
+            await dumpLocalStorageToIndexedDb()
+            // Run lightweight startup reconcile — JSON data only, skip models/backgrounds
+            // to prevent OOM from loading large binary assets into the renderer heap.
+            const success = await reconcile({ skipBinaryAssets: true })
+            if (success) {
+              await restoreLocalStorageFromIndexedDb()
+              window.dispatchEvent(new CustomEvent('airi:idb-key-updated', { detail: { key: 'local:airi-cards' } }))
+              await logDebug('initializeFromLocalBackup: background reconcile + restore complete.')
+            }
+          }
+          catch (e) {
+            console.error('[SyncEngine] initializeFromLocalBackup background reconcile failed:', e)
+            await logDebug(`initializeFromLocalBackup background reconcile error: ${e}`)
+          }
+        })()
+      }
+    }
+    catch (e) {
+      console.error('[SyncEngine] initializeFromLocalBackup failed:', e)
+      await logDebug(`initializeFromLocalBackup error: ${e}`)
+    }
+    await logDebug('initializeFromLocalBackup completed.')
+  }
+
   // Manual Trigger Sync
   async function triggerSync() {
     if (isSyncing.value)
@@ -1632,5 +1737,6 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     triggerSync,
     resolveConflict,
     loadConflicts,
+    initializeFromLocalBackup,
   }
 })

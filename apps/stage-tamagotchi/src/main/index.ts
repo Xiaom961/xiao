@@ -930,7 +930,13 @@ app.whenReady().then(async () => {
           // Try writing a temporary test file to ensure it's writable
           const testFile = path.join(data.path, '.byos-write-test')
           await fs.writeFile(testFile, 'test')
-          await fs.unlink(testFile)
+          // Best-effort cleanup — if the file is still locked (e.g. from a prior crashed sync)
+          // the write already proved access, so tolerate EBUSY/ENOENT on unlink.
+          await fs.unlink(testFile).catch((unlinkErr: any) => {
+            if (unlinkErr.code !== 'ENOENT') {
+              console.warn('[BYOS-FS] Could not remove write-test file (non-fatal):', unlinkErr.message)
+            }
+          })
           return { success: true }
         }
         catch (error) {
