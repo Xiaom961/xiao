@@ -58,6 +58,15 @@ function formatSize(bytes: number): string {
 function cleanKeyLabel(key: string): string {
   return key.replace('local:', '')
 }
+
+async function handleRestoreFromBackup() {
+  const confirmed = confirm(
+    'WARNING: This will completely wipe all local settings, characters, chat history, and assets, replacing them with the remote backup. This action cannot be undone.\n\nAre you sure you want to proceed?',
+  )
+  if (confirmed) {
+    await syncStore.forceRestoreFromRemote()
+  }
+}
 </script>
 
 <template>
@@ -136,6 +145,9 @@ function cleanKeyLabel(key: string): string {
           <option value="lww">
             Last-Write-Wins (LWW)
           </option>
+          <option value="remote-wins">
+            Remote-Wins (Override Conflicts)
+          </option>
         </select>
       </div>
 
@@ -187,6 +199,23 @@ function cleanKeyLabel(key: string): string {
           @click="syncStore.triggerSync"
         >
           {{ isSyncing ? 'Syncing...' : 'Sync Now' }}
+        </button>
+      </div>
+
+      <div class="flex flex-row items-center border-t border-neutral-200 pt-4 dark:border-neutral-800">
+        <div class="size-10 flex items-center justify-center rounded-full bg-rose-500/10 text-rose-500">
+          <div class="i-solar:shield-warning-bold text-xl" />
+        </div>
+        <div class="ml-3 flex flex-col">
+          <span class="text-neutral-700 font-semibold dark:text-neutral-300">Restore Remote Backup</span>
+          <span class="text-xs text-neutral-400 dark:text-neutral-500">Nuke local data and force restore all settings from remote.</span>
+        </div>
+        <button
+          class="ml-auto rounded-xl bg-rose-600 px-5 py-2.5 text-sm text-white font-semibold transition-colors duration-200 hover:bg-rose-700 focus:outline-none"
+          :disabled="isSyncing"
+          @click="handleRestoreFromBackup"
+        >
+          Restore Backup...
         </button>
       </div>
 

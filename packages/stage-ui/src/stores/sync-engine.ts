@@ -257,7 +257,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
   // Sync Configuration State
   const syncEnabled = useLocalStorageManualReset<boolean>('settings/sync/enabled', false)
   const syncInterval = useLocalStorageManualReset<number>('settings/sync/interval', 30) // in minutes
-  const conflictStrategy = useLocalStorageManualReset<'lww'>('settings/sync/conflict-strategy', 'lww')
+  const conflictStrategy = useLocalStorageManualReset<'lww' | 'remote-wins'>('settings/sync/conflict-strategy', 'lww')
   const activeProvider = useLocalStorageManualReset<string>('settings/sync/active-provider', 'local-fs')
   const fsBackupPath = useLocalStorageManualReset<string>('settings/sync/fs-path', '')
 
@@ -1251,7 +1251,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
           const localVal = await storage.getItemRaw(localKey)
           if (localVal !== undefined && localVal !== null) {
             await logDebug(`[Case A] Local key ${localKey} exists but localTime is undefined. Running safety check.`)
-            const isConflict = await checkSyncConflict(localKey, 0, remoteFile, 'remote-newer')
+            const isConflict = conflictStrategy.value === 'remote-wins' ? false : await checkSyncConflict(localKey, 0, remoteFile, 'remote-newer')
             if (isConflict) {
               await logDebug(`[WARNING] Safety conflict registered for ${localKey} (Case A - local data exists). Overwrite blocked.`)
               return
@@ -1266,14 +1266,15 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
             await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, remoteFile.mtime)
           }
         }
-        else if (remoteFile.mtime > localTime) {
-          const isConflict = await checkSyncConflict(localKey, localTime, remoteFile, 'remote-newer')
+        else if (remoteFile.mtime > localTime || conflictStrategy.value === 'remote-wins') {
+          // Case B: Remote file is newer OR strategy is remote-wins -> Download and overwrite local
+          const isConflict = conflictStrategy.value === 'remote-wins' ? false : await checkSyncConflict(localKey, localTime, remoteFile, 'remote-newer')
           if (isConflict) {
             console.log(`[SyncEngine] Conflict safety guard blocked auto-overwrite of local key ${localKey}`)
             return
           }
 
-          console.log(`[SyncEngine] Remote file for ${localKey} is newer. Overwriting local...`)
+          console.log(`[SyncEngine] Remote file for ${localKey} is newer (or remote-wins). Overwriting local...`)
           const readRes = await client.readFile(remoteFile.relPath)
           if (readRes.success && readRes.content) {
             const data = JSON.parse(readRes.content)
@@ -1682,6 +1683,222 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     }
   }
 
+  // Non-destructive startup restore: fills in localStorage keys that are ABSENT (null)
+  // from the IndexedDB backup. Does NOT overwrite existing keys, does NOT reload.
+  // Returns the list of keys that were written.
+  async function restoreLocalStorageFromIndexedDbSafe(): Promise<string[]> {
+    await logDebug('restoreLocalStorageFromIndexedDbSafe starting...')
+    const restored: string[] = []
+    try {
+      const rawLocalKeys = await storage.getKeys('local')
+      const localKeys = rawLocalKeys.map(normalizeStorageKey).filter((k): k is string => k !== null)
+      for (const fullKey of localKeys) {
+        if (fullKey.startsWith('local:localstorage/')) {
+          const key = fullKey.substring('local:localstorage/'.length)
+          if (shouldExcludeLocalStorageKey(key))
+            continue
+          // Only restore if the key is currently absent from localStorage
+          if (localStorage.getItem(key) !== null)
+            continue
+          const valObj = await storage.getItemRaw<{ value: string }>(fullKey)
+          if (valObj && typeof valObj === 'object' && 'value' in valObj) {
+            const val = valObj.value
+            if (val !== null && val !== undefined) {
+              try {
+                localStorage.setItem(key, val)
+                restored.push(key)
+                await logDebug(`restoreLocalStorageFromIndexedDbSafe: restored missing key=${key}`)
+              }
+              catch (quotaErr) {
+                console.error(`[SyncEngine] Safe restore: quota exceeded for key ${key}:`, quotaErr)
+              }
+            }
+          }
+        }
+      }
+    }
+    catch (e) {
+      console.error('[SyncEngine] restoreLocalStorageFromIndexedDbSafe failed:', e)
+      await logDebug(`restoreLocalStorageFromIndexedDbSafe error: ${e}`)
+    }
+    await logDebug(`restoreLocalStorageFromIndexedDbSafe completed. Restored ${restored.length} keys.`)
+    return restored
+  }
+
+  // Called once at app boot. Fills in any missing localStorage keys from IndexedDB
+  // (safe, non-destructive), then if sync is enabled and the backup path is reachable,
+  // kicks off a background full reconcile to pull any IndexedDB keys that were also lost.
+  async function initializeFromLocalBackup(): Promise<void> {
+    await logDebug('initializeFromLocalBackup starting...')
+    try {
+      const restored = await restoreLocalStorageFromIndexedDbSafe()
+      if (restored.length > 0) {
+        console.log(`[SyncEngine] Boot restore: recovered ${restored.length} localStorage keys from IndexedDB:`, restored)
+        // Dispatch storage events so reactive refs (useLocalStorage / useLocalStorageManualReset)
+        // that are already initialized pick up the newly-written values.
+        for (const key of restored) {
+          window.dispatchEvent(new StorageEvent('storage', {
+            key,
+            newValue: localStorage.getItem(key),
+            storageArea: localStorage,
+          }))
+        }
+      }
+
+      // Re-read syncEnabled directly from localStorage (the Pinia reactive ref may still
+      // reflect the stale default=false value until Vue flushes the watcher queue).
+      const syncEnabledRaw = localStorage.getItem('settings/sync/enabled')
+      const syncIsOn = syncEnabledRaw === 'true'
+
+      if (syncIsOn) {
+        await logDebug('initializeFromLocalBackup: sync is enabled, kicking off background reconcile from disk...')
+        // Run non-blocking so we don't block the rest of the App.vue startup pipeline.
+        void (async () => {
+          try {
+            // CRITICAL: dump current localStorage to IDB FIRST so every key gets a fresh
+            // timestamp (= now). This prevents the subsequent reconcile from treating
+            // a slightly-older remote file as "newer" and downloading it on top of the
+            // user's current provider/voice/settings configuration.
+            await dumpLocalStorageToIndexedDb()
+            // Run lightweight startup reconcile — JSON data only, skip models/backgrounds
+            // to prevent OOM from loading large binary assets into the renderer heap.
+            const success = await reconcile({ skipBinaryAssets: true })
+            if (success) {
+              await restoreLocalStorageFromIndexedDb()
+              window.dispatchEvent(new CustomEvent('airi:idb-key-updated', { detail: { key: 'local:airi-cards' } }))
+              await logDebug('initializeFromLocalBackup: background reconcile + restore complete.')
+            }
+          }
+          catch (e) {
+            console.error('[SyncEngine] initializeFromLocalBackup background reconcile failed:', e)
+            await logDebug(`initializeFromLocalBackup background reconcile error: ${e}`)
+          }
+        })()
+      }
+    }
+    catch (e) {
+      console.error('[SyncEngine] initializeFromLocalBackup failed:', e)
+      await logDebug(`initializeFromLocalBackup error: ${e}`)
+    }
+    await logDebug('initializeFromLocalBackup completed.')
+  }
+
+  // Pure one-way force restore: clears local IndexedDB, localforage, and localStorage
+  // (excluding sync setup keys) and downloads everything directly from the remote backup.
+  async function forceRestoreFromRemote(): Promise<boolean> {
+    if (!hasElectron() || !fsBackupPath.value) {
+      toast.error('Cannot restore: File system access is unavailable or path is not set.')
+      return false
+    }
+
+    const pathValidation = await validatePath(fsBackupPath.value)
+    if (!pathValidation.success) {
+      toast.error(`Cannot restore: Invalid backup path: ${pathValidation.error}`)
+      return false
+    }
+
+    isSyncing.value = true
+    syncError.value = ''
+    storageState.isImportingRemoteData = true
+
+    try {
+      await logDebug('[Restore] Starting force restore from remote backup...')
+
+      // 1. Wipe outbox queue
+      const rawOutboxKeys = await storage.getKeys('outbox')
+      for (const k of rawOutboxKeys) {
+        await storage.removeItem(k)
+      }
+
+      // 2. Wipe local database entries (excluding sync settings)
+      const rawLocalKeys = await storage.getKeys('local')
+      for (const k of rawLocalKeys) {
+        const normalized = normalizeStorageKey(k)
+        if (normalized && (normalized.includes('settings/sync/') || normalized.includes('local:settings/sync/'))) {
+          continue
+        }
+        await storage.removeItem(k)
+      }
+
+      // 3. Wipe localStorage (excluding sync settings)
+      const keysToKeep = [
+        'settings/sync/enabled',
+        'settings/sync/interval',
+        'settings/sync/conflict-strategy',
+        'settings/sync/active-provider',
+        'settings/sync/fs-path',
+      ]
+      const lsKeys = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && !keysToKeep.includes(key)) {
+          lsKeys.push(key)
+        }
+      }
+      for (const key of lsKeys) {
+        localStorage.removeItem(key)
+      }
+
+      // 4. Wipe localforage (VRM/Live2D model files and backgrounds)
+      await localforage.clear()
+
+      // 5. List and download all files from remote
+      const listRes = await electron.ipcRenderer.invoke('byos-fs:list-files', { dir: fsBackupPath.value })
+      if (!listRes.success) {
+        throw new Error(listRes.error || 'Failed to list remote files')
+      }
+
+      const remoteFiles = (listRes.files || []) as Array<{ relPath: string, mtime: number, size: number }>
+      await logDebug(`[Restore] Found ${remoteFiles.length} remote files. Downloading...`)
+
+      // A. Reconcile database files first
+      const dbFiles = remoteFiles.filter(f => f.relPath.replace(/\\/g, '/').startsWith('db/'))
+      await parallelLimit(dbFiles, 15, async (remoteFile) => {
+        const localKey = getKeyForRelPath(remoteFile.relPath)
+        if (!localKey)
+          return
+
+        const readRes = await electron.ipcRenderer.invoke('byos-fs:read-file', {
+          dir: fsBackupPath.value,
+          relPath: remoteFile.relPath,
+        })
+        if (readRes.success && readRes.content) {
+          const data = JSON.parse(readRes.content)
+          await storage.setItemRaw(localKey, data)
+          await storage.setItemRaw(`local:sync-metadata/timestamps/${localKey.replace('local:', '')}`, remoteFile.mtime)
+        }
+      })
+
+      // B. Reconcile binary backgrounds and models
+      await reconcileBackgrounds()
+      await reconcileModels()
+
+      // C. Restore synced localStorage keys back to window.localStorage
+      await restoreLocalStorageFromIndexedDb()
+
+      lastSyncTime.value = Date.now()
+      localStorage.setItem('settings/sync/last-time', String(lastSyncTime.value))
+      toast.success('Restore completed successfully. Reloading...')
+      await logDebug('[Restore] Force restore completed successfully.')
+
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+
+      return true
+    }
+    catch (err: any) {
+      syncError.value = String(err)
+      toast.error(`Restore Failed: ${syncError.value}`)
+      await logDebug(`[Restore] Restore failed: ${syncError.value}`)
+      return false
+    }
+    finally {
+      storageState.isImportingRemoteData = false
+      isSyncing.value = false
+    }
+  }
+
   // Background Auto Sync Interval Trigger
   let syncTimer: any = null
 
@@ -1738,5 +1955,6 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     resolveConflict,
     loadConflicts,
     initializeFromLocalBackup,
+    forceRestoreFromRemote,
   }
 })

@@ -3,6 +3,7 @@
 This document logs the custom animation and interactive triggers that were removed from the `.model.json` or `.model3.json` manifests to prevent WebGL runtime crashes. These entries lack a `File`/`file` property but demonstrate sophisticated ways the original creators structured their interactive logic.
 
 ## 🎭 Model: `live2d_2883004043`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_2883004043.zip`
 Total custom entries pruned: **9**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -20,6 +21,7 @@ Total custom entries pruned: **9**
 ---
 
 ## 🎭 Model: `live2d_3165421164`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3165421164.zip`
 Total custom entries pruned: **5**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -33,6 +35,7 @@ Total custom entries pruned: **5**
 ---
 
 ## 🎭 Model: `live2d_2262182171`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d_multi\live2d_2262182171.zip`
 Total custom entries pruned: **178**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -219,6 +222,7 @@ Total custom entries pruned: **178**
 ---
 
 ## 🎭 Model: `live2d_3626567931`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3626567931.zip.zip`
 Total custom entries pruned: **403**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -630,6 +634,7 @@ Total custom entries pruned: **403**
 ---
 
 ## 🎭 Model: `live2d_3348681028`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d_multi\live2d_3348681028.zip`
 Total custom entries pruned: **10**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -648,6 +653,7 @@ Total custom entries pruned: **10**
 ---
 
 ## 🎭 Model: `live2d_3548538714` (Senran Kagura Standby Characters)
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d_multi\live2d_3548538714.zip`
 Total custom entries pruned: **228**
 
 ### 💡 The Standby Costume-Swapping Engine
@@ -892,6 +898,7 @@ This item represents a massive compilation of **228 standby characters** packed 
 ---
 
 ## 🎭 Model: `live2d_1990155125`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_1990155125.zip`
 Total custom entries pruned: **2**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -902,6 +909,7 @@ Total custom entries pruned: **2**
 ---
 
 ## 🎭 Model: `live2d_2608633238`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_2608633238.zip`
 Total custom entries pruned: **1**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -911,6 +919,7 @@ Total custom entries pruned: **1**
 ---
 
 ## 🎭 Model: `live2d_3357623873`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3357623873.zip`
 Total custom entries pruned: **77**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -996,6 +1005,7 @@ Total custom entries pruned: **77**
 ---
 
 ## 🎭 Model: `live2d_3156427156`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d_multi\live2d_3156427156.zip`
 Total custom entries pruned: **8**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1012,6 +1022,7 @@ Total custom entries pruned: **8**
 ---
 
 ## 🎭 Model: `live2d_3599090981`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3599090981.zip`
 Total custom entries pruned: **1**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1021,6 +1032,7 @@ Total custom entries pruned: **1**
 ---
 
 ## 🎭 Model: `live2d_3443582462`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3443582462.zip`
 Total custom entries pruned: **8**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1037,6 +1049,7 @@ Total custom entries pruned: **8**
 ---
 
 ## 🎭 Model: `live2d_3443588788`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3443588788.zip`
 Total custom entries pruned: **11**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1056,6 +1069,7 @@ Total custom entries pruned: **11**
 ---
 
 ## 🎭 Model: `live2d_3443578669`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3443578669.zip`
 Total custom entries pruned: **11**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1075,6 +1089,7 @@ Total custom entries pruned: **11**
 ---
 
 ## 🎭 Model: `live2d_3607861780`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3607861780.zip`
 Total custom entries pruned: **13**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1096,6 +1111,7 @@ Total custom entries pruned: **13**
 ---
 
 ## 🎭 Model: `live2d_3690055082`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3690055082.zip`
 Total custom entries pruned: **13**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1117,6 +1133,7 @@ Total custom entries pruned: **13**
 ---
 
 ## 🎭 Model: `live2d_3110750977`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d_multi\live2d_3110750977.zip`
 Total custom entries pruned: **29**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1154,6 +1171,7 @@ Total custom entries pruned: **29**
 ---
 
 ## 🎭 Model: `live2d_2042115087`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_2042115087.zip`
 Total custom entries pruned: **1**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1163,6 +1181,7 @@ Total custom entries pruned: **1**
 ---
 
 ## 🎭 Model: `live2d_2000010442`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_2000010442.zip`
 Total custom entries pruned: **19**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1190,6 +1209,7 @@ Total custom entries pruned: **19**
 ---
 
 ## 🎭 Model: `live2d_2108430225`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_2108430225.zip`
 Total custom entries pruned: **11**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1209,6 +1229,7 @@ Total custom entries pruned: **11**
 ---
 
 ## 🎭 Model: `live2d_1985484220`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_1985484220.zip`
 Total custom entries pruned: **114**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1331,6 +1352,7 @@ Total custom entries pruned: **114**
 ---
 
 ## 🎭 Model: `live2d_2588209550`
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_2588209550.zip`
 Total custom entries pruned: **2**
 
 | Group | Entry Name | Custom Properties (Special Sauce) |
@@ -1341,6 +1363,7 @@ Total custom entries pruned: **2**
 ---
 
 ## 🎭 Model: `live2d_3490176232` (Parameter-Based Texture & State Toggling)
+* **Windows Host Path**: `C:\users\h4rdc\Documents\Github\coding-agent\VRMs\packages_live2d\live2d_3490176232.zip`
 Total custom controllers found: **1** (`ParamValue`)
 
 Unlike standard DSL commands (`change_cos` or `VarFloats`) placed inside motion files, this model injects a custom `ParamValue` block directly into the `Controllers` section of the `model3.json`.
