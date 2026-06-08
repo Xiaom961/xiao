@@ -346,6 +346,7 @@ A game layer on top of the Actor Stage with deep Live2D integration. Implements 
 | **Settings store** | `packages/stage-ui/src/stores/modules/discord.ts` |
 | **Settings page** | `packages/stage-pages/src/pages/settings/modules/messaging-discord.vue` |
 | **Vision plumbing** | Intercepts Discord attachments → `chatOrchestrator.ingest` as base64 |
+| **Tool call availability** | Discord messages flow through the same `performSend` pipeline as desktop inputs. Tools are NOT passed explicitly by the Discord store, but `chat.ts:297` falls through to `toolsResolver.value` (set to `builtinTools` at `index.vue:728`). All built-in tools (text journal, widgets, stickers, MCP, dating sim) are available from Discord. The only exception is VLM turns (image attachments) — tools are stripped for all sources, not just Discord. |
 | **Full spec** | [`feat-discord-revamp.md`](./feat-discord-revamp.md) |
 | **Architecture doc** | `docs/content/en/docs/advanced/architecture/design-discord-bot-integration.md` |
 

@@ -53,6 +53,12 @@ When you type a command:
 
 All interactions flow through the same **Episode/Memory** system as the desktop app, so Discord conversations are synced with your chat history.
 
+## Tool Calls
+
+AIRI's built-in tools (text journal, stickers, stage widgets, MCP, dating sim) are **available from Discord** — not just from the desktop Whisperbox. When you send a message from Discord, it enters the same LLM pipeline as desktop input. The tools array is resolved via a global fallback (`toolsResolver`), so you can ask AIRI to write into her journal, spawn a widget, or call MCP tools directly from a Discord channel.
+
+The only case where tools are disabled is when you send an image attachment — vision models often don't support tool calling, and this applies to all sources equally (Discord, desktop, voice).
+
 ---
 
 ## Command Reference
