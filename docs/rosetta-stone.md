@@ -31,7 +31,8 @@ Concept-to-file-path index for rapid context retrieval. Use this to find where a
 | **Resource Island** | `apps/stage-tamagotchi/src/renderer/components/stage-islands/resource-status-island/index.vue` |
 | **VRM Character** | `packages/stage-ui-three/src/components/Model/VRMModel.vue` |
 | **Live2D Character** | `packages/stage-ui-live2d/src/components/scenes/live2d/Canvas.vue` |
-| **Spine Character** | `packages/stage-ui-three/src/components/Model/SpineModel.vue` |
+| **Spine Character** | `packages/stage-ui-spine/src/components/scenes/Spine.vue` | `packages/stage-ui-spine/src/components/scenes/spine/Model.vue` |
+| **MMD Character** | `packages/stage-ui-mmd/src/components/scenes/MMD.vue` | `packages/stage-ui-mmd/src/components/scenes/mmd/Model.vue` |
 | **Gemini Panel** | `apps/stage-tamagotchi/src/renderer/pages/notice/gemini.vue` (UI) | `packages/stage-ui/src/stores/modules/live-session.ts` (Bidi WebSocket) |
 | **System Tray** | `apps/stage-tamagotchi/src/main/tray/index.ts` |
 | **Caption Overlay** | `apps/stage-tamagotchi/src/renderer/pages/caption.vue` (UI) | `apps/stage-tamagotchi/src/main/windows/caption/` (Manager) |
@@ -233,6 +234,9 @@ Microphone → VadDetector → AudioBuffer → STTProvider inference → text �
 | **Whisper adapter** | `packages/stage-ui/src/libs/inference/adapters/whisper.ts` |
 | **Audio Studio UST proposal** | [`proposal-higgs-audio-v3-tts-integration.md`](./proposal-higgs-audio-v3-tts-integration.md) |
 | **MOSS-TTS-Nano proposal** | [`proposal-moss-tts-nano-provider-unified-webgpu.md`](./proposal-moss-tts-nano-provider-unified-webgpu.md) |
+| **Audio pipelines (transcribe)** | `packages/audio-pipelines-transcribe/` — audio transcription pipeline implementations |
+| **Audio pipelines (general)** | `packages/pipelines-audio/` — general audio pipeline utilities |
+| **Model drivers** | `packages/model-driver-lipsync/` (lipsync) | `packages/model-driver-mediapipe/` (face/body tracking) |
 
 ---
 
@@ -286,6 +290,8 @@ Microphone → VadDetector → AudioBuffer → STTProvider inference → text �
 | **Control Island State** | `packages/stage-ui/src/stores/settings/controls-island.ts` (Shared) | `apps/stage-tamagotchi/src/renderer/stores/controls-island.ts` (Renderer) |
 | **VRM Animations** | `packages/stage-ui-three/src/assets/vrm/animations/index.ts` (Assets) | `packages/stage-ui-three/src/stores/model-store.ts` (State) |
 | **Custom VRM Animations** | `packages/stage-ui-three/src/stores/custom-vrm-animations.ts` |
+| **Spine Store** | `packages/stage-ui-spine/src/stores/spine.ts` — model loading, animation state |
+| **MMD Store** | `packages/stage-ui-mmd/src/stores/mmd.ts` — model loading, animation state |
 | **Character Artistry DNA** | `packages/stage-ui/src/constants/prompts/character-defaults.ts` |
 | **STT / Microphone** | `apps/stage-tamagotchi/src/renderer/pages/index.vue` (Tamagotchi) | `apps/stage-web/src/pages/index.vue` (Web) |
 | **Gemini Live (Bidi WebSocket)** | `packages/stage-ui/src/stores/modules/live-session.ts` |
@@ -355,13 +361,27 @@ Cross-window communication relies on named `BroadcastChannel` instances. These a
 | `packages/stage-ui/src/workers/` | Web Worker implementations (kokoro, whisper, moss-nano) |
 | `packages/stage-ui/src/composables/` | Business-oriented Vue composables |
 | `packages/stage-ui/src/components/scenarios/` | Scenario-specific UI components |
-| `packages/stage-ui-three` | Three.js 3D rendering, VRM, Spine, expressions |
+| `packages/stage-ui-three` | Three.js 3D rendering, VRM |
 | `packages/stage-ui-live2d` | Live2D rendering |
+| `packages/stage-ui-spine` | Spine rendering |
+| `packages/stage-ui-mmd` | MMD/PMX rendering (MikuMikuDance) |
+| `packages/stage-ui-three-performance-runtime` | Performance runtime for three.js |
 | `packages/stage-pages` | Shared settings pages, card editor, module pages |
 | `packages/stage-shared` | Constants (`emotions.ts`, `events.ts`), utilities (`text.ts` — `healMozibake`) |
 | `packages/stage-layouts` | Layout components shared across apps |
 | `packages/ui` | Primitive components built on reka-ui |
 | `packages/i18n` | Central translations (YAML managed via `scripts/yaml-manager.js`) |
+| `packages/audio-pipelines-transcribe/` | Audio transcription pipelines |
+| `packages/model-driver-lipsync/` | Lipsync driver for model expressions |
+| `packages/model-driver-mediapipe/` | MediaPipe driver for face/body tracking |
+| `packages/plugin-protocol/` | Plugin protocol definitions |
+| `packages/plugin-sdk/` | Plugin SDK for extensions |
+| `packages/server-runtime/` | Server runtime (powers services/ and plugins/) |
+| `packages/server-sdk/` | Server SDK |
+| `packages/server-shared/` | Shared server types |
+| `packages/stream-kit/` | Streaming utilities |
+| `packages/electron-eventa/` | Electron Eventa bindings |
+| `packages/font-*` | Font packages (allseto, departure-mono, xiaolai) |
 | `apps/stage-tamagotchi` | Electron app (main + renderer) |
 | `apps/stage-web` | Web app |
 | `apps/stage-tamagotchi/src/renderer/stores/tools/builtin/` | LLM tool definitions exposed to the model |
