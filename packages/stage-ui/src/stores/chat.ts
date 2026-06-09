@@ -5,28 +5,40 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 import type { ChatAssistantMessage, ChatSlices, ChatStreamEventContext } from '../types/chat'
 import type { StreamEvent, StreamOptions } from './llm'
 
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { healMozibake } from '@proj-airi/stage-shared'
 import { createQueue } from '@proj-airi/stream-kit'
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { reactive, ref, toRaw, watch } from 'vue'
+import { computed, reactive, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../composables'
 import { createLlmJsonInterceptor } from '../composables/llm-json-interceptor'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
-import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
-import { useCompactionStore } from './chat/compaction'
-import { createDatetimeContext, createEternalRecordContext, createExpressionsContext, createScenesContext, createStickersContext } from './chat/context-providers'
+import { categorizeResponse, cleanOutputText, createStreamingCategorizer } from '../composables/response-categoriser'
+import { useAgencyStore } from './agency'
+import {
+  createDatetimeContext,
+  createEnvironmentalReportContext,
+  createEternalRecordContext,
+  createExpressionsContext,
+  createScenesContext,
+  createStickersContext,
+} from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useLLM } from './llm'
+import { useTextJournalStore } from './memory-text-journal'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useDiscordStore } from './modules/discord'
+import { useDiscordMemoryStore } from './modules/discord-memory'
 import { useLiveSessionStore } from './modules/live-session'
+import { useVectorMemoryStore } from './modules/vector-memory'
 import { useVisionStore } from './modules/vision'
 import { useProactivityStore } from './proactivity'
 import { useProvidersStore } from './providers'
@@ -36,6 +48,8 @@ export interface SendOptions {
   model?: string
   chatProvider?: string | ChatProvider
   providerConfig?: Record<string, unknown>
+  visionProvider?: string | ChatProvider
+  visionModel?: string
   attachments?: { type: 'image', data: string, mimeType: string }[]
   tools?: StreamOptions['tools']
   input?: WebSocketEventInputs
@@ -93,6 +107,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const airiCardStore = useAiriCardStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const settingsChat = useSettingsChat()
+  const vectorMemoryStore = useVectorMemoryStore()
+  const discordMemoryStore = useDiscordMemoryStore()
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const { activeCard } = storeToRefs(airiCardStore)
   const { trackFirstMessage } = useAnalytics()
@@ -100,12 +116,14 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
+  const agencyStore = useAgencyStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
-  const isMainWindow = typeof window !== 'undefined'
-    && !window.location.hash.startsWith('#/actor')
-    && !window.location.hash.startsWith('#/caption')
+  const isMainWindow = typeof window !== 'undefined' && (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#')
+
+  const sendingSessions = ref<Set<string>>(new Set())
+  const sending = computed(() => sendingSessions.value.has(activeSessionId.value))
 
   const { data: broadcastedInput, post: postInput } = useBroadcastChannel<
     {
@@ -126,9 +144,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     toolsResolver.value = resolver
   }
 
-  const activeSpokenText = ref('')
-  const activeSpokenColor = ref('')
-
   if (isMainWindow) {
     watch(broadcastedInput, (payload) => {
       if (payload) {
@@ -139,34 +154,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         }, payload.targetSessionId)
       }
     })
-
-    // Single Inter-Window IPC Listeners for real-time spoken sentence highlighting
-    const { data: captionData } = useBroadcastChannel<any, any>({ name: 'airi-caption-overlay' })
-    const { data: sessionUpdate } = useBroadcastChannel<any, any>({ name: 'airi-chat-stream' })
-
-    watch(captionData, (event) => {
-      if (event?.type === 'caption-assistant') {
-        const activeSegment = event.segments.find((s: any) => s.isActive)
-        if (activeSegment) {
-          activeSpokenText.value = activeSegment.text
-          activeSpokenColor.value = activeSegment.color
-        }
-        else {
-          activeSpokenText.value = ''
-          activeSpokenColor.value = ''
-        }
-      }
-    })
-
-    watch(sessionUpdate, (event) => {
-      if (event?.type === 'session-updated' && event.message?.role === 'user') {
-        activeSpokenText.value = ''
-        activeSpokenColor.value = ''
-      }
-    })
   }
 
-  const sending = ref(false)
   const pendingQueuedSends = ref<QueuedSend[]>([])
 
   const sendQueue = createQueue<QueuedSend>({
@@ -202,28 +191,23 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   })
 
   async function performSend(
-    rawSendingMessage: string,
+    sendingMessage: string,
     options: SendOptions,
     generation: number,
     sessionId: string,
   ) {
-    const isSentinel = rawSendingMessage === 'INVOKE_CHARACTER_FIRST'
-    const sendingMessage = isSentinel ? '' : rawSendingMessage
-    chatLog('performSend starting with message:', rawSendingMessage)
+    chatLog('performSend starting with message:', sendingMessage)
 
     let bridgedSteps = 0
     let needsBridgedFollowUp = false
+
+    // Record interaction start
+    agencyStore.recordInteraction(true)
 
     if (!options.triggerOnly && !sendingMessage && !options.attachments?.length)
       return
 
     chatSession.ensureSession(sessionId)
-
-    // Execute history compaction if limit has been reached
-    const compactionStore = useCompactionStore()
-    if (compactionStore.shouldCompact(sessionId)) {
-      await compactionStore.executeCompaction(sessionId)
-    }
 
     // Inject current datetime context before composing the message
     chatContext.ingestContextMessage(createDatetimeContext())
@@ -236,12 +220,51 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       chatContext.ingestContextMessage(eternalRecordContext)
     }
 
+    const envReport = createEnvironmentalReportContext()
+    if (envReport) {
+      chatContext.ingestContextMessage(envReport)
+    }
+
+    // Ingest Recalled Episodic Memories
+    if (settingsChat.vectorMemoryEnabled && sendingMessage.trim()) {
+      try {
+        const isDiscord = sessionId.startsWith('discord-')
+        let recalled: any[] = []
+        if (isDiscord) {
+          const discordUserId = sessionId.replace('discord-', '')
+          recalled = await discordMemoryStore.searchMemories(sendingMessage, discordUserId)
+        }
+        else {
+          recalled = await vectorMemoryStore.searchMemories(sendingMessage)
+        }
+        if (recalled && recalled.length > 0) {
+          const recalledText = `[RECALLED EPISODIC MEMORIES]\n`
+            + `The following are relevant memories from past interactions. Use them to maintain relationship continuity. Do not explicitly recite this metadata unless natural to the conversation.\n`
+            + `---\n${
+              recalled.map(m => `- [${new Date(m.timestamp).toLocaleDateString()}] (${m.emotion}): "${m.text}"`).join('\n')
+            }\n---`
+
+          chatContext.ingestContextMessage({
+            id: nanoid(),
+            contextId: 'system:episodic-memory',
+            strategy: ContextUpdateStrategy.ReplaceSelf,
+            text: recalledText,
+            createdAt: Date.now(),
+          } as any)
+        }
+      }
+      catch (e) {
+        console.error('[Vector Memory] Recall in performSend failed:', e)
+      }
+    }
+
     const sendingCreatedAt = Date.now()
     const streamingMessageContext: ChatStreamEventContext = {
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: nanoid(), ...options.metadata },
       contexts: chatContext.getContextsSnapshot(),
       composedMessage: [],
       input: options.input,
+      targetSessionId: sessionId,
     }
 
     const isStaleGeneration = () => chatSession.getSessionGeneration(sessionId) !== generation
@@ -279,7 +302,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     let fullText = ''
     let rawFullText = ''
     try {
-      sending.value = true
+      sendingSessions.value.add(sessionId)
       let effectiveModel = options.model || activeModel.value
       let effectiveProviderId = typeof options.chatProvider === 'string'
         ? options.chatProvider
@@ -290,17 +313,100 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       let effectiveConfig = options.providerConfig
       let effectiveTools = options.tools || toolsResolver.value
 
-      const isVlmTurn = !!(options.attachments && options.attachments.some(a => a.type === 'image') && visionStore.activeProvider && visionStore.activeModel)
+      if (typeof effectiveTools === 'function') {
+        effectiveTools = await effectiveTools()
+      }
+      effectiveTools = effectiveTools ? [...effectiveTools] : []
+
+      // Dynamic Tavily Web Search Tool Injection
+      if (settingsChat.webSearchProvider === 'tavily' && settingsChat.tavilyApiKey) {
+        effectiveTools.push({
+          type: 'function',
+          function: {
+            name: 'web_search',
+            description: 'Search the web for up-to-date information, news, or facts. Use this whenever you need to look up current events, documentation, or facts you are unsure about.',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  description: 'The search query to look up on the internet.',
+                },
+              },
+              required: ['query'],
+            },
+            execute: async (args: any) => {
+              const res = await fetch('https://api.tavily.com/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  api_key: settingsChat.tavilyApiKey,
+                  query: args.query,
+                  search_depth: 'basic',
+                  include_answer: true,
+                  include_raw_content: false,
+                  max_results: 5,
+                }),
+              })
+              const data = await res.json()
+              return data.answer ? `${data.answer}\n\nSources:\n${data.results?.map((r: any) => `- ${r.title}: ${r.url}`).join('\n')}` : JSON.stringify(data.results)
+            },
+          },
+        })
+      }
+
+      // Dynamic Text Journal Tool Injection
+      const textJournalStore = useTextJournalStore()
+      effectiveTools.push({
+        type: 'function',
+        function: {
+          name: 'journal_create',
+          description: 'Save a memory or note to your personal long-term journal. Use this whenever the user asks you to remember something, or whenever you feel a moment is important enough to keep a permanent written record of.',
+          parameters: {
+            type: 'object',
+            properties: {
+              title: {
+                type: 'string',
+                description: 'A short, descriptive title for this journal entry.',
+              },
+              content: {
+                type: 'string',
+                description: 'The detailed content of the memory or note to save, written from your perspective.',
+              },
+            },
+            required: ['title', 'content'],
+          },
+          execute: async (args: any) => {
+            try {
+              const entry = await textJournalStore.createEntry({
+                title: args.title,
+                content: args.content,
+                characterId: airiCardStore.activeCardId || 'default',
+                source: 'chat',
+              })
+              return `Successfully saved to journal: "${entry.title}"`
+            }
+            catch (err: any) {
+              return `Failed to save to journal: ${err.message}`
+            }
+          },
+        },
+      })
+
+      const isVlmTurn = !!(options.attachments && options.attachments.some(a => a.type === 'image') && (options.visionProvider || visionStore.activeProvider) && (options.visionModel || visionStore.activeModel))
       let promptShimText = ''
       if (isVlmTurn) {
+        const targetVisionProvider = (options.visionProvider as string) || visionStore.activeProvider
+        const targetVisionModel = options.visionModel || visionStore.activeModel
+
         chatLog('Vision handover activated. Replacing main LLM with Vision VLM.', {
-          provider: visionStore.activeProvider,
-          model: visionStore.activeModel,
+          provider: targetVisionProvider,
+          model: targetVisionModel,
         })
-        effectiveModel = visionStore.activeModel
-        effectiveProviderId = visionStore.activeProvider
-        effectiveProvider = await providersStore.getProviderInstance(visionStore.activeProvider)
-        effectiveConfig = providersStore.getProviderConfig(visionStore.activeProvider)
+        effectiveModel = targetVisionModel
+        effectiveProviderId = targetVisionProvider
+        effectiveProvider = typeof options.visionProvider === 'string' ? await providersStore.getProviderInstance(options.visionProvider) : (options.visionProvider || await providersStore.getProviderInstance(targetVisionProvider))
+        effectiveConfig = providersStore.getProviderConfig(targetVisionProvider)
         promptShimText = visionStore.promptShim || ''
         effectiveTools = undefined // Vision models often do not support tools, and we only need them for direct reply
       }
@@ -363,7 +469,16 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       // Trigger now only if in user-centric mode. Assistant-centric runs after response is complete.
       const autonomousTarget = activeCard.value?.extensions?.airi?.artistry?.autonomousTarget || 'user'
       if (autonomousTarget === 'user' && !options.triggerOnly) {
-        void artistryAutonomousStore.runArtistTask(sendingMessage, sessionMessagesForSend as any)
+        let shouldTrigger = true
+        if (sessionId.startsWith('discord-')) {
+          const discordStore = useDiscordStore()
+          if (discordStore.artProbability !== undefined && Math.random() * 100 > discordStore.artProbability) {
+            shouldTrigger = false
+          }
+        }
+        if (shouldTrigger) {
+          void artistryAutonomousStore.runArtistTask(sendingMessage, sessionMessagesForSend as any)
+        }
       }
       // --------------------------------
 
@@ -415,15 +530,34 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         const historyWithoutSystem = inferenceMessages.filter(m => m.role !== 'system' && (!inferenceUserMessage || m !== inferenceUserMessage))
         const trimmedHistory = historyWithoutSystem.slice(-6)
 
+        // We must clone the messages to safely modify their contents
         inferenceMessages = systemMessage
-          ? [systemMessage, ...trimmedHistory]
-          : [...trimmedHistory]
+          ? [{ ...systemMessage }, ...trimmedHistory.map(m => ({ ...m }))]
+          : trimmedHistory.map(m => ({ ...m }))
 
         if (inferenceUserMessage) {
-          inferenceMessages.push(inferenceUserMessage)
+          inferenceMessages.push({ ...inferenceUserMessage })
         }
 
-        chatLog(`[ChatDebug] VLM turn detected. Trimmed history from ${sessionMessagesForSend.length + 1} to ${inferenceMessages.length} messages.`)
+        // Apply MSF Context Window Limit (strip excess images)
+        let imageCount = 0
+        const maxImages = visionStore.contextWindow || 1
+
+        for (let i = inferenceMessages.length - 1; i >= 0; i--) {
+          const msg = inferenceMessages[i]
+          if (Array.isArray(msg.content)) {
+            const hasImage = msg.content.some((part: any) => part.type === 'image_url')
+            if (hasImage) {
+              imageCount++
+              if (imageCount > maxImages) {
+                // Strip images from this message, keeping only text
+                msg.content = msg.content.filter((part: any) => part.type !== 'image_url')
+              }
+            }
+          }
+        }
+
+        chatLog(`[ChatDebug] VLM turn detected. Trimmed history from ${sessionMessagesForSend.length + 1} to ${inferenceMessages.length} messages. Kept ${Math.min(imageCount, maxImages)} images.`)
       }
 
       const categorizer = createStreamingCategorizer(effectiveProviderId)
@@ -439,12 +573,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           const speechOnly = categorizer.filterToSpeech(text, streamPosition)
           streamPosition += text.length
 
-          const cardFallback = activeCard.value?.extensions?.airi?.generation?.known?.reasoningFallback
           const current = categorizer.getCurrent()
           if (current) {
-            const finalSpeech = current.speech || (cardFallback !== false && current.reasoning ? current.reasoning : '')
-             ;(buildingMessage as any).categorization = {
-              speech: finalSpeech,
+            ;(buildingMessage as any).categorization = {
+              speech: current.speech,
               reasoning: current.reasoning,
             }
           }
@@ -767,8 +899,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             if (isStaleGeneration())
               return
 
-            const cardFallback = activeCard.value?.extensions?.airi?.generation?.known?.reasoningFallback
-            const finalCategorization = categorizeResponse(fullText, effectiveProviderId, { reasoningFallback: cardFallback !== false })
+            const finalCategorization = categorizeResponse(fullText, effectiveProviderId)
 
             ;(buildingMessage as any).categorization = {
               speech: finalCategorization.speech,
@@ -823,6 +954,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         }
 
         const contextsSnapshot = chatContext.getContextsSnapshot()
+
+        console.log('[VISION-DEBUG] Final context snapshot:', JSON.stringify(contextsSnapshot, null, 2))
+        console.log('[VISION-DEBUG] Buckets:', Object.keys(contextsSnapshot))
+        console.log('[VISION-DEBUG] lastVisualAnalysis at time of send:', visionStore.lastVisualAnalysis)
+
         const groundingEnabled = activeCard.value?.extensions?.airi?.groundingEnabled
         const sensorPayload = groundingEnabled ? proactivityStore.sensorPayload : ''
 
@@ -831,9 +967,46 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           const afterSystem = newMessages.slice(1, newMessages.length)
 
           let contextContent = ''
-          if (Object.keys(contextsSnapshot).length > 0) {
-            contextContent += 'These are the contextual information retrieved or on-demand updated from other modules:\n'
-              + `${Object.entries(contextsSnapshot).map(([key, value]) => `Module ${key}: ${JSON.stringify(value)}`).join('\n')}\n`
+          const contextKeys = Object.keys(contextsSnapshot)
+          if (contextKeys.length > 0) {
+            contextContent += 'The following sections contain current observations and memory retrieved from active modules. Treat them as factual context.\n\n'
+
+            const moduleHeaders: Record<string, string> = {
+              'system:environmental-report': '## Current screen observation',
+              'system:episodic-memory': '## Recent memories',
+              'system:datetime': '## Current date and time',
+              'system:stickers': '## Available stickers',
+              'system:scenes': '## Available scenes',
+              'system:expressions': '## Available expressions',
+              'system:eternal-record': '## Long-term knowledge',
+            }
+
+            for (const key of contextKeys) {
+              if (key === 'system:environmental-report') {
+                continue
+              }
+              const value = contextsSnapshot[key]
+              if (!Array.isArray(value)) {
+                console.warn(`[Chat] Context snapshot for ${key} is not an array, skipping.`)
+                continue
+              }
+              if (value.length === 0) {
+                continue
+              }
+
+              const texts = value.map(v => v?.text).filter(Boolean)
+              if (texts.length === 0) {
+                continue
+              }
+
+              let header = moduleHeaders[key]
+              if (!header) {
+                const formattedKey = key.replace(/[:-]/g, ' ')
+                header = `## ${formattedKey.charAt(0).toUpperCase() + formattedKey.slice(1)}`
+              }
+
+              contextContent += `${header}\n${texts.join('\n')}\n\n`
+            }
           }
 
           if (sensorPayload) {
@@ -847,6 +1020,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             + `${sensorPayload}\n`
           }
 
+          console.log('[VISION-DEBUG] contextContent final:\n', contextContent)
+
           newMessages = [
             ...system,
             {
@@ -855,6 +1030,52 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             },
             ...afterSystem,
           ]
+
+          // Inject environmental-report as a dedicated system message
+          // positioned right before the last user message, to give the
+          // current visual observation maximum attention weight without
+          // competing against the model's prior assistant responses in
+          // the history.
+          const envReportBucket = contextsSnapshot['system:environmental-report']
+          if (Array.isArray(envReportBucket) && envReportBucket.length > 0) {
+            const envTexts = envReportBucket.map(v => v?.text).filter(Boolean)
+            if (envTexts.length > 0) {
+              const envContent = envTexts.join('\n')
+              // Find the index of the last user message in newMessages.
+              let lastUserIdx = -1
+              for (let i = newMessages.length - 1; i >= 0; i--) {
+                if (newMessages[i].role === 'user') {
+                  lastUserIdx = i
+                  break
+                }
+              }
+              if (lastUserIdx >= 0) {
+                const envMessage = {
+                  role: 'system' as const,
+                  content: envContent,
+                }
+                newMessages = [
+                  ...newMessages.slice(0, lastUserIdx),
+                  envMessage,
+                  ...newMessages.slice(lastUserIdx),
+                ]
+                console.log('[VISION-DEBUG] Environmental report injected at position', lastUserIdx, 'of', newMessages.length, 'total messages')
+              }
+              else {
+                // Edge case: no user message found. Append at end as fallback.
+                newMessages = [...newMessages, { role: 'system' as const, content: envContent }]
+                console.warn('[VISION-DEBUG] No user message found; environmental report appended at end as fallback')
+              }
+            }
+          }
+
+          console.log('[VISION-DEBUG] FINAL newMessages structure:', newMessages.map((m, i) => ({
+            idx: i,
+            role: m.role,
+            contentPreview: typeof m.content === 'string' ? m.content.slice(0, 80) : '[non-string]',
+          })))
+
+          console.log('[VISION-DEBUG] newMessages final:', JSON.stringify(newMessages, null, 2))
         }
 
         streamingMessageContext.composedMessage = newMessages as Message[]
@@ -993,6 +1214,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         await parser.end()
         await literalInterceptor.end()
 
+        // Clean any residual ACT/Mood/Curious prefixes from the final accumulated text and streamed content
+        buildingMessage.content = cleanOutputText(typeof buildingMessage.content === 'string' ? buildingMessage.content : '')
+        fullText = cleanOutputText(fullText)
+        updateUI()
+
         // Wait for all tools (bridged or native) to finish processing for this turn
         await new Promise<void>((resolve) => {
           if (toolCallQueue.length() === 0)
@@ -1047,25 +1273,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       }
 
       // Turn loop ended
-      const cardFallback = activeCard.value?.extensions?.airi?.generation?.known?.reasoningFallback
-      const fallbackActive = cardFallback !== false
-      const speechText = typeof buildingMessage.content === 'string' ? buildingMessage.content : ''
-      if (!speechText.trim() && (buildingMessage as any).categorization?.reasoning?.trim() && fallbackActive) {
-        const fallbackText = (buildingMessage as any).categorization.reasoning
-        buildingMessage.content = fallbackText
-        // Check if there is no text slice to display, and add one if missing
-        const textSlice = buildingMessage.slices.find(s => s.type === 'text')
-        if (textSlice && textSlice.type === 'text') {
-          textSlice.text = fallbackText
-        }
-        else {
-          buildingMessage.slices.push({
-            type: 'text',
-            text: fallbackText,
-          })
-        }
-        updateUI()
-      }
 
       // --- NO_REPLY Guard ---
       // If the model explicitly chose to remain silent, we abort downstream processing.
@@ -1107,9 +1314,21 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ;(buildingMessage as any).rawContent = rawFullText
         const currentMessages = chatSession.getSessionMessages(sessionId)
         chatSession.setSessionMessages(sessionId, [...currentMessages, toRaw(buildingMessage)])
+
+        // Trigger background memory consolidation
+        if (settingsChat.vectorMemoryEnabled) {
+          if (sessionId.startsWith('discord-')) {
+            const discordUserId = sessionId.replace('discord-', '')
+            void discordMemoryStore.consolidateConversation(sessionId, [...currentMessages, toRaw(buildingMessage)], discordUserId)
+          }
+          else {
+            void vectorMemoryStore.consolidateConversation(sessionId, [...currentMessages, toRaw(buildingMessage)])
+          }
+        }
       }
 
       // Finalize hooks and analytics
+      agencyStore.recordInteraction(false)
       await hooks.emitStreamEndHooks(streamingMessageContext)
       await hooks.emitAssistantResponseEndHooks(fullText, streamingMessageContext)
       await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
@@ -1123,7 +1342,16 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       // --- AUTONOMOUS ARTISTRY HOOK (ASSISTANT-CENTRIC) ---
       const artistry = activeCard.value?.extensions?.airi?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant') {
-        void artistryAutonomousStore.runArtistTask(fullText, sessionMessagesForSend as any)
+        let shouldTrigger = true
+        if (sessionId.startsWith('discord-')) {
+          const discordStore = useDiscordStore()
+          if (discordStore.artProbability !== undefined && Math.random() * 100 > discordStore.artProbability) {
+            shouldTrigger = false
+          }
+        }
+        if (shouldTrigger) {
+          void artistryAutonomousStore.runArtistTask(fullText, sessionMessagesForSend as any)
+        }
       }
       // ---------------------------------------------------
 
@@ -1200,7 +1428,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     finally {
       if (streamIdleTimeout)
         clearTimeout(streamIdleTimeout)
-      sending.value = false
+      sendingSessions.value.delete(sessionId)
     }
   }
 
@@ -1210,7 +1438,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     targetSessionId?: string,
   ) {
     const sessionId = targetSessionId || activeSessionId.value
-    chatLog('Ingesting message:', { sendingMessage, sessionId, sending: sending.value })
+    chatLog('Ingesting message:', { sendingMessage, sessionId, sending: sendingSessions.value.has(sessionId) })
 
     if (!isMainWindow) {
       if (options.triggerOnly) {
@@ -1341,12 +1569,19 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       : []
   }
 
+  function setBridgeSending(sessionId: string, state: boolean) {
+    if (state) {
+      sendingSessions.value.add(sessionId)
+    }
+    else {
+      sendingSessions.value.delete(sessionId)
+    }
+  }
+
   return {
     sending,
+    setBridgeSending,
     streamingMessage,
-
-    activeSpokenText,
-    activeSpokenColor,
 
     isMainWindow,
     toolsResolver,

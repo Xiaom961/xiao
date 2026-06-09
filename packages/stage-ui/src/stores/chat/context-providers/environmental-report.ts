@@ -25,7 +25,7 @@ export function createEnvironmentalReportContext(): ContextMessage | null {
     return null
   }
 
-  let text = '**GROUND TRUTH — Treat as authoritative.**\n'
+  let text = 'GROUND TRUTH — Treat the following as authoritative.\n'
   text += 'This is the live capture of Xhar\'s screen right now. '
   text += 'If anything you said in previous turns described the screen differently, '
   text += 'the prior was wrong or stale — silently update your understanding to match this. '
