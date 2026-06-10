@@ -13,17 +13,18 @@ import {
   sensorsGetVolumeLevel,
   sensorsSetTrackingEnabled,
 } from '@proj-airi/stage-shared'
-import { useIntervalFn } from '@vueuse/core'
+import { useIntervalFn, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, toRaw, watch } from 'vue'
 
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
-import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
+import { cleanOutputText, categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { chatSessionsRepo } from '../database/repos/chat-sessions.repo'
 import { useAuthStore } from './auth'
 import { useBackgroundStore } from './background'
 import { useChatOrchestratorStore } from './chat'
+import { createDatetimeContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { mergeLoadedSessionMessages } from './chat/session-message-merge'
 import { useChatSessionStore } from './chat/session-store'
@@ -35,6 +36,9 @@ import { useConsciousnessStore } from './modules/consciousness'
 import { useLiveSessionStore } from './modules/live-session'
 import { useVisionStore } from './modules/vision'
 import { useProvidersStore } from './providers'
+import { useAgencyStore } from './agency'
+import { useVectorMemoryStore } from './modules/vector-memory'
+import { useSettingsChat } from './settings/chat'
 
 export const useProactivityStore = defineStore('proactivity', () => {
   const airiCardStore = useAiriCardStore()
@@ -51,6 +55,11 @@ export const useProactivityStore = defineStore('proactivity', () => {
   const liveSessionStore = useLiveSessionStore()
   const visionStore = useVisionStore()
   const echoesStore = useEchoesStore()
+  const agencyStore = useAgencyStore()
+  const vectorMemoryStore = useVectorMemoryStore()
+  const settingsChat = useSettingsChat()
+
+  const isAwayMode = useLocalStorage('settings/proactivity/away-mode', false)
 
   // eslint-disable-next-line no-console
   console.log('[Proactivity] Proactivity Store initialized.')
@@ -66,13 +75,14 @@ export const useProactivityStore = defineStore('proactivity', () => {
     }
   }
 
-  const lastHeartbeatTime = ref<number>(Date.now())
+  const lastHeartbeatTime = ref<number>(0)
   const isDreamStateEvaluating = ref(false)
   const isUpdatingSensors = ref(false)
   const isHeartbeatEvaluating = ref(false)
   let heartbeatInterval: any = null
 
   const isElectron = typeof window !== 'undefined' && !!(window as any).electron
+  const isMainWindow = typeof window !== 'undefined' && (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#')
   const getIdleTimeInvoke = isElectron ? useElectronEventaInvoke(sensorsGetIdleTime) : null
   const getActiveWindowInvoke = isElectron ? useElectronEventaInvoke(sensorsGetActiveWindow) : null
   const getActiveWindowHistoryInvoke = isElectron ? useElectronEventaInvoke(sensorsGetActiveWindowHistory) : null
@@ -224,9 +234,12 @@ export const useProactivityStore = defineStore('proactivity', () => {
   }
 
   const isProactivityLoopNeeded = computed(() => {
+    if (!isMainWindow)
+      return false
     const config = activeCard.value?.extensions?.airi?.heartbeats
     const grounding = activeCard.value?.extensions?.airi?.groundingEnabled
-    return !!(config?.enabled || grounding)
+    const isAgencyActive = agencyStore.activeAgencyEnabled
+    return !!(config?.enabled || grounding || isAgencyActive)
   })
 
   const { pause, resume } = useIntervalFn(updateSensors, 10000, { immediate: false })
@@ -237,17 +250,20 @@ export const useProactivityStore = defineStore('proactivity', () => {
       console.log('[Proactivity] Resuming sensor polling loop.')
       resume()
       setTrackingEnabledInvoke?.({ enabled: true })
+      startHeartbeatLoop()
     }
     else {
       // eslint-disable-next-line no-console
       console.log('[Proactivity] Pausing sensor polling loop (idle).')
       pause()
       setTrackingEnabledInvoke?.({ enabled: false })
+      stopHeartbeatLoop()
     }
   }, { immediate: true })
 
   onUnmounted(() => {
     pause()
+    stopHeartbeatLoop()
   })
 
   const sensorPayload = computed(() => {
@@ -320,6 +336,14 @@ export const useProactivityStore = defineStore('proactivity', () => {
     }
     else {
       payload += '\n[Metrics]: [DISABLED]\n'
+    }
+
+    if (isAwayMode.value) {
+      payload += '\n[SYSTEM STATUS]\n'
+      payload += 'AWAY/SLEEP MODE is currently ACTIVE. '
+      payload += 'Your creator is away or sleeping. You are in suspension. '
+      payload += 'Do NOT initiate conversation in the local environment. '
+      payload += '(Discord service remains active, you may reply to incoming Discord messages).\n'
     }
 
     return payload
@@ -444,13 +468,14 @@ export const useProactivityStore = defineStore('proactivity', () => {
   }
 
   async function evaluateHeartbeat(options?: { force?: boolean }) {
-    const config = activeCard.value?.extensions?.airi?.heartbeats
-    if (!config?.enabled && !options?.force) {
-      return
-    }
-
-    console.time('[Proactivity] evaluateHeartbeat')
     try {
+      chatContext.ingestContextMessage(createDatetimeContext())
+
+      if (isAwayMode.value && !options?.force) {
+        console.log('[Proactivity] Aborted: Away/Sleep Mode is active. Autonomous environment speaking disabled.')
+        return
+      }
+
       if (isHeartbeatEvaluating.value && !options?.force) {
         // eslint-disable-next-line no-console
         console.log('[Proactivity] Evaluation already in progress, skipping.')
@@ -463,6 +488,14 @@ export const useProactivityStore = defineStore('proactivity', () => {
       if (!activeCard.value) {
         // eslint-disable-next-line no-console
         console.log('[Proactivity] Aborted: No active card selected.', { activeCard: activeCard.value })
+        return
+      }
+
+      const config = activeCard.value?.extensions?.airi?.heartbeats
+      const isAgencyActive = agencyStore.activeAgencyEnabled
+      if (!config?.enabled && !isAgencyActive && !options?.force) {
+        // eslint-disable-next-line no-console
+        console.log('[Proactivity] Aborted: Heartbeats and Agency are disabled for this card.', { config })
         return
       }
 
@@ -480,12 +513,11 @@ export const useProactivityStore = defineStore('proactivity', () => {
       }
 
       // Check interval
-      // Check interval
       const intervalMs = (config?.intervalMinutes || 1) * 60 * 1000
       const timeSinceLast = now.getTime() - lastHeartbeatTime.value
       const timeLeftMs = Math.max(0, intervalMs - timeSinceLast)
 
-      if (!options?.force && timeLeftMs > 0) {
+      if (!isAgencyActive && !options?.force && timeLeftMs > 0) {
         const mins = Math.floor(timeLeftMs / 60000)
         const secs = Math.floor((timeLeftMs % 60000) / 1000)
         // eslint-disable-next-line no-console
@@ -525,11 +557,87 @@ export const useProactivityStore = defineStore('proactivity', () => {
 
       lastHeartbeatTime.value = now.getTime()
       isHeartbeatEvaluating.value = true
+      console.time('[Proactivity] evaluateHeartbeat')
 
       try {
-        const promptText = config?.prompt || 'Evaluate heartbeat and situational context.'
+        const sessionId = chatSession.activeSessionId
+        const sessionMessages = chatSession.sessionMessages[sessionId] || []
+
+        // Inscribe/Get the last message for conversation context
+        const lastMessage = sessionMessages[sessionMessages.length - 1]
+        const lastMessageRole = lastMessage ? lastMessage.role : null
+        let lastMessageText = ''
+        if (lastMessage) {
+          if (typeof lastMessage.content === 'string') {
+            lastMessageText = lastMessage.content
+          } else if (Array.isArray(lastMessage.content)) {
+            lastMessageText = (lastMessage.content as any[]).map((part: any) => {
+              if (typeof part === 'string') return part
+              if (part && typeof part === 'object' && 'text' in part) return String(part.text ?? '')
+              return ''
+            }).join('')
+          }
+        }
+
+        const sensorPayloadRaw = config?.injectIntoPrompt ? sensorPayload.value : ''
+        
+        // Let's call the Agency Store to make a decision
+        const decision = await agencyStore.makeDecision(sensorPayloadRaw, lastMessageRole as any, lastMessageText)
+
+        if (!options?.force && decision.intent === 'STAY_SILENT') {
+          console.log('[Proactivity] Agency Engine decided to stay silent (STAY_SILENT).')
+          return
+        }
+
+        // Recall Episodic memories based on recent user dialogue or environmental telemetry
+        let recalledMemoriesContext = ''
+        if (settingsChat.vectorMemoryEnabled) {
+          const searchQuery = lastMessageText || visionStore.lastVisualAnalysis || visionStore.lastScrapeResult?.windowTitle || ''
+          if (searchQuery.trim()) {
+            try {
+              const recalled = await vectorMemoryStore.searchMemories(searchQuery, 3)
+              if (recalled.length > 0) {
+                recalledMemoriesContext = recalled.map((m, i) => `${i + 1}. "${m.text}" (Emotion: ${m.emotion}, Salience: ${m.salience})`).join('\n')
+                console.log(`[Proactivity] Recalled ${recalled.length} memories for heartbeat prompt.`)
+              }
+            } catch (err) {
+              console.warn('[Proactivity] Failed to search episodic memories for heartbeat:', err)
+            }
+          }
+        }
+
+        let promptText = config?.prompt || 'Evaluate heartbeat and situational context.'
+        
+        if (decision.intent === 'CONTINUE_THOUGHT') {
+          agencyStore.consecutiveContinuations++
+          promptText = 'You are in flow continuation state. Seamlessly continue your previous thought, completing it naturally without repeating yourself.'
+        } else {
+          agencyStore.consecutiveContinuations = 0
+          if (decision.intent === 'REACT_TO_ENVIRONMENT') {
+            promptText = 'You noticed a change in your user\'s active window or system environment. React to it playfully or curiously without sounding creepy. Keep it natural.'
+          } else if (decision.bubbledMemories && decision.bubbledMemories.length > 0) {
+            const memoryList = decision.bubbledMemories.map((m, i) => `${i + 1}. "${m}"`).join('\n')
+            promptText = `[SPONTANEOUS MEMORIES] You just had several flashbacks from your past experiences:\n${memoryList}\nDraw from one or more of these naturally. Don't list them — weave them into a genuine thought, opinion, or question that connects to the current moment.\n\n${promptText}`
+          }
+        }
+
+        // Inject dynamic word length constraint to prevent extremely long or repetitive remarks
+        if (agencyStore.activeAgencyEnabled) {
+          const min = agencyStore.activeMinTokens
+          const max = agencyStore.activeMaxTokens
+          const targetWords = Math.floor(Math.random() * (max - min + 1)) + min
+          promptText = `[LENGTH CONSTRAINT] Keep your response brief and highly conversational, aiming for approximately ${targetWords} words. Do not exceed this limit.\n\n${promptText}`
+        }
+
+        // Inject topic avoidance list to prevent repeating recent themes
+        if (agencyStore.recentTopics.length > 0) {
+          const topicList = agencyStore.recentTopics.map((t, i) => `${i + 1}. ${t}`).join('\n')
+          promptText = `[TOPIC AVOIDANCE] You have recently discussed these topics. Do NOT repeat, revisit, or rephrase any of them. Choose a completely fresh angle, a new observation, or a different subject entirely:\n${topicList}\n\n${promptText}`
+          console.log(`[Proactivity] Injected ${agencyStore.recentTopics.length} topics for avoidance.`)
+        }
+
         // eslint-disable-next-line no-console
-        console.log(`[Proactivity] >>> TRIGGERING LLM <<< Prompt:\n${promptText}`)
+        console.log(`[Proactivity] >>> TRIGGERING LLM <<< Intent: ${decision.intent}, Prompt:\n${promptText}`)
 
         const messages: { role: 'system' | 'user' | 'assistant', content: string }[] = []
 
@@ -540,8 +648,23 @@ export const useProactivityStore = defineStore('proactivity', () => {
           })
         }
 
+        if (recalledMemoriesContext) {
+          messages.push({
+            role: 'system',
+            content: `[RECALLED EPISODIC MEMORIES]\nThese are relevant past moments or facts you recalled from your episodic memory database:\n${recalledMemoriesContext}\nIf relevant, draw from these naturally in your response.`
+          })
+        }
+
+        // Inject agency internal state
+        if (agencyStore.activeAgencyEnabled) {
+          const stateStr = `[Internal State] Mood: ${agencyStore.mood}, Energy: ${Math.round(agencyStore.energy)}/100, Engagement: ${Math.round(agencyStore.engagement)}/100`
+          messages.push({
+            role: 'system',
+            content: stateStr,
+          })
+        }
+
         const contextsSnapshot = chatContext.getContextsSnapshot()
-        const sensorPayloadRaw = config?.injectIntoPrompt ? sensorPayload.value : ''
 
         if (Object.keys(contextsSnapshot).length > 0 || sensorPayloadRaw) {
           let contextContent = ''
@@ -566,9 +689,6 @@ export const useProactivityStore = defineStore('proactivity', () => {
             content: contextContent.trim(),
           })
         }
-
-        const sessionId = chatSession.activeSessionId
-        const sessionMessages = chatSession.sessionMessages[sessionId] || []
 
         // Inject the last 6 messages (approx 3 turns) for conversational context
         const recentMessages = sessionMessages.slice(-6)
@@ -595,11 +715,11 @@ export const useProactivityStore = defineStore('proactivity', () => {
 
         messages.push({ role: 'user', content: promptText })
 
-        const activeProviderId = consciousnessStore.activeProvider
-        const activeModel = consciousnessStore.activeModel
+        const activeProviderId = settingsChat.agencyActiveProvider || consciousnessStore.activeProvider
+        const activeModel = settingsChat.agencyActiveModel || consciousnessStore.activeModel
 
         if (!activeProviderId) {
-          console.warn('[Proactivity] Aborted: No active LLM provider found.')
+          console.warn('[Proactivity] Aborted: No active LLM provider found (checked agency settings and consciousness fallback).')
           return
         }
 
@@ -626,6 +746,9 @@ export const useProactivityStore = defineStore('proactivity', () => {
           supportsTools: true,
         })
         const rawReply = llmResponse.text
+
+        // Record interaction for agency
+        agencyStore.recordInteraction(false)
 
         // Record token usage for persistent tracking
         if (llmResponse.usage) {
@@ -711,6 +834,10 @@ export const useProactivityStore = defineStore('proactivity', () => {
         await parser.consume(rawReply || '')
         await parser.end()
 
+        // Clean any residual ACT/Mood/Curious prefixes from the streamed content
+        buildingMessage.content = cleanOutputText(typeof buildingMessage.content === 'string' ? buildingMessage.content : '')
+        updateUI()
+
         const trimmedReply = (buildingMessage.content as string).trim()
 
         if (!trimmedReply) {
@@ -727,6 +854,17 @@ export const useProactivityStore = defineStore('proactivity', () => {
 
         // Inscribe the proactive turn properly
         chatSession.inscribeTurn(buildingMessage as any, sessionId)
+        agencyStore.recordProactiveSpeak()
+
+        // Extract and record the topic of this proactive remark to prevent repetition
+        if (trimmedReply && agencyStore.activeAgencyEnabled) {
+          // Extract the first sentence or first 80 characters as a topic summary
+          const firstSentenceMatch = trimmedReply.match(/^[^.!?]+[.!?]?/)
+          const topicSummary = firstSentenceMatch
+            ? firstSentenceMatch[0].trim().slice(0, 80)
+            : trimmedReply.slice(0, 80).trim()
+          agencyStore.recordProactiveTopic(topicSummary)
+        }
 
         if (sessionId === chatSession.activeSessionId) {
           chatOrchestrator.streamingMessage = { role: 'assistant', content: '', slices: [], tool_results: [] }
@@ -751,11 +889,9 @@ export const useProactivityStore = defineStore('proactivity', () => {
         console.error('[Proactivity] Error during heartbeat evaluation:', err)
       }
       finally {
+        console.timeEnd('[Proactivity] evaluateHeartbeat')
         isHeartbeatEvaluating.value = false
       }
-    }
-    finally {
-      console.timeEnd('[Proactivity] evaluateHeartbeat')
     }
   }
 
@@ -772,6 +908,11 @@ export const useProactivityStore = defineStore('proactivity', () => {
   }
 
   function startHeartbeatLoop() {
+    if (!isMainWindow) {
+      console.log('[Proactivity] Bypassing global heartbeat loop in secondary window process.')
+      return
+    }
+
     if (heartbeatInterval)
       stopHeartbeatLoop()
 
@@ -905,5 +1046,6 @@ export const useProactivityStore = defineStore('proactivity', () => {
     cycleHeartbeatInterval,
     isRespectScheduleEnabled,
     toggleRespectSchedule,
+    isAwayMode,
   }
 })
