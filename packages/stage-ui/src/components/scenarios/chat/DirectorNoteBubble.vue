@@ -1,13 +1,24 @@
 <script setup lang="ts">
 import type { DirectorNote } from '../../../types/director'
 
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+
+import { useAiriCardStore } from '../../../stores/modules/airi-card'
 
 const props = defineProps<{
   note: DirectorNote
 }>()
 
 const isExpanded = ref(false)
+
+const cardStore = useAiriCardStore()
+const threshold = computed(() => {
+  const t = cardStore.activeCard?.extensions?.airi?.artistry?.autonomousThreshold
+  if (t === undefined) {
+    console.warn('[DirectorNoteBubble] Threshold not found in active card, falling back to 70')
+  }
+  return t ?? 70
+})
 </script>
 
 <template>
@@ -25,7 +36,7 @@ const isExpanded = ref(false)
       </div>
       <div class="flex items-center gap-2 border border-purple-500/20 rounded bg-black/50 px-2 py-0.5">
         <span class="text-xs text-purple-400/70">GRADE</span>
-        <span class="text-purple-200 font-bold">{{ note.intensity }}/100</span>
+        <span class="text-purple-200 font-bold">{{ note.intensity }}/{{ threshold }}</span>
         <span class="ml-1 text-purple-400/50 transition-transform" :class="isExpanded ? 'i-carbon-chevron-up' : 'i-carbon-chevron-down'" />
       </div>
     </div>
@@ -44,13 +55,13 @@ const isExpanded = ref(false)
         <pre class="whitespace-pre-wrap border border-purple-500/10 rounded bg-purple-950/20 p-1.5 text-[11px] text-purple-300 leading-relaxed font-mono">{{ note.scratchpad }}</pre>
       </div>
 
-      <div v-if="note.state === 'pending' || note.selected_concepts?.length || (note.intensity >= 70 && note.state === 'done')" class="mt-1 flex items-center justify-between border-t border-purple-500/20 pt-2">
+      <div v-if="note.state === 'pending' || note.selected_concepts?.length || (note.intensity >= threshold && note.state === 'done')" class="mt-1 flex items-center justify-between border-t border-purple-500/20 pt-2">
         <div class="flex items-center gap-2">
           <template v-if="note.state === 'pending'">
             <span class="i-svg-spinners-pulse-multiple text-purple-400" />
             <span class="animate-pulse text-xs text-purple-300">Manifesting Scene...</span>
           </template>
-          <template v-else-if="note.intensity >= 70">
+          <template v-else-if="note.intensity >= threshold">
             <span class="i-carbon-checkmark-outline text-green-400" />
             <span class="text-xs text-green-300">Scene Manifested</span>
           </template>
