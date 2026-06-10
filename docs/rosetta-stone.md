@@ -468,6 +468,7 @@ Cross-window communication relies on named `BroadcastChannel` instances. These a
 - **Fire-and-Forget Pitfall**: Input textareas in secondary windows call `chatStore.ingest`, which historically posted to the main window over `BroadcastChannel('airi-chat-input-bridge')`. If the main window was deadlocked or HMR-reloaded, the message was swallowed.
 - **Verification Loop**: Each `ingest` generates a `clientMessageId`, returns a promise with a 5-second timeout watching for `session-updated` broadcasts. On timeout, the UI restores draft text and shows a toast.
 - **Unicode Healing**: `healMozibake` in `packages/stage-shared/src/text.ts` repairs mis-decoded UTF-8 byte streams. Iterate by code point (`for (const char of text)`) not by index — supplementary plane characters (emojis, ZWJs) split into invalid surrogates under indexed access.
+- **Shared Chat Composer logic**: The input ingestion pipelines for desktop layouts (`ChatArea.vue`) and mobile portrait views (`MobileInteractiveArea.vue`) are unified using the `useChatComposer` composable, ensuring synchronized attachments capabilities and safe chat error handling (preventing incorrect `.pop()` bugs when message ingestion rejections occur).
 
 ### Toast Notifications & Event Bridging
 

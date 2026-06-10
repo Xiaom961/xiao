@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
-import { estimateTokens, formatTokenCount, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { estimateTokens, formatTokenCount } from '@proj-airi/stage-shared'
 import {
   CharacterContextDialog,
   ChatImagesPopover,
@@ -10,23 +9,18 @@ import {
   ChatSessionModal,
   StageBackgroundDialogPicker,
 } from '@proj-airi/stage-ui/components'
-import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useAudioAnalyzer, useChatComposer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { useShortTermMemoryStore } from '@proj-airi/stage-ui/stores/memory-short-term'
 import { buildSystemPrompt, useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useAutonomousArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry-autonomous'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice, useSettingsChat } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
-import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -38,13 +32,8 @@ const props = defineProps<{
   tools?: any[]
 }>()
 
-const messageInput = ref('')
-const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
 const hearingPopoverOpen = ref(false)
-const isComposing = ref(false)
-const isListening = ref(false)
-const isImagineMode = ref(false)
-const trashConfirmOpen = ref(false)
+const trashConfirmOpenRef = ref(false)
 const showContext = ref(false)
 const showSessions = ref(false)
 const backgroundDialogOpen = ref(false)
@@ -56,125 +45,48 @@ const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const settingsChat = useSettingsChat()
 
-const { askPermission, startStream } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const airiCardStore = useAiriCardStore()
-const shortTermMemory = useShortTermMemoryStore()
 const { cleanupMessages } = useChatMaintenanceStore()
 
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
-const { ingest } = chatOrchestrator
 const { messages } = storeToRefs(chatSession)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
-// Transcription pipeline
-const hearingStore = useHearingStore()
-const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
-const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+// Initialize shared useChatComposer composable
+const {
+  messageInput,
+  attachments,
+  isComposing,
+  isImagineMode,
+  trashConfirmOpen,
+  handleFileSelect,
+  removeAttachment,
+  handleTrashClick,
+  handleSaveAndClear,
+  handleClearAnyway,
+  handleSend,
+} = useChatComposer({
+  tools: props.tools,
+})
+
+// Bind local trigger reference to composable value for synchronization
+watch(trashConfirmOpen, (val) => {
+  trashConfirmOpenRef.value = val
+})
+watch(trashConfirmOpenRef, (val) => {
+  trashConfirmOpen.value = val
+})
 
 const characterName = computed(() => activeCard.value?.name || 'AIRI')
 const effectiveSystemPrompt = computed(() => buildSystemPrompt(activeCard.value))
 
-// --- Logic Helpers ---
-function formatLocalDayKey(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function handleTrashClick() {
-  const today = formatLocalDayKey(new Date())
-  const isTodayCached = activeCardId.value && shortTermMemory.getCharacterBlocks(activeCardId.value).some(b => b.date === today)
-  if (!isTodayCached && messages.value.length > 0) {
-    trashConfirmOpen.value = true
-    return
-  }
-  cleanupMessages()
-}
-
-async function handleSaveAndClear() {
-  trashConfirmOpen.value = false
-  if (activeCardId.value) {
-    try {
-      await shortTermMemory.rebuildToday(activeCardId.value)
-    }
-    catch (err) {
-      console.error('[ChatArea] Failed to cache today before clear:', err)
-    }
-  }
-  cleanupMessages()
-}
-
-function handleClearAnyway() {
-  trashConfirmOpen.value = false
-  cleanupMessages()
-}
-
-function addImageAttachmentFromBase64(data: string, mimeType: string, _fileName?: string) {
-  let url = ''
-  try {
-    const binary = atob(data)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i)
-    }
-    const blob = new Blob([bytes], { type: mimeType })
-    url = URL.createObjectURL(blob)
-  }
-  catch {
-    url = `data:${mimeType};base64,${data}`
-  }
-
-  attachments.value.push({
-    type: 'image' as const,
-    data,
-    mimeType,
-    url,
-  })
-}
-
-function handleFilePaste(files: File[]) {
-  for (const file of files) {
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const base64Data = (e.target?.result as string)?.split(',')[1]
-        if (base64Data) {
-          addImageAttachmentFromBase64(base64Data, file.type, file.name)
-        }
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-}
-
-function handleFileSelect(event: Event) {
-  const target = event.target as HTMLInputElement
-  if (target.files?.length) {
-    handleFilePaste(Array.from(target.files))
-  }
-  target.value = ''
-}
-
-async function handleScreenshotClick() {
+function handleScreenshotClick() {
   // Vision capture is typically restricted in browser unless using getDisplayMedia
-  // For now, we show a toast explaining browser limitations if electron visionStore is missing
   toast.info('Vision capture is optimized for desktop. Please use the attach button for screenshots.')
-}
-
-function removeAttachment(index: number) {
-  const attachment = attachments.value[index]
-  if (attachment) {
-    URL.revokeObjectURL(attachment.url)
-    attachments.value.splice(index, 1)
-  }
 }
 
 // --- Token Counter ---
@@ -227,87 +139,6 @@ const contextPercentage = computed(() => {
   return (sessionTokenCount.value / effectiveContextWidth.value) * 100
 })
 
-// --- Auto-send logic ---
-let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
-const pendingAutoSendText = ref('')
-
-function clearPendingAutoSend() {
-  if (autoSendTimeout) {
-    clearTimeout(autoSendTimeout)
-    autoSendTimeout = undefined
-  }
-  pendingAutoSendText.value = ''
-}
-
-async function debouncedAutoSend(text: string) {
-  if (!autoSendEnabled.value) {
-    clearPendingAutoSend()
-    return
-  }
-  pendingAutoSendText.value = pendingAutoSendText.value ? `${pendingAutoSendText.value} ${text}` : text
-  if (autoSendTimeout) {
-    clearTimeout(autoSendTimeout)
-  }
-  autoSendTimeout = setTimeout(async () => {
-    if (!autoSendEnabled.value) {
-      clearPendingAutoSend()
-      return
-    }
-    const textToSend = pendingAutoSendText.value.trim()
-    if (textToSend && autoSendEnabled.value) {
-      try {
-        const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-        await ingest(textToSend, {
-          chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-          model: activeModel.value,
-          providerConfig,
-          tools: props.tools,
-        })
-        messageInput.value = ''
-        pendingAutoSendText.value = ''
-      }
-      catch (err) {
-        console.error('[ChatArea] Auto-send error:', err)
-      }
-    }
-    autoSendTimeout = undefined
-  }, autoSendDelay.value)
-}
-
-async function handleSend() {
-  if (!messageInput.value.trim() && !attachments.value.length || isComposing.value) {
-    return
-  }
-
-  const textToSend = messageInput.value
-  const attachmentsToSend = attachments.value.map(att => ({ ...att }))
-
-  messageInput.value = ''
-  attachments.value = []
-
-  if (isImagineMode.value) {
-    const artistryStore = useAutonomousArtistryStore()
-    void artistryStore.runArtistTask(textToSend, chatSession.messages as any, 'assistant')
-    return
-  }
-
-  try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-    await ingest(textToSend, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
-      attachments: attachmentsToSend,
-      tools: props.tools,
-    })
-    attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
-  }
-  catch (error) {
-    messageInput.value = textToSend
-    attachments.value = attachmentsToSend
-  }
-}
-
 // --- Audio Analyzer ---
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
 const normalizedVolume = computed(() => Math.min(1, Math.max(0, (volumeLevel.value ?? 0) / 100)))
@@ -341,164 +172,11 @@ watch([hearingPopoverOpen, enabled, stream], () => {
 
 onUnmounted(() => {
   teardownAnalyzer()
-  stopListening()
-  if (autoSendTimeout) {
-    clearTimeout(autoSendTimeout)
-    autoSendTimeout = undefined
-  }
-})
-
-// --- Transcription ---
-async function startListening() {
-  try {
-    if (!hearingConfigured.value) {
-      const isWebSpeechAvailable = typeof window !== 'undefined'
-        && !isStageTamagotchi()
-        && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
-      if (isWebSpeechAvailable) {
-        providersStore.initializeProvider('browser-web-speech-api')
-        hearingStore.activeTranscriptionProvider = 'browser-web-speech-api'
-        await nextTick()
-      }
-      else {
-        isListening.value = false
-        return
-      }
-    }
-    if (!stream.value) {
-      await askPermission()
-      if (!stream.value && enabled.value) {
-        startStream()
-        try {
-          await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
-        }
-        catch {
-          isListening.value = false
-          return
-        }
-      }
-    }
-    if (!stream.value) {
-      isListening.value = false
-      return
-    }
-    if (!shouldUseStreamInput.value) {
-      await stopStreamingTranscription(true)
-      isListening.value = false
-      return
-    }
-    try {
-      await transcribeForMediaStream(stream.value, {
-        onSentenceEnd: (delta) => {
-          if (delta && delta.trim()) {
-            const currentText = messageInput.value.trim()
-            messageInput.value = currentText ? `${currentText} ${delta}` : delta
-            if (autoSendEnabled.value) {
-              debouncedAutoSend(delta)
-            }
-            else {
-              clearPendingAutoSend()
-            }
-          }
-        },
-        onSpeechEnd: (text) => {
-          if (!text || !text.trim())
-            return
-          clearPendingAutoSend()
-          void (async () => {
-            try {
-              const provider = await providersStore.getProviderInstance(activeProvider.value)
-              if (!provider || !activeModel.value)
-                return
-              await ingest(text, {
-                chatProvider: provider as ChatProvider,
-                model: activeModel.value,
-                skipAssistant: !autoSendEnabled.value,
-                tools: props.tools,
-              })
-              if (messageInput.value.trim() === text.trim()) {
-                messageInput.value = ''
-              }
-            }
-            catch (err) {
-              console.error('[ChatArea] Inscription error:', err)
-            }
-          })()
-        },
-      })
-      isListening.value = true
-    }
-    catch (err) {
-      isListening.value = false
-      throw err
-    }
-  }
-  catch (err) {
-    isListening.value = false
-  }
-}
-
-async function stopListening() {
-  if (!isListening.value)
-    return
-  try {
-    clearPendingAutoSend()
-    if (autoSendEnabled.value && pendingAutoSendText.value.trim()) {
-      const textToSend = pendingAutoSendText.value.trim()
-      pendingAutoSendText.value = ''
-      try {
-        const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-        await ingest(textToSend, {
-          chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-          model: activeModel.value,
-          providerConfig,
-          tools: props.tools,
-        })
-        messageInput.value = ''
-      }
-      catch (err) {
-        console.error('[ChatArea] Auto-send error on stop:', err)
-      }
-    }
-    await stopStreamingTranscription(true)
-    isListening.value = false
-  }
-  catch (err) {
-    isListening.value = false
-  }
-}
-
-watch(enabled, async (val) => {
-  if (val && stream.value) {
-    await startListening()
-  }
-  else if (!val && isListening.value) {
-    await stopListening()
-  }
-})
-
-watch(stream, async (val) => {
-  if (val && enabled.value && !isListening.value) {
-    await startListening()
-  }
-  else if (!val && isListening.value) {
-    await stopListening()
-  }
-})
-
-watch(autoSendEnabled, (enabled) => {
-  if (!enabled) {
-    clearPendingAutoSend()
-  }
-})
-
-onMounted(() => {
-  shortTermMemory.load()
 })
 </script>
 
 <template>
-  <div h="<md:full" flex="~ col" gap-1 class="ph-no-capture">
+  <div h="<md:full" flex="~ col" gap-1 class="ph-no-capture font-sans">
     <input ref="fileInput" type="file" accept="image/*" class="hidden" multiple @change="handleFileSelect">
 
     <!-- Input Area -->
@@ -553,56 +231,59 @@ onMounted(() => {
               </Transition>
             </button>
           </PopoverTrigger>
-          <PopoverContent
-            side="top"
-            :side-offset="8"
-            :class="[
-              'w-72 max-w-[18rem] rounded-xl border border-neutral-200/60 bg-neutral-50/90 p-4',
-              'shadow-lg backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-900/80',
-              'flex flex-col gap-3',
-            ]"
-          >
-            <div class="flex flex-col items-center justify-center">
-              <div class="relative h-28 w-28 select-none">
-                <div
-                  class="absolute left-1/2 top-1/2 h-20 w-20 rounded-full transition-all duration-150 -translate-x-1/2 -translate-y-1/2"
-                  :style="{ transform: `translate(-50%, -50%) scale(${1 + normalizedVolume * 0.35})`, opacity: String(0.25 + normalizedVolume * 0.25) }"
-                  :class="enabled ? 'bg-primary-500/15 dark:bg-primary-600/20' : 'bg-neutral-300/20 dark:bg-neutral-700/20'"
-                />
-                <div
-                  class="absolute left-1/2 top-1/2 h-24 w-24 rounded-full transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
-                  :style="{ transform: `translate(-50%, -50%) scale(${1.2 + normalizedVolume * 0.55})`, opacity: String(0.15 + normalizedVolume * 0.2) }"
-                  :class="enabled ? 'bg-primary-500/10 dark:bg-primary-600/15' : 'bg-neutral-300/10 dark:bg-neutral-700/10'"
-                />
-                <div
-                  class="absolute left-1/2 top-1/2 h-28 w-28 rounded-full transition-all duration-300 -translate-x-1/2 -translate-y-1/2"
-                  :style="{ transform: `translate(-50%, -50%) scale(${1.5 + normalizedVolume * 0.8})`, opacity: String(0.08 + normalizedVolume * 0.15) }"
-                  :class="enabled ? 'bg-primary-500/5 dark:bg-primary-600/10' : 'bg-neutral-300/5 dark:bg-neutral-700/5'"
-                />
-                <button
-                  class="absolute left-1/2 top-1/2 grid h-16 w-16 place-items-center rounded-full shadow-md outline-none transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
-                  :class="enabled
-                    ? 'bg-primary-500 text-white hover:bg-primary-600 active:scale-95'
-                    : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300 active:scale-95 dark:bg-neutral-700 dark:text-neutral-200'"
-                  @click="enabled = !enabled"
-                >
-                  <div :class="enabled ? 'i-ph:microphone' : 'i-ph:microphone-slash'" class="h-6 w-6" />
-                </button>
+          <PopoverPortal>
+            <PopoverContent
+              side="top"
+              :side-offset="8"
+              :class="[
+                'w-72 max-w-[18rem] rounded-xl border border-neutral-200/60 bg-neutral-50/90 p-4',
+                'shadow-lg backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-900/80',
+                'flex flex-col gap-3',
+              ]"
+            >
+              <div class="flex flex-col items-center justify-center">
+                <div class="relative h-28 w-28 select-none">
+                  <div
+                    class="absolute left-1/2 top-1/2 h-20 w-20 rounded-full transition-all duration-150 -translate-x-1/2 -translate-y-1/2"
+                    :style="{ transform: `translate(-50%, -50%) scale(${1 + normalizedVolume * 0.35})`, opacity: String(0.25 + normalizedVolume * 0.25) }"
+                    :class="enabled ? 'bg-primary-500/15 dark:bg-primary-600/20' : 'bg-neutral-300/20 dark:bg-neutral-700/20'"
+                  />
+                  <div
+                    class="absolute left-1/2 top-1/2 h-24 w-24 rounded-full transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
+                    :style="{ transform: `translate(-50%, -50%) scale(${1.2 + normalizedVolume * 0.55})`, opacity: String(0.15 + normalizedVolume * 0.2) }"
+                    :class="enabled ? 'bg-primary-500/10 dark:bg-primary-600/15' : 'bg-neutral-300/10 dark:bg-neutral-700/10'"
+                  />
+                  <div
+                    class="absolute left-1/2 top-1/2 h-28 w-28 rounded-full transition-all duration-300 -translate-x-1/2 -translate-y-1/2"
+                    :style="{ transform: `translate(-50%, -50%) scale(${1.5 + normalizedVolume * 0.8})`, opacity: String(0.08 + normalizedVolume * 0.15) }"
+                    :class="enabled ? 'bg-primary-500/5 dark:bg-primary-600/10' : 'bg-neutral-300/5 dark:bg-neutral-700/5'"
+                  />
+                  <button
+                    class="absolute left-1/2 top-1/2 grid h-16 w-16 place-items-center rounded-full shadow-md outline-none transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
+                    :class="enabled
+                      ? 'bg-primary-500 text-white hover:bg-primary-600 active:scale-95'
+                      : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300 active:scale-95 dark:bg-neutral-700 dark:text-neutral-200'"
+                    @click="enabled = !enabled"
+                  >
+                    <div :class="enabled ? 'i-ph:microphone' : 'i-ph:microphone-slash'" class="h-6 w-6" />
+                  </button>
+                </div>
+                <p class="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
+                  {{ enabled ? 'Microphone enabled' : 'Microphone disabled' }}
+                </p>
               </div>
-              <p class="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
-                {{ enabled ? 'Microphone enabled' : 'Microphone disabled' }}
-              </p>
-            </div>
 
-            <FieldSelect
-              v-model="selectedAudioInput"
-              label="Input device"
-              description="Select the microphone you want to use."
-              :options="audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
-              layout="vertical"
-              placeholder="Select microphone"
-            />
-          </PopoverContent>
+              <FieldSelect
+                v-slot="{ value: val }"
+                v-model="selectedAudioInput"
+                label="Input device"
+                description="Select the microphone you want to use."
+                :options="audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
+                layout="vertical"
+                placeholder="Select microphone"
+              />
+            </PopoverContent>
+          </PopoverPortal>
         </PopoverRoot>
       </div>
     </div>
@@ -679,7 +360,7 @@ onMounted(() => {
       <button
         class="max-h-[10lh] min-h-[1lh] flex items-center justify-center border-2 border-neutral-100/60 rounded-xl bg-neutral-50/70 p-2 text-lg text-neutral-500 outline-none backdrop-blur-md transition-colors transition-transform active:scale-95 dark:border-neutral-800/30 dark:bg-neutral-800/70 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400"
         title="Clear Messages"
-        @click="handleTrashClick"
+        @click="handleTrashClick(cleanupMessages)"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>
@@ -753,9 +434,9 @@ onMounted(() => {
     <Teleport to="body">
       <Transition name="fade">
         <div
-          v-if="trashConfirmOpen"
+          v-if="trashConfirmOpenRef"
           class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          @click.self="trashConfirmOpen = false"
+          @click.self="trashConfirmOpenRef = false"
         >
           <div class="max-w-md w-full border border-neutral-200/60 rounded-2xl bg-white/90 p-6 shadow-2xl backdrop-blur-xl dark:border-neutral-800/60 dark:bg-neutral-900/90">
             <h3 class="text-xl text-neutral-900 font-bold dark:text-white">
@@ -767,19 +448,19 @@ onMounted(() => {
             <div class="mt-6 flex flex-col gap-2">
               <button
                 class="w-full rounded-xl bg-primary-500 py-3 text-sm text-white font-bold transition active:scale-95 hover:bg-primary-600"
-                @click="handleSaveAndClear"
+                @click="handleSaveAndClear(cleanupMessages)"
               >
                 Save to Memory & Clear
               </button>
               <button
                 class="w-full rounded-xl bg-neutral-100 py-3 text-sm text-neutral-700 font-bold transition active:scale-95 dark:bg-neutral-800 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                @click="handleClearAnyway"
+                @click="handleClearAnyway(cleanupMessages)"
               >
                 Clear Anyway
               </button>
               <button
                 class="mt-2 w-full text-sm text-neutral-400 font-medium hover:text-neutral-600 dark:hover:text-neutral-200"
-                @click="trashConfirmOpen = false"
+                @click="trashConfirmOpenRef = false"
               >
                 Cancel
               </button>
@@ -789,4 +470,4 @@ onMounted(() => {
       </Transition>
     </Teleport>
   </div>
-</template>e>
+</template>

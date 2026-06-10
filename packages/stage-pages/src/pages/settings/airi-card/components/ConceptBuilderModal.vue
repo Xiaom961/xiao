@@ -156,7 +156,23 @@ const filteredManifestationModels = computed(() => {
     })
   }
 
+  // Sort: Put the currently selected model first in the grid list
+  if (selectedModelId.value && selectedModelId.value !== 'inherit') {
+    const selectedIdx = result.findIndex(m => m.id === selectedModelId.value)
+    if (selectedIdx > -1) {
+      const [selectedItem] = result.splice(selectedIdx, 1)
+      result.unshift(selectedItem)
+    }
+  }
+
   return result
+})
+
+// Helper to determine if the currently selected model is missing from displayModels
+const isSelectedModelMissing = computed(() => {
+  if (!selectedModelId.value || selectedModelId.value === 'inherit')
+    return false
+  return !displayModelsStore.displayModels.some(m => m.id === selectedModelId.value)
 })
 
 const providerOptions = [
@@ -445,6 +461,20 @@ function handleSave() {
                   >
                     <span class="i-solar:restart-bold-duotone mb-1 text-2xl text-neutral-400" />
                     <span class="text-[9px] text-neutral-600 font-bold dark:text-neutral-300">Inherit Default</span>
+                  </div>
+
+                  <!-- Missing Model Card -->
+                  <div
+                    v-if="isSelectedModelMissing"
+                    :class="[
+                      'group relative aspect-square border rounded-xl overflow-hidden cursor-pointer flex flex-col items-center justify-center p-2 text-center transition-all duration-200 border-red-500 ring-2 ring-red-500/40 bg-red-500/10',
+                    ]"
+                  >
+                    <span class="i-solar:danger-triangle-bold-duotone mb-1 text-2xl text-red-500" />
+                    <span class="text-[9px] text-red-600 font-bold dark:text-red-400">Missing Model</span>
+                    <span class="absolute bottom-0 left-0 right-0 truncate bg-red-950/80 px-1 py-0.5 text-center text-[7px] text-white font-mono">
+                      {{ selectedModelId }}
+                    </span>
                   </div>
 
                   <!-- Display Models Cards -->
