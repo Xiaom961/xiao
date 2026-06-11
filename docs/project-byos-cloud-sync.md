@@ -120,65 +120,83 @@ To prevent accidental deletions or data loss, we run a safety check before apply
 
 ---
 
-## 🎯 Future Milestone: Selective Sync & Onboarding Integration
+## 🎯 Onboarding Integration & Selective Sync Flow
 
-To improve the UX and control over storage footprint/bandwidth, we are introducing a managed **Selective Sync** option integrated natively into both the onboarding flow and the cloud sync dashboard.
+To improve onboarding conversion and protect user data, the startup experience is split into two distinct paths: starting fresh and restoring from a previous backup.
 
-### 1. Onboarding Integration
-Instead of treating onboarding as an annoyance or roadblock, it is positioned as a **safety net / first-class restore vehicle**:
-* **Onboarding Modes:**
-  * **Easy Mode:** Core keys setup.
-  * **Advanced Mode:** Custom provider setup.
-  * **Restore / Cloud Sync Mode:** Users can input their existing adapter details (e.g., S3/Local FS) and load their data immediately.
-* **Warning Bypass:** Because onboarding assumes an empty local database, we bypass all destructive sync warnings and data-loss heuristics since there is no existing local data to corrupt.
+### 1. The Redesigned Onboarding Flow Chart
+Upon launching the application for the first time, the user is presented with a choice:
+* **`How would you like to start?`**
+  * **`[ New User ]`**: Direct setup from scratch.
+    * Leads to **`[ Easy Mode ]`** (auto-configured defaults) or **`[ Advanced Mode ]`** (manually configuring API keys/models).
+  * **`[ Returning User ]`**: Restore an existing cloud backup.
+    * Leads to **`[ Google Sign-In ]`** (Flow 1) or **`[ Manual Config ]`** (Flow 2).
 
-### 2. Selective Sync Interface (Nested Checkbox Layout)
-We use a hierarchical installer-style tree representation of the remote backup data to allow fine-grained download selection:
+```mermaid
+graph TD
+    Start["Onboarding Start"] --> Choice{"How would you like to start?"}
+
+    %% New User Path
+    Choice -->|"New User"| NewMode{"Setup Mode"}
+    NewMode -->|"Easy Setup"| EasyConfig["Easy Setup (OpenRouter/Deepgram)"]
+    NewMode -->|"Advanced Setup"| CustomConfig["Custom API Keys & Models"]
+    EasyConfig --> SeedChar["Select Character & Seed Defaults"]
+    CustomConfig --> SeedChar
+    SeedChar --> Complete["Onboarding Complete"]
+
+    %% Returning User Path
+    Choice -->|"Returning User"| RetAuth{"Sync & Restore Options"}
+    RetAuth -->|"Google Sign-In"| OAuth["Google OAuth (Read Credentials from AppData)"]
+    RetAuth -->|"Manual Config"| ManualSync["Configure Adapter (S3, Local FS, etc.)"]
+
+    OAuth --> ResolveProviders{"Resolve Providers in AppData"}
+    ResolveProviders -->|"Single Provider Found"| InitClient["Initialize Provider Client"]
+    ResolveProviders -->|"Multiple Providers Found"| SelectProvider["Present List & User Selects"]
+
+    ManualSync --> InitClient
+    SelectProvider --> InitClient
+
+    InitClient --> SelSync["Selective Sync Checklist (Remote-Wins)"]
+    SelSync --> SyncDone["Trigger Sync, Restore Databases, and Reload"]
+```
+
+---
+
+### 2. Returning User Flow 1: Google OAuth Credential Resolution
+When a returning user selects **`[ Google Sign-In ]`**:
+1. The app requests access exclusively to the secure Google Drive AppData sandbox (`https://www.googleapis.com/auth/drive.appdata`).
+2. The sync engine checks the AppData folder for a credentials configuration file (`cloud-providers-manifest.json`).
+3. It parses this file to extract any saved sync provider credentials (e.g. S3, Dropbox, etc.).
+   * **Single Provider Found**: The engine automatically initializes the matched `StorageClient` client.
+   * **Multiple Providers Found**: The UI displays a selection card list showing all saved cloud provider configs (e.g. "Cloudflare R2 S3 Backend", "Dropbox Sync"), and the user selects the target provider.
+   * **No Provider Configurations Found**: The UI notifies the user and redirects them to the Manual Config flow.
+4. The user lands on the **Selective Sync Scope** checklist to choose what to sync, downloads the assets under the `remote-wins` strategy, and triggers a page refresh to apply the database.
+
+---
+
+### 3. Returning User Flow 2: Manual Config
+When a returning user selects **`[ Manual Config ]`**:
+1. The user picks their target sync adapter (S3, Local File System, etc.) and fills in the configuration inputs (Access Key ID, endpoints, directories, etc.).
+2. The engine validates the connection.
+3. At the end of configuration, the app prompts: *"Would you like to securely link your Google account to back up these cloud settings?"*
+   * If **Yes**: Signs in via Google OAuth and uploads the S3/adapter config to their Google Drive AppData folder for easy single-click restoring on future devices.
+4. The user proceeds to the **Selective Sync Scope** checklist (LWW or `remote-wins`), downloads selected assets, and reloads the window.
+
+---
+
+### 4. Selective Sync Checklist Layout
+The sync selection screen uses a hierarchical installer-style tree representation of the remote backup data:
 * **Root Nodes (Store Names):**
-  * `[ ]` Chat Sessions
-  * `[ ]` Character Cards
-  * `[ ]` Background Images
-  * `[ ]` Display Models
-* **Behavior:**
-  * Checking a root node automatically selects all underlying leaf nodes.
-  * Checking/unchecking a leaf node updates the parent root to a "partially selected" state.
-* **Core Requirements / Unchecked Limits:**
-  * Some core configuration/state keys (e.g., core settings/local index) might be mandatory/non-deselectable if sync is active, while bulky assets (models, voice files, backgrounds) are entirely optional.
-
-### 3. "Select by Character" Helper Utility & Concept Mapping
-A helper search input at the bottom of the sync selection screen simplifies targeting specific character profiles and their complex assets:
-* **Search Input:** User types `asu`
-* **Real-time Results:** Matches characters like `Asuka`, `Asukee`, `Asuhoa`.
-* **Concept Mapping (1:N Relations):** A character no longer maps to a single model file. The helper parses the character card's `visual_assets` (concepts) array. Each concept can define up to four keys:
-  * Model file (`.glb`, heavy asset)
-  * Background image (`.png`/`.jpg`, heavy asset)
-  * Voice profile configuration (light metadata)
-  * Workflow configuration (light metadata)
-* **"Add / Select All Related" Macro Action:** Clicking next to a character result executes a UI macro that checks:
-  * The character's card and associated chat sessions.
-  * Every distinct model file ID referenced in the character's concepts list.
-  * Every custom background image ID referenced in the character's concepts list.
-* **Manual Override Capability:** Because the helper merely sets checkbox states on the master Selective Sync tree, the user can still manually uncheck individual heavy assets (e.g., unchecking heavy backgrounds under the root "Background Images" node) before initiating sync.
-
-### 4. Avoiding Data Rifts (Metadata vs. Payload Separation)
-To prevent partial syncs from corrupting cloud state or causing local crashes, the engine splits sync operations by asset weight:
-* **Global Metadata (Always Synced):** Core database schemas, settings, and the character cards JSON itself (`local:airi-cards`) are always fully synchronized. A device with partial assets will still have a complete character card database containing references to all concepts and their remote asset paths.
-* **Lazy/Selective Payloads:** Only the binary payloads (the actual GLB files and background images) are downloaded selectively.
-* **Local Missing State Handling:** If a user switches a character to a concept whose assets are not stored locally:
-  * The reference in the character card JSON is **never** deleted or altered (preventing sync-back corruption).
-  * The UI displays a cloud-download icon next to the concept.
-  * The app falls back to a default asset or prompts the user: *"Heavy assets for this concept are available in your cloud storage. Download now?"*
+  * `[x] Database Core & Settings` (Always checked & required)
+  * `[ ] Chat Sessions` (Lists character names dynamically)
+  * `[ ] Custom Background Images` (Lists character image bundles sorted by size/count descending)
+  * `[ ] Display Models` (Lists flat user-uploaded VRM / Live2D / Spine / MMD files with real sizes)
+* **Concept Mapping search helper**: User can type a character name and click **Select All Related** to inspect the character card's `visual_assets` and auto-check all referenced backgrounds and display models.
 
 ---
 
 ## 🔒 The Zero-Custody Solution: Credential Delegation via Google AppData Sandbox
 
-### 1. The Monetization Counter-Movement
-The main branch implements centralized custody (forcing data into private customer servers, locking synchronization options, gating features, and introducing intermediary markup via points systems like "Flux Points").
-
-In contrast, our philosophy is **absolute local-first autonomy with zero-custody convenience**.
-
-### 2. The Trust & Liability Problem
 Creating our own centralized database (even just for storing encrypted S3 credentials) opens up backdoor accusations and introduces server-maintenance overhead. We need a system that offers the setup convenience of a single username/password login without our software ever holding custody of the keys.
 
 ### 3. The Google Drive OAuth AppData Sandbox Flow
