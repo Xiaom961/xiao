@@ -17,8 +17,8 @@ const props = withDefaults(defineProps<{
   maxFps?: number
   renderScale?: number
   interactionMode?: 'orbit' | 'tactile'
-  xOffset?: number
-  yOffset?: number
+  xOffset?: number | string
+  yOffset?: number | string
   scale?: number
   draggable?: boolean
   idleAnimations?: string[]

@@ -7,7 +7,7 @@ import type { SpineModelVariant } from '../../../utils/spine-zip-loader'
 
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, ref, toRef, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import { useSpineAnimationManager } from '../../../composables/spine'
 import { EMOTION_SpineAnimationName_value, SPINE_IDLE_TRACK, SpineAnimationName } from '../../../constants/emotions'
@@ -28,8 +28,8 @@ const props = withDefaults(defineProps<{
   idleAnimationEnabled?: boolean
   maxFps?: number
   interactionMode?: 'orbit' | 'tactile'
-  xOffset?: number
-  yOffset?: number
+  xOffset?: number | string
+  yOffset?: number | string
   scale?: number
   idleAnimations?: string[]
   mouthOpenSize?: number
@@ -271,6 +271,8 @@ async function loadModel() {
       componentState.value = 'mounted'
       return
     }
+
+    await nextTick()
 
     if (!modelSrc.value) {
       console.warn('[Spine] No model source provided')
@@ -728,16 +730,40 @@ function applyTransformFromStore() {
   const bbCenterX = data.x + data.width / 2
   const bottomPadY = h * 0.05
 
+  let parsedX = 0
+  if (props.xOffset !== undefined) {
+    if (typeof props.xOffset === 'string' && props.xOffset.endsWith('%')) {
+      parsedX = (Number.parseFloat(props.xOffset) / 100) * w
+    }
+    else {
+      parsedX = Number(props.xOffset)
+    }
+  }
+  if (Number.isNaN(parsedX))
+    parsedX = 0
+
+  let parsedY = 0
+  if (props.yOffset !== undefined) {
+    if (typeof props.yOffset === 'string' && props.yOffset.endsWith('%')) {
+      parsedY = (Number.parseFloat(props.yOffset) / 100) * h
+    }
+    else {
+      parsedY = Number(props.yOffset)
+    }
+  }
+  if (Number.isNaN(parsedY))
+    parsedY = 0
+
   if (model0ScaleFactor !== 1) {
     // In Spine WebGL, the camera is centered at (0, 0), so the visible canvas
     // coordinates range from -w/2 to w/2 (X) and -h/2 to h/2 (Y).
-    skeleton.x = -bbCenterX * effectiveScale + props.xOffset
-    skeleton.y = -h / 2 + bottomPadY - data.y * effectiveScale + props.yOffset
+    skeleton.x = -bbCenterX * effectiveScale + parsedX
+    skeleton.y = -h / 2 + bottomPadY - data.y * effectiveScale + parsedY
   }
   else {
     // Standard character model: root-relative positioning.
-    skeleton.x = props.xOffset
-    skeleton.y = props.yOffset
+    skeleton.x = parsedX
+    skeleton.y = parsedY
   }
   skeleton.scaleX = effectiveScale
   skeleton.scaleY = effectiveScale

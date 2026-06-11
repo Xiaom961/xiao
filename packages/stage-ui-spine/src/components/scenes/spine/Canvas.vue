@@ -25,6 +25,7 @@ function initCanvas(parent: HTMLDivElement) {
   canvas.style.height = '100%'
   canvas.style.objectFit = 'cover'
   canvas.style.display = 'block'
+  canvas.setAttribute('data-html2canvas-ignore', 'true')
 
   parent.appendChild(canvas)
   canvasRef.value = canvas

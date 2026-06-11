@@ -23,6 +23,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import ControlStrip from '../scenarios/layout/ControlStrip.vue'
+import RendererStage from './RendererStage.vue'
 
 import { applyVoiceProfileEffects } from '../../composables/audio/audio-effects'
 import { parseActor, useSpecialTokenQueue } from '../../composables/queues'
@@ -975,8 +976,23 @@ defineExpose({
 
 <template>
   <div :class="['relative h-full w-full']">
-    <!-- Graphics scene renderer has been moved to standalone Actor Stage Window -->
-    <div :class="['relative h-full w-full']" />
+    <!-- Render the model stage directly in the host if we are in the web browser (non-Electron) -->
+    <div v-if="!isElectron" class="absolute inset-0 z-10">
+      <RendererStage
+        v-model:state="state"
+        :paused="paused"
+        :focus-at="focusAt"
+        :x-offset="xOffset"
+        :y-offset="yOffset"
+        :scale="scale"
+        :mouth-open-size="mouthOpenSize"
+        @scale-change="emits('scaleChange', $event)"
+        @offset-change="emits('offsetChange', $event)"
+      />
+    </div>
+
+    <!-- Graphics scene renderer has been moved to standalone Actor Stage Window in Electron -->
+    <div v-else :class="['relative h-full w-full']" />
 
     <!-- Floating Modular Control Strip Overlay -->
     <div v-if="isElectron" class="pointer-events-none absolute inset-0 z-50 overflow-hidden">

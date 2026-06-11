@@ -78,6 +78,7 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   pixiAppCanvas.value.style.height = '100%'
   pixiAppCanvas.value.style.objectFit = 'cover'
   pixiAppCanvas.value.style.display = 'block'
+  pixiAppCanvas.value.setAttribute('data-html2canvas-ignore', 'true')
 
   parent.appendChild(pixiApp.value.view)
 
