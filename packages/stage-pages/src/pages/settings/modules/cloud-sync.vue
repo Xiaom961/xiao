@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSyncEngineStore } from '@proj-airi/stage-ui/stores/sync-engine'
 import { storeToRefs } from 'pinia'
@@ -10,12 +12,14 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const syncStore = useSyncEngineStore()
 const cardStore = useAiriCardStore()
+const backgroundStore = useBackgroundStore()
+const displayModelsStore = useDisplayModelsStore()
 
 // Selective Sync Modal mockup states
 const isSelectiveSyncOpen = ref(false)
@@ -56,39 +60,194 @@ const syncTree = ref<TreeNode[]>([
     id: 'backgrounds',
     label: 'Custom Background Images',
     checked: false,
-    children: [
-      { id: 'bg-char-asuka', label: 'Asuka Langley Soryu\'s Backgrounds', size: '12.5 MB (3 images)', checked: false },
-      { id: 'bg-char-kiana', label: 'Kiana Kaslana\'s Backgrounds', size: '18.2 MB (5 images)', checked: false },
-      { id: 'bg-char-shared', label: 'Shared / Global Backgrounds', size: '4.5 MB (2 images)', checked: false },
-    ],
+    children: [],
   },
   {
     id: 'models',
     label: 'Display Models (VRM / Live2D)',
     checked: false,
-    children: [
-      { id: 'model-asuka-casual', label: 'Asuka (Casual outfit) - VRM', size: '48 MB', checked: false },
-      { id: 'model-asuka-plugsuit', label: 'Asuka (Plugsuit) - VRM', size: '72 MB', checked: false },
-      { id: 'model-kiana-void', label: 'Kiana (Herrscher of the Void) - Live2D', size: '38 MB', checked: false },
-      { id: 'model-bronya-bunny', label: 'Bronya (Bunny) - Live2D', size: '55 MB', checked: false },
-    ],
+    children: [],
   },
 ])
+
+function updateSyncTree() {
+  const checkedMap: Record<string, boolean> = {}
+  const saveCheckedState = (nodes: TreeNode[]) => {
+    for (const node of nodes) {
+      checkedMap[node.id] = node.checked
+      if (node.children) {
+        saveCheckedState(node.children)
+      }
+    }
+  }
+  saveCheckedState(syncTree.value)
+
+  // 1. Core Metadata (Required)
+  const metadataNode: TreeNode = {
+    id: 'metadata',
+    label: 'Database Core & Settings',
+    checked: true,
+    required: true,
+    children: [
+      { id: 'meta-configs', label: 'App Settings & Provider Configurations', checked: true, required: true },
+      { id: 'meta-cards', label: 'Character Cards Database (JSON metadata)', checked: true, required: true },
+      { id: 'meta-shortmemory', label: 'Short-Term Memory summaries', checked: true, required: true },
+    ],
+  }
+
+  // 2. Chats (Placeholders representing dynamic profiles/chats in system)
+  // Check if we have active cards to build the list, or keep basic placeholder list
+  const chatChildren: TreeNode[] = []
+  if (cardStore.cards.size > 0) {
+    for (const [id, card] of cardStore.cards.entries()) {
+      const chatNodeId = `chat-${id}`
+      chatChildren.push({
+        id: chatNodeId,
+        label: `Chat History: ${card.name}`,
+        size: '150 KB', // Simulated size for chats
+        checked: checkedMap[chatNodeId] !== false,
+      })
+    }
+  }
+  else {
+    chatChildren.push(
+      { id: 'chat-asuka', label: 'Chat History: Asuka Langley Soryu', size: '250 KB', checked: checkedMap['chat-asuka'] !== false },
+      { id: 'chat-kiana', label: 'Chat History: Kiana Kaslana', size: '420 KB', checked: checkedMap['chat-kiana'] !== false },
+      { id: 'chat-bronya', label: 'Chat History: Bronya Zaychik', size: '1.2 MB', checked: checkedMap['chat-bronya'] !== false },
+    )
+  }
+
+  const chatsNode: TreeNode = {
+    id: 'chats',
+    label: 'Chat Sessions',
+    checked: checkedMap.chats !== false,
+    children: chatChildren,
+  }
+  chatsNode.checked = chatChildren.some(c => c.checked)
+
+  // 3. Backgrounds (Live entries)
+  const bgEntries = Array.from(backgroundStore.entries.values()).filter(e => e.type !== 'builtin')
+  const bgGroups: Record<string, { entries: typeof bgEntries, totalSize: number }> = {}
+  for (const entry of bgEntries) {
+    const charId = entry.characterId || 'shared'
+    if (!bgGroups[charId]) {
+      bgGroups[charId] = { entries: [], totalSize: 0 }
+    }
+    bgGroups[charId].entries.push(entry)
+    bgGroups[charId].totalSize += entry.blob?.size || 0
+  }
+
+  const backgroundChildren: TreeNode[] = []
+  for (const [charId, group] of Object.entries(bgGroups)) {
+    let id = ''
+    let label = ''
+    if (charId === 'shared') {
+      id = 'bg-char-shared'
+      label = 'Shared / Global Backgrounds'
+    }
+    else {
+      const card = cardStore.cards.get(charId)
+      if (card) {
+        id = `bg-char-${charId}`
+        label = `${card.name}'s Backgrounds`
+      }
+      else {
+        id = `bg-char-uncategorized-${charId}`
+        label = `Uncategorized Backgrounds (ID: ${charId})`
+      }
+    }
+
+    const count = group.entries.length
+    const sizeStr = `${formatSize(group.totalSize)} (${count} image${count === 1 ? '' : 's'})`
+    backgroundChildren.push({
+      id,
+      label,
+      size: sizeStr,
+      checked: checkedMap[id] || false,
+    })
+  }
+
+  const backgroundsNode: TreeNode = {
+    id: 'backgrounds',
+    label: 'Custom Background Images',
+    checked: checkedMap.backgrounds || false,
+    children: backgroundChildren,
+  }
+  if (backgroundChildren.length > 0) {
+    backgroundsNode.checked = backgroundChildren.some(c => c.checked)
+  }
+
+  // 4. Display Models (Live entries)
+  const modelEntries = displayModelsStore.displayModels.filter(m => m.type === 'file')
+  const modelChildren: TreeNode[] = modelEntries.map((model) => {
+    const sizeBytes = (model as any).file?.size || 0
+    return {
+      id: `model-${model.id}`,
+      label: `${model.name} (${model.format.toUpperCase()})`,
+      size: formatSize(sizeBytes),
+      checked: checkedMap[`model-${model.id}`] || false,
+    }
+  })
+
+  const modelsNode: TreeNode = {
+    id: 'models',
+    label: 'Display Models (VRM / Live2D)',
+    checked: checkedMap.models || false,
+    children: modelChildren,
+  }
+  if (modelChildren.length > 0) {
+    modelsNode.checked = modelChildren.some(c => c.checked)
+  }
+
+  syncTree.value = [
+    metadataNode,
+    chatsNode,
+    backgroundsNode,
+    modelsNode,
+  ]
+}
+
+watch(
+  [() => backgroundStore.entries, () => displayModelsStore.displayModels, () => cardStore.cards],
+  () => {
+    updateSyncTree()
+  },
+  { deep: true, immediate: true },
+)
 
 const searchMatchesMessage = computed(() => {
   const query = searchCharQuery.value.trim().toLowerCase()
   if (!query)
     return ''
-  if ('asuka'.includes(query)) {
-    return 'Found: Asuka (Chat, 3 Backgrounds, 2 Models)'
+
+  const foundEntry = Array.from(cardStore.cards.entries()).find(([_, card]) =>
+    card.name?.toLowerCase().includes(query),
+  )
+  if (!foundEntry)
+    return 'No matching characters'
+
+  const [cardId, matchedCard] = foundEntry
+  const charBgs = Array.from(backgroundStore.entries.values()).filter(e =>
+    e.type !== 'builtin' && e.characterId === cardId,
+  )
+
+  const referencedModelIds = new Set<string>()
+  const defaultModelId = matchedCard.extensions?.airi?.modules?.displayModelId
+  if (defaultModelId)
+    referencedModelIds.add(defaultModelId)
+
+  const visualAssets = matchedCard.extensions?.airi?.visual_assets || {}
+  for (const asset of Object.values(visualAssets)) {
+    if (asset.manifestation?.modelId) {
+      referencedModelIds.add(asset.manifestation.modelId)
+    }
   }
-  if ('kiana'.includes(query)) {
-    return 'Found: Kiana (Chat, 5 Backgrounds, 1 Model)'
-  }
-  if ('bronya'.includes(query)) {
-    return 'Found: Bronya (Chat, 0 Backgrounds, 1 Model)'
-  }
-  return 'No matching characters'
+
+  const matchedModels = displayModelsStore.displayModels.filter(m =>
+    m.type === 'file' && referencedModelIds.has(m.id),
+  )
+
+  return `Found: ${matchedCard.name} (${charBgs.length} Backgrounds, ${matchedModels.length} Models)`
 })
 
 function handleSelectRelated() {
@@ -96,13 +255,46 @@ function handleSelectRelated() {
   if (!query)
     return
 
-  const targetChars: string[] = []
-  if ('asuka'.includes(query))
-    targetChars.push('asuka')
-  if ('kiana'.includes(query))
-    targetChars.push('kiana')
-  if ('bronya'.includes(query))
-    targetChars.push('bronya')
+  const foundEntry = Array.from(cardStore.cards.entries()).find(([_, card]) =>
+    card.name?.toLowerCase().includes(query),
+  )
+  if (!foundEntry)
+    return
+
+  const [cardId, matchedCard] = foundEntry
+  const targetIds = new Set<string>()
+
+  // 1. Character background bundle ID
+  targetIds.add(`bg-char-${cardId}`)
+
+  // 2. Referenced display models and backgrounds
+  const defaultModelId = matchedCard.extensions?.airi?.modules?.displayModelId
+  if (defaultModelId)
+    targetIds.add(`model-${defaultModelId}`)
+  const defaultBgId = matchedCard.extensions?.airi?.modules?.activeBackgroundId
+  if (defaultBgId) {
+    const bgEntry = backgroundStore.entries.get(defaultBgId)
+    if (bgEntry) {
+      const charId = bgEntry.characterId || 'shared'
+      targetIds.add(charId === 'shared' ? 'bg-char-shared' : `bg-char-${charId}`)
+    }
+  }
+
+  const visualAssets = matchedCard.extensions?.airi?.visual_assets || {}
+  for (const asset of Object.values(visualAssets)) {
+    if (asset.manifestation?.modelId) {
+      targetIds.add(`model-${asset.manifestation.modelId}`)
+    }
+    if (asset.manifestation?.backgroundId) {
+      const bgEntry = backgroundStore.entries.get(asset.manifestation.backgroundId)
+      if (bgEntry) {
+        const charId = bgEntry.characterId || 'shared'
+        targetIds.add(charId === 'shared' ? 'bg-char-shared' : `bg-char-${charId}`)
+      }
+    }
+  }
+
+  const cardNameLower = matchedCard.name?.toLowerCase() || ''
 
   for (const group of syncTree.value) {
     if (group.children) {
@@ -110,8 +302,13 @@ function handleSelectRelated() {
         if (child.required)
           continue
 
-        const matchesAny = targetChars.some(char => child.id.includes(char) || child.label.toLowerCase().includes(char))
-        if (matchesAny) {
+        const isChatMatch = group.id === 'chats' && (
+          child.id.includes(cardId)
+          || (cardNameLower && child.id.includes(cardNameLower))
+          || child.label.toLowerCase().includes(cardNameLower)
+        )
+
+        if (targetIds.has(child.id) || isChatMatch) {
           child.checked = true
           group.checked = true
         }
