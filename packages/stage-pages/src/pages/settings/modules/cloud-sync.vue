@@ -95,7 +95,7 @@ function updateSyncTree() {
     ],
   }
 
-  // 2. Chats (Placeholders representing dynamic profiles/chats in system)
+  // 2. Chats (Representing dynamic profiles/chats in system)
   // Check if we have active cards to build the list, or keep basic placeholder list
   const chatChildren: TreeNode[] = []
   if (cardStore.cards.size > 0) {
@@ -103,7 +103,7 @@ function updateSyncTree() {
       const chatNodeId = `chat-${id}`
       chatChildren.push({
         id: chatNodeId,
-        label: `Chat History: ${card.name}`,
+        label: card.name || 'Unnamed Session',
         size: '150 KB', // Simulated size for chats
         checked: checkedMap[chatNodeId] !== false,
       })
@@ -111,9 +111,9 @@ function updateSyncTree() {
   }
   else {
     chatChildren.push(
-      { id: 'chat-asuka', label: 'Chat History: Asuka Langley Soryu', size: '250 KB', checked: checkedMap['chat-asuka'] !== false },
-      { id: 'chat-kiana', label: 'Chat History: Kiana Kaslana', size: '420 KB', checked: checkedMap['chat-kiana'] !== false },
-      { id: 'chat-bronya', label: 'Chat History: Bronya Zaychik', size: '1.2 MB', checked: checkedMap['chat-bronya'] !== false },
+      { id: 'chat-asuka', label: 'Asuka Langley Soryu', size: '250 KB', checked: checkedMap['chat-asuka'] !== false },
+      { id: 'chat-kiana', label: 'Kiana Kaslana', size: '420 KB', checked: checkedMap['chat-kiana'] !== false },
+      { id: 'chat-bronya', label: 'Bronya Zaychik', size: '1.2 MB', checked: checkedMap['chat-bronya'] !== false },
     )
   }
 
@@ -153,7 +153,7 @@ function updateSyncTree() {
       }
       else {
         id = `bg-char-uncategorized-${charId}`
-        label = `Uncategorized Backgrounds (ID: ${charId})`
+        label = `Orphaned (${charId.slice(0, 8)})`
       }
     }
 
@@ -164,8 +164,12 @@ function updateSyncTree() {
       label,
       size: sizeStr,
       checked: checkedMap[id] || false,
-    })
+      totalSize: group.totalSize, // keep size for sorting
+    } as any)
   }
+
+  // Sort backgrounds by totalSize desc
+  backgroundChildren.sort((a: any, b: any) => b.totalSize - a.totalSize)
 
   const backgroundsNode: TreeNode = {
     id: 'backgrounds',
@@ -191,7 +195,7 @@ function updateSyncTree() {
 
   const modelsNode: TreeNode = {
     id: 'models',
-    label: 'Display Models (VRM / Live2D)',
+    label: 'Display Models (VRM / Live2D / Spine / MMD)',
     checked: checkedMap.models || false,
     children: modelChildren,
   }
