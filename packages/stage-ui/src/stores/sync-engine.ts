@@ -334,6 +334,75 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     return await client.validate()
   }
 
+  async function getRemoteCatalog() {
+    const client = getActiveClient()
+    const listRes = await client.listFiles()
+    if (!listRes.success) {
+      return { success: false, error: listRes.error || 'Failed to list remote files' }
+    }
+    const remoteFiles = listRes.files || []
+
+    // Read remote cards
+    let cards: [string, any][] = []
+    try {
+      const cardsRes = await client.readFile('db/airi-cards.json')
+      if (cardsRes.success && cardsRes.content) {
+        cards = JSON.parse(cardsRes.content)
+      }
+    }
+    catch (e) {
+      console.warn('[SyncEngine] Failed to read remote airi-cards:', e)
+    }
+
+    // Read remote display models manifest
+    let models: any[] = []
+    try {
+      const modelsRes = await client.readFile('assets/models/manifest.json')
+      if (modelsRes.success && modelsRes.content) {
+        const manifest = JSON.parse(modelsRes.content)
+        models = Object.values(manifest.models || {})
+      }
+    }
+    catch (e) {
+      console.warn('[SyncEngine] Failed to read remote display models manifest:', e)
+    }
+
+    // Read remote backgrounds metadata
+    const backgrounds: any[] = []
+    const bgJsonFiles = remoteFiles.filter(f =>
+      f.relPath.replace(/\\/g, '/').startsWith('assets/backgrounds/')
+      && f.relPath.endsWith('.json'),
+    )
+    if (bgJsonFiles.length > 0) {
+      await Promise.all(bgJsonFiles.map(async (file) => {
+        try {
+          const readRes = await client.readFile(file.relPath)
+          if (readRes.success && readRes.content) {
+            const meta = JSON.parse(readRes.content)
+            const pngPath = file.relPath.replace(/\.json$/, '.png')
+            const pngFile = remoteFiles.find(rf => rf.relPath === pngPath)
+            backgrounds.push({
+              id: file.relPath.split('/').pop()?.replace(/\.json$/, '') || '',
+              ...meta,
+              sizeBytes: pngFile?.size || 0,
+            })
+          }
+        }
+        catch (e) {
+          console.warn('[SyncEngine] Failed to read remote background json:', file.relPath, e)
+        }
+      }))
+    }
+
+    return {
+      success: true,
+      remoteFiles,
+      cards,
+      models,
+      backgrounds,
+    }
+  }
+
   // Normalize keys returned by storage.getKeys to their canonical slash-separated form
   function normalizeStorageKey(fullKey: string): string | null {
     if (fullKey.startsWith('local:airi-local:')) {
@@ -1931,6 +2000,7 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
     validatePath,
     validateConnection,
     triggerSync,
+    getRemoteCatalog,
     resolveConflict,
     loadConflicts,
     initializeFromLocalBackup,

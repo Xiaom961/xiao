@@ -34,9 +34,15 @@ const {
   selectiveCheckedIds,
 } = storeToRefs(syncStore)
 
-// Selective Sync Modal mockup states
+// Selective Sync Modal states
 const isSelectiveSyncOpen = ref(false)
 const searchCharQuery = ref('')
+
+const remoteCards = ref<Map<string, any>>(new Map())
+const remoteModels = ref<any[]>([])
+const remoteBgs = ref<any[]>([])
+const remoteFilesList = ref<any[]>([])
+const isLoadingRemote = ref(false)
 
 interface TreeNode {
   id: string
@@ -63,11 +69,7 @@ const syncTree = ref<TreeNode[]>([
     id: 'chats',
     label: 'Chat Sessions',
     checked: true,
-    children: [
-      { id: 'chat-asuka', label: 'Chat History: Asuka Langley Soryu', size: '250 KB', checked: true },
-      { id: 'chat-kiana', label: 'Chat History: Kiana Kaslana', size: '420 KB', checked: true },
-      { id: 'chat-bronya', label: 'Chat History: Bronya Zaychik', size: '1.2 MB', checked: true },
-    ],
+    children: [],
   },
   {
     id: 'backgrounds',
@@ -77,11 +79,57 @@ const syncTree = ref<TreeNode[]>([
   },
   {
     id: 'models',
-    label: 'Display Models (VRM / Live2D)',
+    label: 'Display Models (VRM / Live2D / Spine / MMD)',
     checked: false,
     children: [],
   },
 ])
+
+const remoteLoadError = ref('')
+
+async function fetchRemoteCatalogData() {
+  isLoadingRemote.value = true
+  remoteLoadError.value = ''
+  try {
+    const res = await syncStore.getRemoteCatalog()
+    if (res && res.success) {
+      // 1. Remote Cards
+      const cardsMap = new Map()
+      if (Array.isArray(res.cards)) {
+        for (const [id, card] of res.cards) {
+          cardsMap.set(id, card)
+        }
+      }
+      remoteCards.value = cardsMap
+
+      // 2. Remote Models
+      remoteModels.value = res.models || []
+
+      // 3. Remote Backgrounds
+      remoteBgs.value = res.backgrounds || []
+
+      // 4. Remote Files List
+      remoteFilesList.value = res.remoteFiles || []
+    }
+    else {
+      remoteLoadError.value = res?.error || 'Failed to retrieve remote catalog.'
+    }
+  }
+  catch (e: any) {
+    console.error('Failed to fetch remote catalog:', e)
+    remoteLoadError.value = e.message || 'Network or connection error occurred.'
+  }
+  finally {
+    isLoadingRemote.value = false
+    updateSyncTree()
+  }
+}
+
+watch(isSelectiveSyncOpen, async (isOpen) => {
+  if (isOpen) {
+    await fetchRemoteCatalogData()
+  }
+})
 
 function updateSyncTree() {
   const checkedMap: Record<string, boolean> = {}
@@ -103,6 +151,15 @@ function updateSyncTree() {
     saveCheckedState(syncTree.value)
   }
 
+  // Combine local and remote cards
+  const allCards = new Map<string, any>()
+  for (const [id, card] of remoteCards.value.entries()) {
+    allCards.set(id, card)
+  }
+  for (const [id, card] of cardStore.cards.entries()) {
+    allCards.set(id, card)
+  }
+
   // 1. Core Metadata (Required)
   const metadataNode: TreeNode = {
     id: 'metadata',
@@ -117,15 +174,21 @@ function updateSyncTree() {
   }
 
   // 2. Chats (Representing dynamic profiles/chats in system)
-  // Check if we have active cards to build the list, or keep basic placeholder list
   const chatChildren: TreeNode[] = []
-  if (cardStore.cards.size > 0) {
-    for (const [id, card] of cardStore.cards.entries()) {
+  if (allCards.size > 0) {
+    for (const [id, card] of allCards.entries()) {
       const chatNodeId = `chat-${id}`
+
+      // Calculate size: check if we have remote files under db/chat/sessions/ for this ID
+      const remoteChatFile = remoteFilesList.value.find(f =>
+        f.relPath.replace(/\\/g, '/').startsWith(`db/chat/sessions/${id}.json`),
+      )
+      const sizeStr = remoteChatFile ? formatSize(remoteChatFile.size) : '150 KB'
+
       chatChildren.push({
         id: chatNodeId,
         label: card.name || 'Unnamed Session',
-        size: '150 KB', // Simulated size for chats
+        size: sizeStr,
         checked: checkedMap[chatNodeId] !== false,
       })
     }
@@ -146,16 +209,37 @@ function updateSyncTree() {
   }
   chatsNode.checked = chatChildren.some(c => c.checked)
 
-  // 3. Backgrounds (Live entries)
-  const bgEntries = Array.from(backgroundStore.entries.values()).filter(e => e.type !== 'builtin')
-  const bgGroups: Record<string, { entries: typeof bgEntries, totalSize: number }> = {}
+  // 3. Backgrounds (Local + Remote)
+  const localBgs = Array.from(backgroundStore.entries.values()).filter(e => e.type !== 'builtin')
+  const allBgsMap = new Map<string, any>()
+  for (const bg of remoteBgs.value) {
+    allBgsMap.set(bg.id, {
+      id: bg.id,
+      characterId: bg.characterId,
+      title: bg.title,
+      size: bg.sizeBytes || 0,
+      isRemote: true,
+    })
+  }
+  for (const bg of localBgs) {
+    allBgsMap.set(bg.id, {
+      id: bg.id,
+      characterId: bg.characterId,
+      title: bg.title,
+      size: bg.blob?.size || 0,
+      isLocal: true,
+    })
+  }
+
+  const bgEntries = Array.from(allBgsMap.values())
+  const bgGroups: Record<string, { entries: any[], totalSize: number }> = {}
   for (const entry of bgEntries) {
     const charId = entry.characterId || 'shared'
     if (!bgGroups[charId]) {
       bgGroups[charId] = { entries: [], totalSize: 0 }
     }
     bgGroups[charId].entries.push(entry)
-    bgGroups[charId].totalSize += entry.blob?.size || 0
+    bgGroups[charId].totalSize += entry.size
   }
 
   const backgroundChildren: TreeNode[] = []
@@ -167,7 +251,7 @@ function updateSyncTree() {
       label = 'Shared / Global Backgrounds'
     }
     else {
-      const card = cardStore.cards.get(charId)
+      const card = allCards.get(charId)
       if (card) {
         id = `bg-char-${charId}`
         label = `${card.name}'s Backgrounds`
@@ -185,11 +269,9 @@ function updateSyncTree() {
       label,
       size: sizeStr,
       checked: checkedMap[id] || false,
-      totalSize: group.totalSize, // keep size for sorting
+      totalSize: group.totalSize,
     } as any)
   }
-
-  // Sort backgrounds by totalSize desc
   backgroundChildren.sort((a: any, b: any) => b.totalSize - a.totalSize)
 
   const backgroundsNode: TreeNode = {
@@ -202,14 +284,45 @@ function updateSyncTree() {
     backgroundsNode.checked = backgroundChildren.some(c => c.checked)
   }
 
-  // 4. Display Models (Live entries)
-  const modelEntries = displayModelsStore.displayModels.filter(m => m.type === 'file')
-  const modelChildren: TreeNode[] = modelEntries.map((model) => {
-    const sizeBytes = (model as any).file?.size || 0
+  // 4. Display Models (Local + Remote)
+  const localModels = displayModelsStore.displayModels.filter(m => m.type === 'file')
+  const allModelsMap = new Map<string, any>()
+  for (const m of remoteModels.value) {
+    allModelsMap.set(m.id, {
+      id: m.id,
+      name: m.name,
+      format: m.format,
+      sizeBytes: m.sizeBytes || 0,
+      isRemote: true,
+    })
+  }
+  for (const m of localModels) {
+    const sizeBytes = (m as any).file?.size || 0
+    allModelsMap.set(m.id, {
+      id: m.id,
+      name: m.name,
+      format: m.format,
+      sizeBytes,
+      isLocal: true,
+    })
+  }
+
+  // Resolve remote model size from remoteFiles list if missing
+  for (const m of allModelsMap.values()) {
+    if (!m.sizeBytes) {
+      const binPath = `assets/models/${m.id}.bin`
+      const remoteFile = remoteFilesList.value.find(rf => rf.relPath === binPath)
+      if (remoteFile) {
+        m.sizeBytes = remoteFile.size
+      }
+    }
+  }
+
+  const modelChildren: TreeNode[] = Array.from(allModelsMap.values()).map((model) => {
     return {
       id: `model-${model.id}`,
       label: `${model.name} (${model.format.toUpperCase()})`,
-      size: formatSize(sizeBytes),
+      size: formatSize(model.sizeBytes),
       checked: checkedMap[`model-${model.id}`] || false,
     }
   })
@@ -232,6 +345,17 @@ function updateSyncTree() {
   ]
 }
 
+const allCardsMap = computed(() => {
+  const cardsMap = new Map<string, any>()
+  for (const [id, card] of remoteCards.value.entries()) {
+    cardsMap.set(id, card)
+  }
+  for (const [id, card] of cardStore.cards.entries()) {
+    cardsMap.set(id, card)
+  }
+  return cardsMap
+})
+
 watch(
   [() => backgroundStore.entries, () => displayModelsStore.displayModels, () => cardStore.cards],
   () => {
@@ -245,16 +369,17 @@ const searchMatchesMessage = computed(() => {
   if (!query)
     return ''
 
-  const foundEntry = Array.from(cardStore.cards.entries()).find(([_, card]) =>
+  const foundEntry = Array.from(allCardsMap.value.entries()).find(([_, card]) =>
     card.name?.toLowerCase().includes(query),
   )
   if (!foundEntry)
     return 'No matching characters'
 
   const [cardId, matchedCard] = foundEntry
-  const charBgs = Array.from(backgroundStore.entries.values()).filter(e =>
-    e.type !== 'builtin' && e.characterId === cardId,
-  )
+
+  const localBgs = Array.from(backgroundStore.entries.values()).filter(e => e.type !== 'builtin')
+  const allBgs = [...remoteBgs.value, ...localBgs]
+  const charBgs = allBgs.filter(e => e.characterId === cardId)
 
   const referencedModelIds = new Set<string>()
   const defaultModelId = matchedCard.extensions?.airi?.modules?.displayModelId
@@ -262,15 +387,15 @@ const searchMatchesMessage = computed(() => {
     referencedModelIds.add(defaultModelId)
 
   const visualAssets = matchedCard.extensions?.airi?.visual_assets || {}
-  for (const asset of Object.values(visualAssets)) {
+  for (const asset of Object.values(visualAssets) as any[]) {
     if (asset.manifestation?.modelId) {
       referencedModelIds.add(asset.manifestation.modelId)
     }
   }
 
-  const matchedModels = displayModelsStore.displayModels.filter(m =>
-    m.type === 'file' && referencedModelIds.has(m.id),
-  )
+  const localModels = displayModelsStore.displayModels.filter(m => m.type === 'file')
+  const allModels = [...remoteModels.value, ...localModels]
+  const matchedModels = allModels.filter(m => referencedModelIds.has(m.id))
 
   return `Found: ${matchedCard.name} (${charBgs.length} Backgrounds, ${matchedModels.length} Models)`
 })
@@ -280,7 +405,7 @@ function handleSelectRelated() {
   if (!query)
     return
 
-  const foundEntry = Array.from(cardStore.cards.entries()).find(([_, card]) =>
+  const foundEntry = Array.from(allCardsMap.value.entries()).find(([_, card]) =>
     card.name?.toLowerCase().includes(query),
   )
   if (!foundEntry)
@@ -298,7 +423,9 @@ function handleSelectRelated() {
     targetIds.add(`model-${defaultModelId}`)
   const defaultBgId = matchedCard.extensions?.airi?.modules?.activeBackgroundId
   if (defaultBgId) {
-    const bgEntry = backgroundStore.entries.get(defaultBgId)
+    const localBgs = Array.from(backgroundStore.entries.values()).filter(e => e.type !== 'builtin')
+    const allBgs = [...remoteBgs.value, ...localBgs]
+    const bgEntry = allBgs.find(e => e.id === defaultBgId)
     if (bgEntry) {
       const charId = bgEntry.characterId || 'shared'
       targetIds.add(charId === 'shared' ? 'bg-char-shared' : `bg-char-${charId}`)
@@ -306,12 +433,14 @@ function handleSelectRelated() {
   }
 
   const visualAssets = matchedCard.extensions?.airi?.visual_assets || {}
-  for (const asset of Object.values(visualAssets)) {
+  for (const asset of Object.values(visualAssets) as any[]) {
     if (asset.manifestation?.modelId) {
       targetIds.add(`model-${asset.manifestation.modelId}`)
     }
     if (asset.manifestation?.backgroundId) {
-      const bgEntry = backgroundStore.entries.get(asset.manifestation.backgroundId)
+      const localBgs = Array.from(backgroundStore.entries.values()).filter(e => e.type !== 'builtin')
+      const allBgs = [...remoteBgs.value, ...localBgs]
+      const bgEntry = allBgs.find(e => e.id === asset.manifestation.backgroundId)
       if (bgEntry) {
         const charId = bgEntry.characterId || 'shared'
         targetIds.add(charId === 'shared' ? 'bg-char-shared' : `bg-char-${charId}`)
@@ -707,9 +836,18 @@ async function handleRestoreFromBackup() {
       <DialogContent
         class="fixed left-1/2 top-1/2 z-100 max-h-[85vh] max-w-2xl w-[90vw] flex flex-col border border-white/10 rounded-2xl bg-neutral-900/95 p-6 text-white shadow-2xl backdrop-blur-xl -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow focus:outline-none"
       >
-        <DialogTitle class="mb-1 flex items-center gap-2 text-xl font-bold">
+        <DialogTitle class="mb-1 w-full flex items-center gap-2 text-xl font-bold">
           <div class="i-solar:shield-keyhole-bold-duotone text-2xl text-primary-400" />
           <span>Selective Sync Scope</span>
+          <button
+            class="ml-auto flex items-center gap-1.5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-neutral-400 font-semibold transition-colors hover:bg-white/5 hover:text-white disabled:opacity-50"
+            title="Refresh Remote Catalog"
+            :disabled="isLoadingRemote"
+            @click="fetchRemoteCatalogData"
+          >
+            <div class="i-solar:refresh-bold text-xs" :class="{ 'animate-spin': isLoadingRemote }" />
+            <span>Refresh Remote</span>
+          </button>
         </DialogTitle>
         <DialogDescription class="mb-4 text-xs text-neutral-400">
           Choose which databases and heavy media assets you want to synchronize with your storage backend. Required core metadata is always synced.
@@ -744,47 +882,72 @@ async function handleRestoreFromBackup() {
 
         <!-- Tree View Container -->
         <div class="mb-6 max-h-[40vh] flex flex-1 flex-col gap-4 overflow-y-auto border border-white/5 rounded-xl bg-neutral-950/25 p-4 scrollbar-thin">
-          <div v-for="(parent, pIdx) in syncTree" :key="parent.id" class="flex flex-col gap-2">
-            <!-- Parent Node -->
-            <div class="group flex items-center justify-between">
-              <label class="flex cursor-pointer select-none items-center gap-2.5">
-                <input
-                  type="checkbox"
-                  :checked="parent.checked"
-                  :disabled="parent.required"
-                  class="border-white/10 rounded bg-neutral-800 text-primary-500 disabled:opacity-50 focus:ring-0 focus:ring-offset-0"
-                  @change="toggleParent(pIdx)"
-                >
-                <span class="text-xs text-neutral-200 font-bold transition-colors group-hover:text-white" :class="{ 'text-primary-400': parent.required }">
-                  {{ parent.label }}
-                  <span v-if="parent.required" class="ml-1.5 rounded bg-primary-500/25 px-1.5 py-0.5 text-[9px] text-primary-400 tracking-wider uppercase">Required</span>
-                </span>
-              </label>
+          <div v-if="isLoadingRemote" class="flex flex-col items-center justify-center gap-3 py-12 text-neutral-400">
+            <div class="i-solar:refresh-bold animate-spin text-3xl text-primary-400" />
+            <div class="text-xs">
+              Fetching remote assets and catalogs...
             </div>
+          </div>
 
-            <!-- Children Nodes -->
-            <div v-if="parent.children" class="ml-1.5 flex flex-col gap-2.5 border-l border-white/5 pl-6">
-              <div v-for="(child, cIdx) in parent.children" :key="child.id" class="group flex items-center justify-between">
+          <div v-else-if="remoteLoadError" class="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center text-rose-400">
+            <div class="i-solar:danger-bold text-2xl" />
+            <div class="text-xs font-semibold">
+              Failed to fetch remote catalog
+            </div>
+            <div class="max-w-md break-words text-[10px] text-rose-500/85">
+              {{ remoteLoadError }}
+            </div>
+            <button
+              class="mt-2 rounded-lg bg-rose-500/20 px-3.5 py-1.5 text-xs text-rose-300 font-bold transition-colors hover:bg-rose-500/30"
+              @click="fetchRemoteCatalogData"
+            >
+              Retry Connection
+            </button>
+          </div>
+
+          <template v-else>
+            <div v-for="(parent, pIdx) in syncTree" :key="parent.id" class="flex flex-col gap-2">
+              <!-- Parent Node -->
+              <div class="group flex items-center justify-between">
                 <label class="flex cursor-pointer select-none items-center gap-2.5">
                   <input
                     type="checkbox"
-                    :checked="child.checked"
-                    :disabled="child.required"
+                    :checked="parent.checked"
+                    :disabled="parent.required"
                     class="border-white/10 rounded bg-neutral-800 text-primary-500 disabled:opacity-50 focus:ring-0 focus:ring-offset-0"
-                    @change="toggleChild(pIdx, cIdx)"
+                    @change="toggleParent(pIdx)"
                   >
-                  <span class="text-xs text-neutral-400 transition-colors group-hover:text-neutral-200" :class="{ 'text-neutral-300 font-medium': child.checked }">
-                    {{ child.label }}
+                  <span class="text-xs text-neutral-200 font-bold transition-colors group-hover:text-white" :class="{ 'text-primary-400': parent.required }">
+                    {{ parent.label }}
+                    <span v-if="parent.required" class="ml-1.5 rounded bg-primary-500/25 px-1.5 py-0.5 text-[9px] text-primary-400 tracking-wider uppercase">Required</span>
                   </span>
                 </label>
-                <div class="flex items-center gap-2">
-                  <span v-if="child.size" class="text-[10px] text-neutral-500 font-semibold">{{ child.size }}</span>
-                  <span v-if="child.required" class="rounded bg-primary-500/10 px-1.5 py-0.5 text-[9px] text-primary-400">ALWAYS SYNCED</span>
-                  <span v-else-if="child.size" class="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] text-amber-400">HEAVY ASSET</span>
+              </div>
+
+              <!-- Children Nodes -->
+              <div v-if="parent.children" class="ml-1.5 flex flex-col gap-2.5 border-l border-white/5 pl-6">
+                <div v-for="(child, cIdx) in parent.children" :key="child.id" class="group flex items-center justify-between">
+                  <label class="flex cursor-pointer select-none items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      :checked="child.checked"
+                      :disabled="child.required"
+                      class="border-white/10 rounded bg-neutral-800 text-primary-500 disabled:opacity-50 focus:ring-0 focus:ring-offset-0"
+                      @change="toggleChild(pIdx, cIdx)"
+                    >
+                    <span class="text-xs text-neutral-400 transition-colors group-hover:text-neutral-200" :class="{ 'text-neutral-300 font-medium': child.checked }">
+                      {{ child.label }}
+                    </span>
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <span v-if="child.size" class="text-[10px] text-neutral-500 font-semibold">{{ child.size }}</span>
+                    <span v-if="child.required" class="rounded bg-primary-500/10 px-1.5 py-0.5 text-[9px] text-primary-400">ALWAYS SYNCED</span>
+                    <span v-else-if="child.size" class="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] text-amber-400">HEAVY ASSET</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </template>
         </div>
 
         <!-- Action Footer -->
