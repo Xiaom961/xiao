@@ -57,6 +57,11 @@ onMounted(() => {
       // Enable sync
       syncStore.syncEnabled = true
 
+      // Also enable remoteSyncEnabled in general settings so useAuthStore fetches active user profile
+      const { useSettingsGeneral } = await import('../../../../stores/settings')
+      const settings = useSettingsGeneral()
+      settings.remoteSyncEnabled = true
+
       // Perform force restore from remote setup
       const success = await syncStore.forceRestoreFromRemote({ skipReload: true })
       if (success) {
