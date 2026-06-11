@@ -114,8 +114,68 @@ function handleSpawnStandalone() {}
 // Window Dragging Handle
 const context = useElectronEventaContext()
 const startDraggingWindowInvoke = useElectronEventaInvoke(electronStartDraggingWindow, context.value)
+const getBounds = useElectronEventaInvoke(electron.window.getBounds, context.value)
+const setBounds = useElectronEventaInvoke(electron.window.setBounds, context.value)
+
 function startDraggingWindow() {
   startDraggingWindowInvoke()
+}
+
+let isTouchDragging = false
+let startTouchScreenX = 0
+let startTouchScreenY = 0
+let startWindowBounds: { x: number, y: number, width: number, height: number } | null = null
+
+async function onDragStartTouch(e: TouchEvent) {
+  isTouchDragging = true
+  const touch = e.touches[0]
+  startTouchScreenX = touch.screenX
+  startTouchScreenY = touch.screenY
+
+  try {
+    const b = await getBounds()
+    if (b) {
+      startWindowBounds = b
+    }
+  }
+  catch (err) {
+    console.error('Failed to get window bounds on touch drag start:', err)
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('touchmove', onDraggingTouch, { passive: false })
+    window.addEventListener('touchend', onDragEndTouch)
+  }
+}
+
+async function onDraggingTouch(e: TouchEvent) {
+  if (!isTouchDragging || !startWindowBounds)
+    return
+
+  const touch = e.touches[0]
+  const deltaX = touch.screenX - startTouchScreenX
+  const deltaY = touch.screenY - startTouchScreenY
+
+  try {
+    await setBounds([{
+      x: Math.round(startWindowBounds.x + deltaX),
+      y: Math.round(startWindowBounds.y + deltaY),
+      width: startWindowBounds.width,
+      height: startWindowBounds.height,
+    }])
+  }
+  catch (err) {
+    console.error('Failed to set window bounds on touch drag:', err)
+  }
+}
+
+function onDragEndTouch() {
+  isTouchDragging = false
+  startWindowBounds = null
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('touchmove', onDraggingTouch)
+    window.removeEventListener('touchend', onDragEndTouch)
+  }
 }
 
 const whisperDockIsOpen = ref(false)
@@ -273,6 +333,7 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
           class="w-fit flex cursor-pointer items-center self-end justify-center border-2 border-neutral-200/60 rounded-xl border-solid bg-neutral-50/80 p-2 backdrop-blur-md transition-all transition-duration-300 transition-ease-out active:scale-95 dark:border-neutral-800/10 dark:bg-neutral-800/70 hover:transition-none"
           title="Drag to Reposition Stage"
           @mousedown="startDraggingWindow"
+          @touchstart="onDragStartTouch"
         >
           <div class="i-ph:arrows-out-cardinal size-5 text-neutral-800 dark:text-neutral-300" />
         </button>

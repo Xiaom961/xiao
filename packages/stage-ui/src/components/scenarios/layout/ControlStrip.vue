@@ -710,13 +710,18 @@ let startMouseY = 0
 let startPosX = 0
 let startPosY = 0
 let dragDistance = 0
+let isTouchEventState = false
+let startTouchScreenX = 0
+let startTouchScreenY = 0
+let startWindowBounds: { x: number, y: number, width: number, height: number } | null = null
 
-function onDragStart(e: MouseEvent | TouchEvent) {
+async function onDragStart(e: MouseEvent | TouchEvent) {
   if ('button' in e && e.button !== 0)
     return
 
   isMouseDown = true
   dragDistance = 0
+  isTouchEventState = 'touches' in e
 
   const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
   const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
@@ -726,6 +731,19 @@ function onDragStart(e: MouseEvent | TouchEvent) {
   startPosX = position.value.x
   startPosY = position.value.y
 
+  if (isTouchEventState && isElectron.value) {
+    const touch = (e as TouchEvent).touches[0]
+    startTouchScreenX = touch.screenX
+    startTouchScreenY = touch.screenY
+    try {
+      startWindowBounds = await (window as any).electron.ipcRenderer.invoke('eventa:invoke:electron:window:get-bounds')
+    }
+    catch (err) {
+      console.error('Failed to get bounds for touch drag:', err)
+      startWindowBounds = null
+    }
+  }
+
   if (typeof window !== 'undefined') {
     window.addEventListener('mousemove', onDragging)
     window.addEventListener('mouseup', onDragEnd)
@@ -734,7 +752,7 @@ function onDragStart(e: MouseEvent | TouchEvent) {
   }
 }
 
-function onDragging(e: MouseEvent | TouchEvent) {
+async function onDragging(e: MouseEvent | TouchEvent) {
   if (!isMouseDown)
     return
 
@@ -750,12 +768,32 @@ function onDragging(e: MouseEvent | TouchEvent) {
   }
 
   if (isElectron.value) {
-    if (dragDistance >= 4) {
-      cleanupDragListeners()
-      isMouseDown = false
-      isDragging.value = false
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('control-strip:drag-start'))
+    if (isTouchEventState) {
+      if (dragDistance >= 4 && startWindowBounds) {
+        const touch = (e as TouchEvent).touches[0]
+        const deltaX = touch.screenX - startTouchScreenX
+        const deltaY = touch.screenY - startTouchScreenY
+        try {
+          await (window as any).electron.ipcRenderer.invoke('eventa:invoke:electron:window:set-bounds', [{
+            x: Math.round(startWindowBounds.x + deltaX),
+            y: Math.round(startWindowBounds.y + deltaY),
+            width: startWindowBounds.width,
+            height: startWindowBounds.height,
+          }])
+        }
+        catch (err) {
+          console.error('Failed to set bounds on touch drag:', err)
+        }
+      }
+    }
+    else {
+      if (dragDistance >= 4) {
+        cleanupDragListeners()
+        isMouseDown = false
+        isDragging.value = false
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('control-strip:drag-start'))
+        }
       }
     }
   }
@@ -791,6 +829,8 @@ function onDragEnd() {
   cleanupDragListeners()
   isMouseDown = false
   isDragging.value = false
+  isTouchEventState = false
+  startWindowBounds = null
 
   if (wasDown && !wasDragging) {
     handlePerpendicularClick()
