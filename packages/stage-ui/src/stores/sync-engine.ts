@@ -1127,7 +1127,8 @@ export const useSyncEngineStore = defineStore('sync-engine', () => {
 
     try {
       const localVal = await storage.getItemRaw(localKey)
-      const localSize = localVal ? JSON.stringify(localVal).length : 0
+      const localSerialized = localVal ? (typeof localVal === 'string' ? localVal : JSON.stringify(localVal, null, 2)) : ''
+      const localSize = localSerialized ? new TextEncoder().encode(localSerialized).byteLength : 0
       const remoteSize = remoteFile.size
       await logDebug(`checkSyncConflict stats for ${localKey}: localSize=${localSize}, remoteSize=${remoteSize}`)
 
